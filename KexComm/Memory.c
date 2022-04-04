@@ -11,7 +11,7 @@ typedef enum _AUTOALLOCTYPE {
 LPVOID __AutoHeapAllocHelper(
 	IN	SIZE_T	cb)
 {
-	LPBYTE lpb = (LPBYTE) HeapAlloc(NtCurrentPeb()->ProcessHeap, 0, cb);
+	LPBYTE lpb = (LPBYTE) DefHeapAlloc(cb);
 
 	if (!lpb) {
 		return NULL;
@@ -35,6 +35,6 @@ VOID AutoFree(
 	LPBYTE lpb = ((LPBYTE) lpv) - 1;
 
 	if (lpv != NULL && *lpb == AutoHeapAlloc) {
-		HeapFree(NtCurrentPeb()->ProcessHeap, 0, lpb);
+		DefHeapFree(lpb);
 	}
 }

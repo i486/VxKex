@@ -9,18 +9,19 @@
 #include <TlHelp32.h>
 #include <stdio.h>
 #include <KexComm.h>
+#include <NtDll.h>
 #include "resource.h"
 
-#define APPNAME T("KexSetup")
-#define FRIENDLYAPPNAME T("VxKex Setup")
+#define APPNAME L"KexSetup"
+#define FRIENDLYAPPNAME L"VxKex Setup"
 
 INT g_iScene = 0;
 
-LPCTSTR g_lpszInstallerVersion = T(KEX_VERSION_STR);
+LPCWSTR g_lpszInstallerVersion = L(KEX_VERSION_STR);
 DWORD g_dwInstallerVersion;
-LPCTSTR g_lpszInstalledVersion;
+LPCWSTR g_lpszInstalledVersion;
 DWORD g_dwInstalledVersion;
-TCHAR g_szInstalledKexDir[MAX_PATH] = T("");
+WCHAR g_szInstalledKexDir[MAX_PATH] = L"";
 DWORD g_dwDiskSpaceRequired = 0;
 
 HANDLE g_hWorkThread = NULL;
@@ -30,19 +31,19 @@ HANDLE g_hWorkThread = NULL;
 //
 
 VOID ElevateIfNotElevated(
-	IN	LPCTSTR	lpszCmdLine,
+	IN	LPCWSTR	lpszCmdLine,
 	IN	INT		iCmdShow)
 {
 	// Apparently using the manifest to do this can cause bluescreens on XP if you don't
 	// do it properly. Better safe than sorry.
 	if (!IsUserAnAdmin()) {
 		if (LOBYTE(LOWORD(GetVersion())) >= 6) {
-			TCHAR szSelfPath[MAX_PATH];
+			WCHAR szSelfPath[MAX_PATH];
 			GetModuleFileName(NULL, szSelfPath, ARRAYSIZE(szSelfPath));
-			ShellExecute(NULL, T("runas"), szSelfPath, lpszCmdLine, NULL, iCmdShow);
+			ShellExecute(NULL, L"runas", szSelfPath, lpszCmdLine, NULL, iCmdShow);
 			ExitProcess(0);
 		} else {
-			CriticalErrorBoxF(T("You need to be an Administrator to run %s."), APPNAME);
+			CriticalErrorBoxF(L"You need to be an Administrator to run %s.", APPNAME);
 		}
 	}
 }
@@ -52,26 +53,26 @@ DWORD GetInstalledVersion(
 {
 	DWORD dwResult;
 
-	if (!RegReadDw(HKEY_LOCAL_MACHINE, T("SOFTWARE\\VXsoft\\VxKexLdr"), T("InstalledVersion"), &dwResult)) {
+	if (!RegReadDw(HKEY_LOCAL_MACHINE, L"SOFTWARE\\VXsoft\\VxKexLdr", L"InstalledVersion", &dwResult)) {
 		dwResult = 0;
 	}
 
 	return dwResult;
 }
 
-LPCTSTR GetInstalledVersionAsString(
+LPCWSTR GetInstalledVersionAsString(
 	VOID)
 {
-	static TCHAR szVersion[16]; // "255.255.255.255\0"
+	static WCHAR szVersion[16]; // "255.255.255.255\0"
 	DWORD dwVersion = GetInstalledVersion();
-	sprintf_s(szVersion, ARRAYSIZE(szVersion), T("%hhu.%hhu.%hhu.%hhu"),
+	swprintf_s(szVersion, ARRAYSIZE(szVersion), L"%hhu.%hhu.%hhu.%hhu",
 			  HIBYTE(HIWORD(dwVersion)), LOBYTE(HIWORD(dwVersion)),
 			  HIBYTE(LOWORD(dwVersion)), LOBYTE(LOWORD(dwVersion)));
 	return szVersion;
 }
 
 DWORD GetVersionFromString(
-	IN	LPCTSTR	lpszVersion)
+	IN	LPCWSTR	lpszVersion)
 {
 	union {
 		DWORD dwVersion;
@@ -86,14 +87,14 @@ DWORD GetVersionFromString(
 		};
 	} u;
 
-	sscanf_s(lpszVersion, T("%hhu.%hhu.%hhu.%hhu"), &u.bDigit1, &u.bDigit2, &u.bDigit3, &u.bDigit4);
+	swscanf_s(lpszVersion, L"%hhu.%hhu.%hhu.%hhu", &u.bDigit1, &u.bDigit2, &u.bDigit3, &u.bDigit4);
 	return u.dwVersion;
 }
 
-INLINE LPCTSTR GetInstallerVersionAsString(
+INLINE LPCWSTR GetInstallerVersionAsString(
 	VOID)
 {
-	return T(KEX_VERSION_STR);
+	return L(KEX_VERSION_STR);
 }
 
 INLINE DWORD GetInstallerVersion(
@@ -114,7 +115,7 @@ HGDIOBJ SetStaticCtlBk(
 			-MulDiv(8, GetDeviceCaps(hDC, LOGPIXELSY), 72),
 			0, 0, 0, FW_BOLD, 0, 0, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS,
 			CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE,
-			T("MS Shell Dlg 2"));
+			L"MS Shell Dlg 2");
 	}
 
 	switch (GetWindowLongPtr(hWndCtl, GWLP_ID)) {
@@ -132,22 +133,22 @@ HGDIOBJ SetStaticCtlBk(
 }
 
 // show the appropriate folder picker interface and return path to the directory
-LPCTSTR PickFolder(
+LPCWSTR PickFolder(
 	IN	HWND	hWndOwner,
-	IN	LPCTSTR	lpszDefaultValue OPTIONAL)
+	IN	LPCWSTR	lpszDefaultValue OPTIONAL)
 {
-	static TCHAR szDirPath[MAX_PATH];
+	static WCHAR szDirPath[MAX_PATH];
 	IFileDialog *pfd = NULL;
 	HRESULT hr = CoCreateInstance(&CLSID_FileOpenDialog, NULL, CLSCTX_INPROC_SERVER, &IID_IFileOpenDialog, &pfd);
 
 	if (!lpszDefaultValue) {
-		lpszDefaultValue = T("");
+		lpszDefaultValue = L"";
 	}
 
 	if (SUCCEEDED(hr)) {
 		// we can use the vista+ folder picker
 		IShellItem *psi = NULL;
-		LPTSTR lpszShellName;
+		LPWSTR lpszShellName;
 		DWORD dwFlags;
 
 		IFileDialog_GetOptions(pfd, &dwFlags);
@@ -158,7 +159,7 @@ LPCTSTR PickFolder(
 
 		if (psi) {
 			IShellItem_GetDisplayName(psi, SIGDN_FILESYSPATH, &lpszShellName);
-			strcpy_s(szDirPath, ARRAYSIZE(szDirPath), lpszShellName);
+			wcscpy_s(szDirPath, ARRAYSIZE(szDirPath), lpszShellName);
 			CoTaskMemFree(lpszShellName);
 			IShellItem_Release(psi);
 		} else {
@@ -172,7 +173,7 @@ LPCTSTR PickFolder(
 		bi.hwndOwner		= hWndOwner;
 		bi.pidlRoot			= NULL;
 		bi.pszDisplayName	= NULL;
-		bi.lpszTitle		= T("Select the installation directory.");
+		bi.lpszTitle		= L"Select the installation directory.";
 		bi.ulFlags			= BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE;
 		bi.lpfn				= NULL;
 		bi.lParam			= 0;
@@ -193,20 +194,20 @@ LPCTSTR PickFolder(
 		}
 	}
 
-	if (szDirPath[strlen(szDirPath) - 1] != '\\') {
-		strcat_s(szDirPath, ARRAYSIZE(szDirPath), T("\\"));
+	if (szDirPath[wcslen(szDirPath) - 1] != '\\') {
+		wcscat_s(szDirPath, ARRAYSIZE(szDirPath), L"\\");
 	}
 
-	strcat_s(szDirPath, ARRAYSIZE(szDirPath), T("VxKex"));
+	wcscat_s(szDirPath, ARRAYSIZE(szDirPath), L"VxKex");
 	return szDirPath;
 }
 
 // If lParam is NULL, this function will add up resource size into g_dwDiskSpaceRequired
-// Otherwise lParam will be treated as a LPCTSTR containing the installation directory
+// Otherwise lParam will be treated as a LPCWSTR containing the installation directory
 // and will install all the resources into that directory.
 BOOL WINAPI KexEnumResources(
 	IN	HMODULE	hModule OPTIONAL,
-	IN	LPCTSTR	lpszType,
+	IN	LPCWSTR	lpszType,
 	IN	LPWSTR	lpszName,
 	IN	LPARAM	lParam)
 {
@@ -219,18 +220,18 @@ BOOL WINAPI KexEnumResources(
 	if (!lParam) {
 		g_dwDiskSpaceRequired += dwcbData;
 	} else {
-		LPCTSTR lpszInstallDir = (LPCTSTR) lParam;
+		LPCWSTR lpszInstallDir = (LPCWSTR) lParam;
 		LPVOID lpData = (LPVOID) LoadResource(hModule, hResource);
-		TCHAR szFilePath[MAX_PATH];
+		WCHAR szFilePath[MAX_PATH];
 		HANDLE hFile;
 		BOOL bSuccess;
 		DWORD dwcbWritten;
 
-		sprintf_s(szFilePath, ARRAYSIZE(szFilePath), T("%s\\%s"), lpszInstallDir, lpszName);
+		swprintf_s(szFilePath, ARRAYSIZE(szFilePath), L"%s\\%s", lpszInstallDir, lpszName);
 		hFile = CreateFile(szFilePath, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 
 		if (!hFile) {
-			CriticalErrorBoxF(T("Failed to create or open the file %s: %s\nThe system may be in an inconsistent state. Correct the error before trying again (run the installer again and select Repair)."),
+			CriticalErrorBoxF(L"Failed to create or open the file %s: %s\nThe system may be in an inconsistent state. Correct the error before trying again (run the installer again and select Repair).",
 								szFilePath, GetLastErrorAsString());
 		}
 
@@ -238,11 +239,11 @@ BOOL WINAPI KexEnumResources(
 		
 		if (!bSuccess) {
 			// most of the time this is caused by some app that has the DLLs opened.
-			CriticalErrorBoxF(T("Failed to write the file %s: %s\nThe system may be in an inconsistent state. Restart the computer before trying again (run the installer again and select Repair)."),
+			CriticalErrorBoxF(L"Failed to write the file %s: %s\nThe system may be in an inconsistent state. Restart the computer before trying again (run the installer again and select Repair).",
 								szFilePath, GetLastErrorAsString());
 		}
 
-		CloseHandle(hFile);
+		NtClose(hFile);
 	}
 
 	return TRUE;
@@ -296,17 +297,17 @@ VOID SetScene(
 	SendDlgItemMessage(hWnd, IDPROGRESS, PBM_SETMARQUEE, TRUE, 0);
 	EnableWindow(GetDlgItem(hWnd, IDBACK), TRUE);
 	EnableWindow(GetDlgItem(hWnd, IDNEXT), TRUE);
-	SetDlgItemText(hWnd, IDNEXT, T("&Next >"));
+	SetDlgItemText(hWnd, IDNEXT, L"&Next >");
 
 	// only show what we want to show
 
 	if (iScene == 1) {
 		// operation selection
-		TCHAR szCurrentInfo[35 + 15 + MAX_PATH];
-		TCHAR szInstallInfo[25 + 15 + 1];
+		WCHAR szCurrentInfo[35 + 15 + MAX_PATH];
+		WCHAR szInstallInfo[25 + 15 + 1];
 
-		SetDlgItemText(hWnd, IDHDRTEXT, T("Select Operation"));
-		SetDlgItemText(hWnd, IDHDRSUBTEXT, T("VxKex is already installed. Choose what you want Setup to do:"));
+		SetDlgItemText(hWnd, IDHDRTEXT, L"Select Operation");
+		SetDlgItemText(hWnd, IDHDRSUBTEXT, L"VxKex is already installed. Choose what you want Setup to do:");
 		ShowWindow(GetDlgItem(hWnd, IDS1GUIDETEXT), TRUE);
 		ShowWindow(GetDlgItem(hWnd, IDS1RBUNINST), TRUE);
 		ShowWindow(GetDlgItem(hWnd, IDS1RBREPAIR), TRUE);
@@ -314,7 +315,7 @@ VOID SetScene(
 		ShowWindow(GetDlgItem(hWnd, IDS1CURRENTINFO), TRUE);
 		ShowWindow(GetDlgItem(hWnd, IDS1INSTALLINFO), TRUE);
 
-		sprintf_s(szCurrentInfo, ARRAYSIZE(szCurrentInfo), T("Version %s is currently installed in %s"),
+		swprintf_s(szCurrentInfo, ARRAYSIZE(szCurrentInfo), L"Version %s is currently installed in %s",
 				  g_lpszInstalledVersion, g_szInstalledKexDir);
 		SetDlgItemText(hWnd, IDS1CURRENTINFO, szCurrentInfo);
 
@@ -322,7 +323,7 @@ VOID SetScene(
 			EnableWindow(GetDlgItem(hWnd, IDS1RBUPDATE), TRUE);
 		}
 
-		sprintf_s(szInstallInfo, ARRAYSIZE(szInstallInfo), T("The installer version is %s"), g_lpszInstallerVersion);
+		swprintf_s(szInstallInfo, ARRAYSIZE(szInstallInfo), L"The installer version is %s", g_lpszInstallerVersion);
 		EnableWindow(GetDlgItem(hWnd, IDBACK), FALSE);
 
 		if (!(IsDlgButtonChecked(hWnd, IDS1RBUNINST) || IsDlgButtonChecked(hWnd, IDS1RBREPAIR) || IsDlgButtonChecked(hWnd, IDS1RBUPDATE))) {
@@ -332,17 +333,17 @@ VOID SetScene(
 	} else if (iScene == 2) {
 		// install -> select installation directory
 		// not shown during "repair/reinstall" or "update" because we already know kex dir in that case
-		TCHAR szInstallDir[MAX_PATH];
-		TCHAR szFormattedSize[16];
-		TCHAR szLabelStr[21 + ARRAYSIZE(szFormattedSize)] = T("Disk space required: ");
+		WCHAR szInstallDir[MAX_PATH];
+		WCHAR szFormattedSize[16];
+		WCHAR szLabelStr[21 + ARRAYSIZE(szFormattedSize)] = L"Disk space required: ";
 		GetDlgItemText(hWnd, IDS2DIRPATH, szInstallDir, ARRAYSIZE(szInstallDir));
 
 		if (!(*szInstallDir)) {
-			ExpandEnvironmentStrings(T("%PROGRAMFILES%\\VxKex"), szInstallDir, ARRAYSIZE(szInstallDir));
+			ExpandEnvironmentStrings(L"%PROGRAMFILES%\\VxKex", szInstallDir, ARRAYSIZE(szInstallDir));
 		}
 
-		SetDlgItemText(hWnd, IDHDRTEXT, T("Choose Install Location"));
-		SetDlgItemText(hWnd, IDHDRSUBTEXT, T("Choose where you want VxKex to install files."));
+		SetDlgItemText(hWnd, IDHDRTEXT, L"Choose Install Location");
+		SetDlgItemText(hWnd, IDHDRSUBTEXT, L"Choose where you want VxKex to install files.");
 		ShowWindow(GetDlgItem(hWnd, IDS2GUIDETEXT), TRUE);
 		ShowWindow(GetDlgItem(hWnd, IDS2DIRPATH), TRUE);
 		SetDlgItemText(hWnd, IDS2DIRPATH, szInstallDir);
@@ -350,91 +351,91 @@ VOID SetScene(
 		ShowWindow(GetDlgItem(hWnd, IDS2SPACEREQ), TRUE);
 		ShowWindow(GetDlgItem(hWnd, IDS2SPACEAVAIL), TRUE);
 		EnableWindow(GetDlgItem(hWnd, IDBACK), FALSE);
-		SetDlgItemText(hWnd, IDNEXT, T("&Install >"));
+		SetDlgItemText(hWnd, IDNEXT, L"&Install >");
 
 		EnumResourceNames(NULL, RT_RCDATA, KexEnumResources, 0);
 		StrFormatByteSize(g_dwDiskSpaceRequired, szFormattedSize, ARRAYSIZE(szFormattedSize));
-		strcat_s(szLabelStr, ARRAYSIZE(szLabelStr), szFormattedSize);
+		wcscat_s(szLabelStr, ARRAYSIZE(szLabelStr), szFormattedSize);
 		SetDlgItemText(hWnd, IDS2SPACEREQ, szLabelStr);
 	} else if (iScene == 3) {
-		SetDlgItemText(hWnd, IDHDRTEXT, T("Installing..."));
-		SetDlgItemText(hWnd, IDHDRSUBTEXT, T("Installation is now in progress."));
+		SetDlgItemText(hWnd, IDHDRTEXT, L"Installing...");
+		SetDlgItemText(hWnd, IDHDRSUBTEXT, L"Installation is now in progress.");
 		ShowWindow(GetDlgItem(hWnd, IDS3GUIDETEXT), TRUE);
 		ShowWindow(GetDlgItem(hWnd, IDPROGRESS), TRUE);
 		EnableWindow(GetDlgItem(hWnd, IDBACK), FALSE);
 		EnableWindow(GetDlgItem(hWnd, IDNEXT), FALSE);
 	} else if (iScene == 4) {
-		SetDlgItemText(hWnd, IDHDRTEXT, T("Installation Complete"));
-		SetDlgItemText(hWnd, IDHDRSUBTEXT, T("The components installed are now ready for use."));
+		SetDlgItemText(hWnd, IDHDRTEXT, L"Installation Complete");
+		SetDlgItemText(hWnd, IDHDRSUBTEXT, L"The components installed are now ready for use.");
 		ShowWindow(GetDlgItem(hWnd, IDS4GUIDETEXT), TRUE);
 		ShowWindow(GetDlgItem(hWnd, IDS4KEXCFG), TRUE);
 		ShowWindow(GetDlgItem(hWnd, IDS4OPENGUIDE), TRUE);
-		SetDlgItemText(hWnd, IDNEXT, T("&Finish"));
+		SetDlgItemText(hWnd, IDNEXT, L"&Finish");
 		EnableWindow(GetDlgItem(hWnd, IDBACK), FALSE);
 	} else if (iScene == 5) {
-		SetDlgItemText(hWnd, IDHDRTEXT, T("Uninstall VxKex"));
-		SetDlgItemText(hWnd, IDHDRSUBTEXT, T("Review the information below, and then click Uninstall"));
+		SetDlgItemText(hWnd, IDHDRTEXT, L"Uninstall VxKex");
+		SetDlgItemText(hWnd, IDHDRSUBTEXT, L"Review the information below, and then click Uninstall");
 		ShowWindow(GetDlgItem(hWnd, IDS5GUIDETEXT), TRUE);
 		ShowWindow(GetDlgItem(hWnd, IDS5GUIDETEXT2), TRUE);
 		ShowWindow(GetDlgItem(hWnd, IDS5UNDERSTAND), TRUE);
-		SetDlgItemText(hWnd, IDNEXT, T("&Uninstall >"));
+		SetDlgItemText(hWnd, IDNEXT, L"&Uninstall >");
 		Button_SetCheck(GetDlgItem(hWnd, IDS5UNDERSTAND), FALSE);
 		EnableWindow(GetDlgItem(hWnd, IDNEXT), FALSE);
 	} else if (iScene == 6) {
-		SetDlgItemText(hWnd, IDHDRTEXT, T("Uninstalling..."));
-		SetDlgItemText(hWnd, IDHDRSUBTEXT, T("Uninstallation is now in progress."));
+		SetDlgItemText(hWnd, IDHDRTEXT, L"Uninstalling...");
+		SetDlgItemText(hWnd, IDHDRSUBTEXT, L"Uninstallation is now in progress.");
 		ShowWindow(GetDlgItem(hWnd, IDS6GUIDETEXT), TRUE);
 		ShowWindow(GetDlgItem(hWnd, IDPROGRESS), TRUE);
 		EnableWindow(GetDlgItem(hWnd, IDBACK), FALSE);
 		EnableWindow(GetDlgItem(hWnd, IDNEXT), FALSE);
 	} else if (iScene == 7) {
-		SetDlgItemText(hWnd, IDHDRTEXT, T("Uninstallation Complete"));
-		SetDlgItemText(hWnd, IDHDRSUBTEXT, T("The components have been completely removed from your computer."));
+		SetDlgItemText(hWnd, IDHDRTEXT, L"Uninstallation Complete");
+		SetDlgItemText(hWnd, IDHDRSUBTEXT, L"The components have been completely removed from your computer.");
 		ShowWindow(GetDlgItem(hWnd, IDS7GUIDETEXT), TRUE);
-		SetDlgItemText(hWnd, IDNEXT, T("&Finish"));
+		SetDlgItemText(hWnd, IDNEXT, L"&Finish");
 		EnableWindow(GetDlgItem(hWnd, IDBACK), FALSE);
 	} else if (iScene == 8) {
-		SetDlgItemText(hWnd, IDHDRTEXT, T("Repair VxKex"));
-		SetDlgItemText(hWnd, IDHDRSUBTEXT, T("Review the information below, and then click Repair"));
+		SetDlgItemText(hWnd, IDHDRTEXT, L"Repair VxKex");
+		SetDlgItemText(hWnd, IDHDRSUBTEXT, L"Review the information below, and then click Repair");
 		ShowWindow(GetDlgItem(hWnd, IDS8GUIDETEXT), TRUE);
-		SetDlgItemText(hWnd, IDNEXT, T("&Repair"));
+		SetDlgItemText(hWnd, IDNEXT, L"&Repair");
 	} else if (iScene == 9) {
-		SetDlgItemText(hWnd, IDHDRTEXT, T("Repairing..."));
-		SetDlgItemText(hWnd, IDHDRSUBTEXT, T("Repair is now in progress."));
+		SetDlgItemText(hWnd, IDHDRTEXT, L"Repairing...");
+		SetDlgItemText(hWnd, IDHDRSUBTEXT, L"Repair is now in progress.");
 		ShowWindow(GetDlgItem(hWnd, IDS9GUIDETEXT), TRUE);
 		ShowWindow(GetDlgItem(hWnd, IDPROGRESS), TRUE);
 		EnableWindow(GetDlgItem(hWnd, IDBACK), FALSE);
 		EnableWindow(GetDlgItem(hWnd, IDNEXT), FALSE);
 	} else if (iScene == 10) {
-		SetDlgItemText(hWnd, IDHDRTEXT, T("Repair Complete"));
-		SetDlgItemText(hWnd, IDHDRSUBTEXT, T(""));
+		SetDlgItemText(hWnd, IDHDRTEXT, L"Repair Complete");
+		SetDlgItemText(hWnd, IDHDRSUBTEXT, L"");
 		ShowWindow(GetDlgItem(hWnd, IDS10GUIDETEXT), TRUE);
-		SetDlgItemText(hWnd, IDNEXT, T("&Finish"));
+		SetDlgItemText(hWnd, IDNEXT, L"&Finish");
 		EnableWindow(GetDlgItem(hWnd, IDBACK), FALSE);
 	} else if (iScene == 11) {
-		HRSRC hChangeLog = FindResource(NULL, T("ChangeLog.txt"), (LPCWSTR) RCTEXT);
+		HRSRC hChangeLog = FindResource(NULL, L"ChangeLog.txt", (LPCWSTR) RCTEXT);
 		LPWSTR lpszChangeLog = (LPWSTR) LoadResource(NULL, hChangeLog);
 		lpszChangeLog[SizeofResource(NULL, hChangeLog)] = '\0';
 		
-		SetDlgItemText(hWnd, IDHDRTEXT, T("Update VxKex"));
-		SetDlgItemText(hWnd, IDHDRSUBTEXT, T("Review the information below, and then click Update"));
+		SetDlgItemText(hWnd, IDHDRTEXT, L"Update VxKex");
+		SetDlgItemText(hWnd, IDHDRSUBTEXT, L"Review the information below, and then click Update");
 		ShowWindow(GetDlgItem(hWnd, IDS11GUIDETEXT), TRUE);
 		ShowWindow(GetDlgItem(hWnd, IDS11GUIDETEXT2), TRUE);
 		ShowWindow(GetDlgItem(hWnd, IDS11CHANGELOG), TRUE);
 		SetDlgItemText(hWnd, IDS11CHANGELOG, lpszChangeLog);
-		SetDlgItemText(hWnd, IDNEXT, T("&Update"));
+		SetDlgItemText(hWnd, IDNEXT, L"&Update");
 	} else if (iScene == 12) {
-		SetDlgItemText(hWnd, IDHDRTEXT, T("Updating..."));
-		SetDlgItemText(hWnd, IDHDRSUBTEXT, T("Update is now in progress."));
+		SetDlgItemText(hWnd, IDHDRTEXT, L"Updating...");
+		SetDlgItemText(hWnd, IDHDRSUBTEXT, L"Update is now in progress.");
 		ShowWindow(GetDlgItem(hWnd, IDS12GUIDETEXT), TRUE);
 		ShowWindow(GetDlgItem(hWnd, IDPROGRESS), TRUE);
 		EnableWindow(GetDlgItem(hWnd, IDBACK), FALSE);
 		EnableWindow(GetDlgItem(hWnd, IDNEXT), FALSE);
 	} else if (iScene == 13) {
-		SetDlgItemText(hWnd, IDHDRTEXT, T("Update Complete"));
-		SetDlgItemText(hWnd, IDHDRSUBTEXT, T(""));
+		SetDlgItemText(hWnd, IDHDRTEXT, L"Update Complete");
+		SetDlgItemText(hWnd, IDHDRSUBTEXT, L"");
 		ShowWindow(GetDlgItem(hWnd, IDS13GUIDETEXT), TRUE);
-		SetDlgItemText(hWnd, IDNEXT, T("&Finish"));
+		SetDlgItemText(hWnd, IDNEXT, L"&Finish");
 		EnableWindow(GetDlgItem(hWnd, IDBACK), FALSE);
 	}
 }
@@ -442,10 +443,10 @@ VOID SetScene(
 VOID UpdateDiskFreeSpace(
 	IN	HWND	hWnd)
 {
-	TCHAR szInstallDir[MAX_PATH];
-	TCHAR szVolumeMnt[MAX_PATH];
-	TCHAR szFormattedSize[16];
-	TCHAR szLabelStr[22 + ARRAYSIZE(szFormattedSize)] = T("Disk space available: ");
+	WCHAR szInstallDir[MAX_PATH];
+	WCHAR szVolumeMnt[MAX_PATH];
+	WCHAR szFormattedSize[16];
+	WCHAR szLabelStr[22 + ARRAYSIZE(szFormattedSize)] = L"Disk space available: ";
 	ULARGE_INTEGER uliFreeSpace;
 
 	GetDlgItemText(hWnd, IDS2DIRPATH, szInstallDir, ARRAYSIZE(szInstallDir));
@@ -453,18 +454,18 @@ VOID UpdateDiskFreeSpace(
 
 	if (GetDiskFreeSpaceEx(szVolumeMnt, &uliFreeSpace, NULL, NULL)) {
 		if (StrFormatByteSize(uliFreeSpace.QuadPart, szFormattedSize, ARRAYSIZE(szFormattedSize))) {
-			strcat_s(szLabelStr, ARRAYSIZE(szLabelStr), szFormattedSize);
+			wcscat_s(szLabelStr, ARRAYSIZE(szLabelStr), szFormattedSize);
 			SetDlgItemText(hWnd, IDS2SPACEAVAIL, szLabelStr);
 			return;
 		}
 	}
 
 	// dont display anything if the directory is invalid
-	SetDlgItemText(hWnd, IDS2SPACEAVAIL, T(""));
+	SetDlgItemText(hWnd, IDS2SPACEAVAIL, L"");
 }
 
 BOOL TerminateProcessByImageName(
-	LPCTSTR lpszImageName)
+	LPCWSTR lpszImageName)
 {
 	HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
 	PROCESSENTRY32 psEntry;
@@ -480,19 +481,19 @@ BOOL TerminateProcessByImageName(
 			HANDLE hProc = OpenProcess(PROCESS_TERMINATE, 0, psEntry.th32ProcessID);
 
 			if (!hProc) {
-				CloseHandle(hProc);
+				NtClose(hProc);
 				goto ErrorReturn;
 			}
 
-			TerminateProcess(hProc, 0);
+			NtTerminateProcess(hProc, 0);
 		}
 	} while (Process32Next(hSnapshot, &psEntry));
 
-	CloseHandle(hSnapshot);
+	NtClose(hSnapshot);
 	return TRUE;
 
 ErrorReturn:
-	CloseHandle(hSnapshot);
+	NtClose(hSnapshot);
 	return FALSE;
 }
 
@@ -501,12 +502,12 @@ ErrorReturn:
 VOID KexShlExDllInstall(
 	IN	BOOL	bInstall)
 {
-	TCHAR szKexShlEx[MAX_PATH];
+	WCHAR szKexShlEx[MAX_PATH];
 	HMODULE hKexShlEx;
 	HRESULT (STDAPICALLTYPE *lpfnKexShlExDllInstall)(BOOL, LPCWSTR);
 
-	RegReadSz(HKEY_LOCAL_MACHINE, T("SOFTWARE\\VXsoft\\VxKexLdr"), T("KexDir"), szKexShlEx, ARRAYSIZE(szKexShlEx));
-	strcat_s(szKexShlEx, ARRAYSIZE(szKexShlEx), T("\\KexShlEx.dll"));
+	RegReadSz(HKEY_LOCAL_MACHINE, L"SOFTWARE\\VXsoft\\VxKexLdr", L"KexDir", szKexShlEx, ARRAYSIZE(szKexShlEx));
+	wcscat_s(szKexShlEx, ARRAYSIZE(szKexShlEx), L"\\KexShlEx.dll");
 	hKexShlEx = LoadLibrary(szKexShlEx);
 
 	if (hKexShlEx) {
@@ -520,120 +521,121 @@ VOID KexShlExDllInstall(
 	}
 }
 
-#define ADD_UNINSTALL_VALUE(func, value, data) func(HKEY_LOCAL_MACHINE, T("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\VxKex"), value, data)
-#define ADD_DLL_REWRITE_ENTRY(original, rewrite) RegWriteSz(HKEY_LOCAL_MACHINE, T("SOFTWARE\\VXsoft\\VxKexLdr\\DllRewrite"), original, rewrite)
+#define ADD_UNINSTALL_VALUE(func, value, data) func(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\VxKex", value, data)
+#define ADD_DLL_REWRITE_ENTRY(original, rewrite) RegWriteSz(HKEY_LOCAL_MACHINE, L"SOFTWARE\\VXsoft\\VxKexLdr\\DllRewrite", original, rewrite)
 
 BOOL KexInstall(
 	IN	HWND	hWnd OPTIONAL,
-	IN	LPTSTR	lpszInstallDir)
+	IN	LPWSTR	lpszInstallDir)
 {
 	PathRemoveBackslash(lpszInstallDir);
 
 	// populate the base entries under HKLM\\SOFTWARE\\VXsoft\\VxKexLdr
-	RegWriteSz(HKEY_LOCAL_MACHINE, T("SOFTWARE\\VXsoft\\VxKexLdr"), T("KexDir"), lpszInstallDir);
-	RegWriteDw(HKEY_LOCAL_MACHINE, T("SOFTWARE\\VXsoft\\VxKexLdr"), T("InstalledVersion"), g_dwInstallerVersion);
+	RegWriteSz(HKEY_LOCAL_MACHINE, L"SOFTWARE\\VXsoft\\VxKexLdr", L"KexDir", lpszInstallDir);
+	RegWriteDw(HKEY_LOCAL_MACHINE, L"SOFTWARE\\VXsoft\\VxKexLdr", L"InstalledVersion", g_dwInstallerVersion);
 
 	// create uninstall entries so control panel can uninstall
 	{
-		TCHAR szFormattedDate[9]; // YYYYMMDD\0
-		TCHAR szUninstallString[MAX_PATH + 10];
-		TCHAR szModifyString[MAX_PATH];
-		GetDateFormat(LOCALE_INVARIANT, 0, NULL, T("yyyyMMdd"), szFormattedDate, ARRAYSIZE(szFormattedDate));
-		sprintf_s(szUninstallString, ARRAYSIZE(szUninstallString), T("%s\\KexSetup.exe /UNINSTALL"), lpszInstallDir);
-		sprintf_s(szModifyString, ARRAYSIZE(szModifyString), T("%s\\KexSetup.exe"), lpszInstallDir);
+		WCHAR szFormattedDate[9]; // YYYYMMDD\0
+		WCHAR szUninstallString[MAX_PATH + 10];
+		WCHAR szModifyString[MAX_PATH];
+		GetDateFormat(LOCALE_INVARIANT, 0, NULL, L"yyyyMMdd", szFormattedDate, ARRAYSIZE(szFormattedDate));
+		swprintf_s(szUninstallString, ARRAYSIZE(szUninstallString), L"%s\\KexSetup.exe /UNINSTALL", lpszInstallDir);
+		swprintf_s(szModifyString, ARRAYSIZE(szModifyString), L"%s\\KexSetup.exe", lpszInstallDir);
 
-		ADD_UNINSTALL_VALUE(RegWriteSz, T("DisplayName"), T("VX Kernel Extension for Windows 7"));
-		ADD_UNINSTALL_VALUE(RegWriteSz, T("DisplayVersion"), g_lpszInstallerVersion);
-		ADD_UNINSTALL_VALUE(RegWriteSz, T("Publisher"), T("VXsoft"));
-		ADD_UNINSTALL_VALUE(RegWriteSz, T("InstallDate"), szFormattedDate);
-		ADD_UNINSTALL_VALUE(RegWriteSz, T("InstallLocation"), lpszInstallDir);
-		ADD_UNINSTALL_VALUE(RegWriteSz, T("HelpLink"), T("https://github.com/vxiiduu/VxKex"));
-		ADD_UNINSTALL_VALUE(RegWriteSz, T("UninstallString"), szUninstallString);
-		ADD_UNINSTALL_VALUE(RegWriteSz, T("ModifyPath"), szModifyString);
-		ADD_UNINSTALL_VALUE(RegWriteSz, T("Size"), T(""));
-		ADD_UNINSTALL_VALUE(RegWriteDw, T("EstimatedSize"), g_dwDiskSpaceRequired / 1024);
-		ADD_UNINSTALL_VALUE(RegWriteDw, T("NoRepair"), 1);
+		ADD_UNINSTALL_VALUE(RegWriteSz, L"DisplayName", L"VxKex API Extensions for Windows 7");
+		ADD_UNINSTALL_VALUE(RegWriteSz, L"DisplayVersion", g_lpszInstallerVersion);
+		ADD_UNINSTALL_VALUE(RegWriteSz, L"Publisher", L"VXsoft");
+		ADD_UNINSTALL_VALUE(RegWriteSz, L"InstallDate", szFormattedDate);
+		ADD_UNINSTALL_VALUE(RegWriteSz, L"InstallLocation", lpszInstallDir);
+		ADD_UNINSTALL_VALUE(RegWriteSz, L"HelpLink", L"https://github.com/vxiiduu/VxKex");
+		ADD_UNINSTALL_VALUE(RegWriteSz, L"UninstallString", szUninstallString);
+		ADD_UNINSTALL_VALUE(RegWriteSz, L"ModifyPath", szModifyString);
+		ADD_UNINSTALL_VALUE(RegWriteSz, L"Size", L"");
+		ADD_UNINSTALL_VALUE(RegWriteDw, L"EstimatedSize", g_dwDiskSpaceRequired / 1024);
+		ADD_UNINSTALL_VALUE(RegWriteDw, L"NoRepair", 1);
 	}
 
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-core-com-l1-1-0.dll"),						T("ole33.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-core-com-l1-1-1.dll"),						T("ole33.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-core-rtlsupport-l1-2-0.dll"),				T("ntdll.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-core-psapi-l1-1-0.dll"),					T("kernel33.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-core-sidebyside-l1-1-0.dll"),				T("kernel33.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-core-console-l2-1-0.dll"),					T("kernel33.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-core-datetime-l1-1-1.dll"),					T("kernel33.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-core-errorhandling-l1-1-1.dll"),			T("kernel33.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-core-fibers-l1-1-1.dll"),					T("kernel33.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-core-file-l1-2-2.dll"),						T("kernel33.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-core-file-l2-1-1.dll"),						T("kernel33.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-core-heap-obsolete-l1-1-0.dll"),			T("kernel33.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-core-heap-l1-2-0.dll"),						T("kernel33.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-core-heap-l2-1-0.dll"),						T("kernel33.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-core-io-l1-1-1.dll"),						T("kernel33.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-core-kernel32-legacy-l1-1-0.dll"),			T("kernel33.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-core-kernel32-legacy-l1-1-1.dll"),			T("kernel33.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-core-largeinteger-l1-1-0.dll"),				T("kernel33.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-core-libraryloader-l1-2-0.dll"),			T("kernel33.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-core-libraryloader-l1-2-1.dll"),			T("kernel33.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-core-localization-l1-2-1.dll"),				T("kernel33.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-core-localization-obsolete-l1-2-0.dll"),	T("kernel33.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-core-processthreads-l1-1-1.dll"),			T("kernel33.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-core-processthreads-l1-1-2.dll"),			T("kernel33.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-core-processthreads-l1-1-3.dll"),			T("kernel33.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-core-processtopology-obsolete-l1-1-0.dll"),	T("kernel33.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-downlevel-kernel32-l2-1-0.dll"),			T("kernel33.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-core-synch-l1-2-0.dll"),					T("kernel33.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-core-synch-l1-2-1.dll"),					T("kernel33.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-core-sysinfo-l1-2-0.dll"),					T("kernel33.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-core-sysinfo-l1-2-1.dll"),					T("kernel33.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-core-systemtopology-l1-1-0.dll"),			T("kernel33.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-core-threadpool-legacy-l1-1-0.dll"),		T("kernel33.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-core-threadpool-l1-2-0.dll"),				T("kernel33.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-core-versionansi-l1-1-0.dll"),				T("version.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-core-version-l1-1-0.dll"),					T("version.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-core-winrt-error-l1-1-0.dll"),				T("combase.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-core-winrt-error-l1-1-1.dll"),				T("combase.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-core-winrt-l1-1-0.dll"),					T("combase.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-core-winrt-string-l1-1-0.dll"),				T("combase.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-core-registry-l1-1-0.dll"),					T("advapi32.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-core-registry-l2-1-0.dll"),					T("advapi32.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-eventing-classicprovider-l1-1-0.dll"),		T("advapi32.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-eventing-provider-l1-1-0.dll"),				T("advapi32.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-security-systemfunctions-l1-1-0.dll"),		T("advapi32.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-mm-time-l1-1-0.dll"),						T("winmm.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-ntuser-sysparams-l1-1-0.dll"),				T("user33.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-shell-namespace-l1-1-0.dll"),				T("shell32.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-shcore-obsolete-l1-1-0.dll"),				T("shcore.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-shcore-scaling-l1-1-0.dll"),				T("shcore.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("api-ms-win-shcore-scaling-l1-1-1.dll"),				T("shcore.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("ext-ms-win-uiacore-l1-1-0.dll"),						T("uiautomationcore.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("ext-ms-win-uiacore-l1-1-1.dll"),						T("uiautomationcore.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("dxgi.dll"),											T("dxg1.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("kernel32.dll"),										T("kernel33.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("ole32.dll"),											T("ole33.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("user32.dll"),											T("user33.dll"));
-	ADD_DLL_REWRITE_ENTRY(T("xinput1_4.dll"),										T("xinput1_3.dll"));
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-com-l1-1-0.dll",						L"ole33.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-com-l1-1-1.dll",						L"ole33.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-rtlsupport-l1-2-0.dll",				L"ntdll.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-psapi-l1-1-0.dll",					L"kernel33.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-sidebyside-l1-1-0.dll",				L"kernel33.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-console-l2-1-0.dll",					L"kernel33.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-datetime-l1-1-1.dll",					L"kernel33.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-errorhandling-l1-1-1.dll",			L"kernel33.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-fibers-l1-1-1.dll",					L"kernel33.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-file-l1-2-2.dll",						L"kernel33.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-file-l2-1-1.dll",						L"kernel33.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-heap-obsolete-l1-1-0.dll",			L"kernel33.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-heap-l1-2-0.dll",						L"kernel33.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-heap-l2-1-0.dll",						L"kernel33.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-io-l1-1-1.dll",						L"kernel33.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-kernel32-legacy-l1-1-0.dll",			L"kernel33.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-kernel32-legacy-l1-1-1.dll",			L"kernel33.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-largeinteger-l1-1-0.dll",				L"kernel33.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-libraryloader-l1-2-0.dll",			L"kernel33.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-libraryloader-l1-2-1.dll",			L"kernel33.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-localization-l1-2-1.dll",				L"kernel33.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-localization-obsolete-l1-2-0.dll",	L"kernel33.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-path-l1-1-0.dll",						L"kernel33.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-processthreads-l1-1-1.dll",			L"kernel33.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-processthreads-l1-1-2.dll",			L"kernel33.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-processthreads-l1-1-3.dll",			L"kernel33.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-processtopology-obsolete-l1-1-0.dll",	L"kernel33.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-downlevel-kernel32-l2-1-0.dll",			L"kernel33.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-synch-l1-2-0.dll",					L"kernel33.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-synch-l1-2-1.dll",					L"kernel33.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-sysinfo-l1-2-0.dll",					L"kernel33.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-sysinfo-l1-2-1.dll",					L"kernel33.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-systemtopology-l1-1-0.dll",			L"kernel33.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-threadpool-legacy-l1-1-0.dll",		L"kernel33.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-threadpool-l1-2-0.dll",				L"kernel33.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-versionansi-l1-1-0.dll",				L"version.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-version-l1-1-0.dll",					L"version.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-winrt-error-l1-1-0.dll",				L"combase.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-winrt-error-l1-1-1.dll",				L"combase.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-winrt-l1-1-0.dll",					L"combase.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-winrt-string-l1-1-0.dll",				L"combase.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-registry-l1-1-0.dll",					L"advapi32.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-registry-l2-1-0.dll",					L"advapi32.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-eventing-classicprovider-l1-1-0.dll",		L"advapi32.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-eventing-provider-l1-1-0.dll",				L"advapi32.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-security-systemfunctions-l1-1-0.dll",		L"advapi32.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-mm-time-l1-1-0.dll",						L"winmm.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-ntuser-sysparams-l1-1-0.dll",				L"user33.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-shell-namespace-l1-1-0.dll",				L"shell32.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-shcore-obsolete-l1-1-0.dll",				L"shcore.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-shcore-scaling-l1-1-0.dll",				L"shcore.dll");
+	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-shcore-scaling-l1-1-1.dll",				L"shcore.dll");
+	ADD_DLL_REWRITE_ENTRY(L"ext-ms-win-uiacore-l1-1-0.dll",						L"uiautomationcore.dll");
+	ADD_DLL_REWRITE_ENTRY(L"ext-ms-win-uiacore-l1-1-1.dll",						L"uiautomationcore.dll");
+	ADD_DLL_REWRITE_ENTRY(L"dxgi.dll",											L"dxg1.dll");
+	ADD_DLL_REWRITE_ENTRY(L"kernel32.dll",										L"kernel33.dll");
+	ADD_DLL_REWRITE_ENTRY(L"ole32.dll",											L"ole33.dll");
+	ADD_DLL_REWRITE_ENTRY(L"user32.dll",											L"user33.dll");
+	ADD_DLL_REWRITE_ENTRY(L"xinput1_4.dll",										L"xinput1_3.dll");
 
 	// create KexDir and subdirectories if it doesn't exist, and copy self-EXE to it
 	{
-		TCHAR szSelfPath[MAX_PATH];
-		TCHAR szDestPath[MAX_PATH];
-		TCHAR szKex3264[MAX_PATH];
+		WCHAR szSelfPath[MAX_PATH];
+		WCHAR szDestPath[MAX_PATH];
+		WCHAR szKex3264[MAX_PATH];
 		CreateDirectory(lpszInstallDir, NULL);
-		sprintf_s(szKex3264, ARRAYSIZE(szKex3264), T("%s\\Kex32"), lpszInstallDir);
+		swprintf_s(szKex3264, ARRAYSIZE(szKex3264), L"%s\\Kex32", lpszInstallDir);
 		CreateDirectory(szKex3264, NULL);
 #ifdef _WIN64
-		sprintf_s(szKex3264, ARRAYSIZE(szKex3264), T("%s\\Kex64"), lpszInstallDir);
+		swprintf_s(szKex3264, ARRAYSIZE(szKex3264), L"%s\\Kex64", lpszInstallDir);
 		CreateDirectory(szKex3264, NULL);
 #endif
 		GetModuleFileName(NULL, szSelfPath, ARRAYSIZE(szSelfPath));
-		sprintf_s(szDestPath, ARRAYSIZE(szDestPath), T("%s\\KEXSETUP.EXE"), lpszInstallDir);
+		swprintf_s(szDestPath, ARRAYSIZE(szDestPath), L"%s\\KEXSETUP.EXE", lpszInstallDir);
 		CopyFile(szSelfPath, szDestPath, FALSE);
 	}
 
 	// copy VxKex files into KexDir
 	if (EnumResourceNames(NULL, RT_RCDATA, KexEnumResources, (LPARAM) lpszInstallDir) == FALSE) {
-		CriticalErrorBoxF(T("Unable to enumerate resources: %s\nThe system may be in an inconsistent state. Correct the error before trying again (run the installer again and select Repair)."),
+		CriticalErrorBoxF(L"Unable to enumerate resources: %s\nThe system may be in an inconsistent state. Correct the error before trying again (run the installer again and select Repair).",
 						  GetLastErrorAsString());
 	}
 
@@ -647,45 +649,44 @@ BOOL KexUninstall(
 	IN	HWND	hWnd OPTIONAL,
 	IN	BOOL	bPreserveSettings)
 {
-	TCHAR szKexDir[MAX_PATH];
+	WCHAR szKexDir[MAX_PATH];
 
-	if (!RegReadSz(HKEY_LOCAL_MACHINE, T("SOFTWARE\\VXsoft\\VxKexLdr"), T("KexDir"), szKexDir, ARRAYSIZE(szKexDir))) {
+	if (!RegReadSz(HKEY_LOCAL_MACHINE, L"SOFTWARE\\VXsoft\\VxKexLdr", L"KexDir", szKexDir, ARRAYSIZE(szKexDir))) {
 		return FALSE;
 	}
 
 	// delete user settings if we need to do that
 	if (!bPreserveSettings) {
 		HKEY hKeyIfeo;
-		TCHAR szRegKey[MAX_PATH];
-		TCHAR szVxKexLdr[MAX_PATH];
+		WCHAR szRegKey[MAX_PATH];
+		WCHAR szVxKexLdr[MAX_PATH];
 		DWORD dwIdx = 0;
 
-		sprintf_s(szVxKexLdr, ARRAYSIZE(szVxKexLdr), T("%s\\VxKexLdr.exe"), szKexDir);
-		RegOpenKey(HKEY_LOCAL_MACHINE, T("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options"), &hKeyIfeo);
+		swprintf_s(szVxKexLdr, ARRAYSIZE(szVxKexLdr), L"%s\\VxKexLdr.exe", szKexDir);
+		RegOpenKey(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options", &hKeyIfeo);
 		
 		while (RegEnumKey(hKeyIfeo, dwIdx++, szRegKey, ARRAYSIZE(szRegKey)) == ERROR_SUCCESS) {
-			TCHAR szRegData[MAX_PATH];
+			WCHAR szRegData[MAX_PATH];
 			
-			if (RegReadSz(hKeyIfeo, szRegKey, T("Debugger"), szRegData, ARRAYSIZE(szRegData))) {
-				if (!stricmp(szRegData, szVxKexLdr)) {
-					RegDelValue(hKeyIfeo, szRegKey, T("Debugger"));
+			if (RegReadSz(hKeyIfeo, szRegKey, L"Debugger", szRegData, ARRAYSIZE(szRegData))) {
+				if (!wcsicmp(szRegData, szVxKexLdr)) {
+					RegDelValue(hKeyIfeo, szRegKey, L"Debugger");
 				}
 			}
 		}
 
 		RegCloseKey(hKeyIfeo);
-		SHDeleteKey(HKEY_CURRENT_USER, T("SOFTWARE\\VXsoft\\VxKexLdr"));
+		SHDeleteKey(HKEY_CURRENT_USER, L"SOFTWARE\\VXsoft\\VxKexLdr");
 	}
 
 	// unregister property sheet shell extension and extended context menu entry
 	KexShlExDllInstall(FALSE);
 
-	// delete KexDir\Kex32 and KexDir\Kex64 recursively as well as:
-	// KexDir\VxKexLdr.exe
-	// KexDir\KexCfg.exe
-	// KexDir\KexShlEx.dll
+	// delete KexDir\Kex32 and KexDir\Kex64 recursively as well as KexComponents files
+	// DO NOT remove any entries from here even if they "don't exist", because they might
+	// be present from previous installs of previous versions.
 	{
-		TCHAR szDeletionTarget[MAX_PATH + 1];
+		WCHAR szDeletionTarget[MAX_PATH + 1];
 		SHFILEOPSTRUCTW shop;
 
 		shop.hwnd		= hWnd;
@@ -694,39 +695,55 @@ BOOL KexUninstall(
 		shop.pTo		= NULL;
 		shop.fFlags		= FOF_SILENT | FOF_NOCONFIRMATION | FOF_NOERRORUI | FOF_NOCONFIRMMKDIR;
 
-		sprintf_s(szDeletionTarget, ARRAYSIZE(szDeletionTarget), T("%s\\Kex32"), szKexDir);
-		szDeletionTarget[strlen(szDeletionTarget) + 1] = T('\0');
+		swprintf_s(szDeletionTarget, ARRAYSIZE(szDeletionTarget), L"%s\\Kex32", szKexDir);
+		szDeletionTarget[wcslen(szDeletionTarget) + 1] = L'\0';
 		SHFileOperation(&shop);
 #ifdef _WIN64
-		sprintf_s(szDeletionTarget, ARRAYSIZE(szDeletionTarget), T("%s\\Kex64"), szKexDir);
-		szDeletionTarget[strlen(szDeletionTarget) + 1] = T('\0');
+		swprintf_s(szDeletionTarget, ARRAYSIZE(szDeletionTarget), L"%s\\Kex64", szKexDir);
+		szDeletionTarget[wcslen(szDeletionTarget) + 1] = L'\0';
 		SHFileOperation(&shop);
 #endif
 
-		TerminateProcessByImageName(T("VxKexLdr.exe"));
-		sprintf_s(szDeletionTarget, ARRAYSIZE(szDeletionTarget), T("%s\\VxKexLdr.exe"), szKexDir);
+		// delete PDB files as well
+		swprintf_s(szDeletionTarget, ARRAYSIZE(szDeletionTarget), L"%s\\VxKexLdr.pdb", szKexDir);
 		DeleteFile(szDeletionTarget);
-		TerminateProcessByImageName(T("KexCfg.exe"));
-		sprintf_s(szDeletionTarget, ARRAYSIZE(szDeletionTarget), T("%s\\KexCfg.exe"), szKexDir);
+		swprintf_s(szDeletionTarget, ARRAYSIZE(szDeletionTarget), L"%s\\KexCfg.pdb", szKexDir);
 		DeleteFile(szDeletionTarget);
-		sprintf_s(szDeletionTarget, ARRAYSIZE(szDeletionTarget), T("%s\\KexShlEx.dll"), szKexDir);
+		swprintf_s(szDeletionTarget, ARRAYSIZE(szDeletionTarget), L"%s\\CmdSus32.pdb", szKexDir);
+		DeleteFile(szDeletionTarget);
+		swprintf_s(szDeletionTarget, ARRAYSIZE(szDeletionTarget), L"%s\\CmdSus64.pdb", szKexDir);
+		DeleteFile(szDeletionTarget);
+		swprintf_s(szDeletionTarget, ARRAYSIZE(szDeletionTarget), L"%s\\KexShlEx.pdb", szKexDir);
+		DeleteFile(szDeletionTarget);
+		swprintf_s(szDeletionTarget, ARRAYSIZE(szDeletionTarget), L"%s\\KexSetup.pdb", szKexDir);
+		DeleteFile(szDeletionTarget);
+
+		TerminateProcessByImageName(L"VxKexLdr.exe");
+		swprintf_s(szDeletionTarget, ARRAYSIZE(szDeletionTarget), L"%s\\VxKexLdr.exe", szKexDir);
+		DeleteFile(szDeletionTarget);
+		TerminateProcessByImageName(L"KexCfg.exe");
+		swprintf_s(szDeletionTarget, ARRAYSIZE(szDeletionTarget), L"%s\\KexCfg.exe", szKexDir);
+		DeleteFile(szDeletionTarget);
+		swprintf_s(szDeletionTarget, ARRAYSIZE(szDeletionTarget), L"%s\\CmdSus32.dll", szKexDir);
+		DeleteFile(szDeletionTarget);
+		swprintf_s(szDeletionTarget, ARRAYSIZE(szDeletionTarget), L"%s\\CmdSus64.dll", szKexDir);
+		DeleteFile(szDeletionTarget);
+		swprintf_s(szDeletionTarget, ARRAYSIZE(szDeletionTarget), L"%s\\CmdSus32.exe", szKexDir);
+		DeleteFile(szDeletionTarget);
+		swprintf_s(szDeletionTarget, ARRAYSIZE(szDeletionTarget), L"%s\\KexShlEx.dll", szKexDir);
 		
 		if (!DeleteFile(szDeletionTarget)) {
 			// It may be loaded by explorer.exe so we have to kill and restart Explorer.
-			STARTUPINFO startupInfo;
-			PROCESS_INFORMATION procInfo;
-			TCHAR szExplorer[MAX_PATH];
 
-			if (TerminateProcessByImageName(T("explorer.exe"))) {
+			if (TerminateProcessByImageName(L"explorer.exe")) {
+				// Explorer appears to restart itself when killed in this way. Starting it again
+				// will open an unwanted Explorer window.
 				Sleep(500);
 				DeleteFile(szDeletionTarget); // and hopefully it works now
-				GetStartupInfo(&startupInfo);
-				ExpandEnvironmentStrings(T("%WINDIR\\explorer.exe"), szExplorer, ARRAYSIZE(szExplorer));
-				CreateProcess(szExplorer, NULL, NULL, NULL, FALSE, 0, NULL, NULL, &startupInfo, &procInfo);
 			}
 		}
 		
-		sprintf_s(szDeletionTarget, ARRAYSIZE(szDeletionTarget), T("%s\\KexSetup.exe"), szKexDir);
+		swprintf_s(szDeletionTarget, ARRAYSIZE(szDeletionTarget), L"%s\\KexSetup.exe", szKexDir);
 
 		if (!DeleteFile(szDeletionTarget)) {
 			// If we are executing from the KexSetup.exe in KexDir, we can't just delete that.
@@ -740,65 +757,83 @@ BOOL KexUninstall(
 		}
 	}
 
-	// Do this as the penultimate step since the absence of this key will prevent future uninstall attempts.
-	SHDeleteKey(HKEY_LOCAL_MACHINE, T("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\VxKex"));
-	SHDeleteKey(HKEY_LOCAL_MACHINE, T("SOFTWARE\\VXsoft\\VxKexLdr"));
-
-	// TODO: Remove uninstallation entry.
+	// Do this as the penultimate step since the absence of these keys will prevent future uninstall attempts.
+	SHDeleteKey(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\VxKex");
+	SHDeleteKey(HKEY_LOCAL_MACHINE, L"SOFTWARE\\VXsoft\\VxKexLdr");
 
 	return TRUE;
 }
 
 DWORD WINAPI InstallThreadProc(
-	IN	LPVOID	lpParam)
+	IN	LPVOID	lpParam OPTIONAL)
 {
-	TCHAR szInstallDir[MAX_PATH];
+	WCHAR szInstallDir[MAX_PATH];
 	HWND hWnd = (HWND) lpParam;
 	GetDlgItemText(hWnd, IDS2DIRPATH, szInstallDir, ARRAYSIZE(szInstallDir));
 	KexInstall(hWnd, szInstallDir);
 	SetScene(hWnd, 4);
-	CloseHandle(g_hWorkThread);
+	NtClose(g_hWorkThread);
 	g_hWorkThread = NULL;
-	ExitThread(0);
+
+	if (lpParam) {
+		ExitThread(0);
+	} else {
+		ExitProcess(0);
+	}
 }
 
 DWORD WINAPI UninstallThreadProc(
-	IN	LPVOID	lpParam)
+	IN	LPVOID	lpParam OPTIONAL)
 {
 	HWND hWnd = (HWND) lpParam;
 	KexUninstall(hWnd, FALSE);
 	SetScene(hWnd, 7);
-	CloseHandle(g_hWorkThread);
+	NtClose(g_hWorkThread);
 	g_hWorkThread = NULL;
-	ExitThread(0);
+
+	if (lpParam) {
+		ExitThread(0);
+	} else {
+		ExitProcess(0);
+	}
 }
 
 DWORD WINAPI RepairThreadProc(
-	IN	LPVOID	lpParam)
+	IN	LPVOID	lpParam OPTIONAL)
 {
-	TCHAR szKexDir[MAX_PATH];
+	WCHAR szKexDir[MAX_PATH];
 	HWND hWnd = (HWND) lpParam;
-	RegReadSz(HKEY_LOCAL_MACHINE, T("SOFTWARE\\VXsoft\\VxKexLdr"), T("KexDir"), szKexDir, ARRAYSIZE(szKexDir));
+	RegReadSz(HKEY_LOCAL_MACHINE, L"SOFTWARE\\VXsoft\\VxKexLdr", L"KexDir", szKexDir, ARRAYSIZE(szKexDir));
 	KexUninstall(hWnd, TRUE);
 	KexInstall(hWnd, szKexDir);
 	SetScene(hWnd, 10);
-	CloseHandle(g_hWorkThread);
+	NtClose(g_hWorkThread);
 	g_hWorkThread = NULL;
-	ExitThread(0);
+
+	if (lpParam) {
+		ExitThread(0);
+	} else {
+		ExitProcess(0);
+	}
 }
 
 DWORD WINAPI UpdateThreadProc(
-	IN	LPVOID	lpParam)
+	IN	LPVOID	lpParam OPTIONAL)
 {
-	TCHAR szKexDir[MAX_PATH];
+	WCHAR szKexDir[MAX_PATH];
 	HWND hWnd = (HWND) lpParam;
-	RegReadSz(HKEY_LOCAL_MACHINE, T("SOFTWARE\\VXsoft\\VxKexLdr"), T("KexDir"), szKexDir, ARRAYSIZE(szKexDir));
+	RegReadSz(HKEY_LOCAL_MACHINE, L"SOFTWARE\\VXsoft\\VxKexLdr", L"KexDir", szKexDir, ARRAYSIZE(szKexDir));
 	KexUninstall(hWnd, TRUE);
 	KexInstall(hWnd, szKexDir);
 	SetScene(hWnd, 13);
-	CloseHandle(g_hWorkThread);
+	NtClose(g_hWorkThread);
 	g_hWorkThread = NULL;
-	ExitThread(0);
+
+	if (lpParam) {
+		ExitThread(0);
+	} else {
+		ExitProcess(0);
+	}
 }
 
 //
@@ -828,8 +863,8 @@ INT_PTR CALLBACK DlgProc(
 			if (g_hWorkThread) {
 				SuspendThread(g_hWorkThread);
 				
-				if (MessageBox(hWnd, T("Installation or removal is in progress. If you cancel now, the software may be left in an inconsistent state. Cancel anyway?"),
-							   T("Confirm Cancellation"), MB_ICONEXCLAMATION | MB_YESNO | MB_DEFBUTTON2 | MB_APPLMODAL) == IDYES) {
+				if (MessageBox(hWnd, L"Installation or removal is in progress. If you cancel now, the software may be left in an inconsistent state. Cancel anyway?",
+							   L"Confirm Cancellation", MB_ICONEXCLAMATION | MB_YESNO | MB_DEFBUTTON2 | MB_APPLMODAL) == IDYES) {
 					EndDialog(hWnd, 0);
 				} else {
 					ResumeThread(g_hWorkThread);
@@ -837,7 +872,7 @@ INT_PTR CALLBACK DlgProc(
 			} else if (g_iScene == 1 || g_iScene == 4 || g_iScene == 5 || g_iScene == 7) {
 				EndDialog(hWnd, 0);
 			} else {
-				if (MessageBox(hWnd, T("Are you sure you want to cancel Setup?"), T("Confirm Cancellation"),
+				if (MessageBox(hWnd, L"Are you sure you want to cancel Setup?", L"Confirm Cancellation",
 							   MB_ICONINFORMATION | MB_YESNO | MB_DEFBUTTON2 | MB_APPLMODAL) == IDYES) {
 					EndDialog(hWnd, 0);
 				}
@@ -887,7 +922,7 @@ INT_PTR CALLBACK DlgProc(
 				break;
 			}
 		} else if (LOWORD(wParam) == IDS2BROWSE) {
-			TCHAR szOldValue[MAX_PATH];
+			WCHAR szOldValue[MAX_PATH];
 			GetDlgItemText(hWnd, IDS2DIRPATH, szOldValue, ARRAYSIZE(szOldValue));
 			SetDlgItemText(hWnd, IDS2DIRPATH, PickFolder(hWnd, szOldValue));
 		} else if (LOWORD(wParam) == IDS2DIRPATH) {
@@ -913,7 +948,7 @@ BOOL IsWow64(
 {
 	BOOL bWow64;
 	BOOL (WINAPI *lpfnIsWow64Process) (HANDLE, LPBOOL) =
-		(BOOL (WINAPI *) (HANDLE, LPBOOL)) GetProcAddress(GetModuleHandle(T("kernel32.dll")), "IsWow64Process");
+		(BOOL (WINAPI *) (HANDLE, LPBOOL)) GetProcAddress(GetModuleHandle(L"kernel32.dll"), "IsWow64Process");
 
 	if (lpfnIsWow64Process) {
 		if (lpfnIsWow64Process(GetCurrentProcess(), &bWow64) && bWow64) {
@@ -924,17 +959,18 @@ BOOL IsWow64(
 	return FALSE;
 }
 
-INT APIENTRY tWinMain(
+INT APIENTRY wWinMain(
 	IN	HINSTANCE	hInstance,
 	IN	HINSTANCE	hPrevInstance,
-	IN	LPTSTR		lpszCmdLine,
+	IN	LPWSTR		lpszCmdLine,
 	IN	INT			iCmdShow)
 {
+	BOOL bSilentUnattend = FALSE;
 	SetFriendlyAppName(FRIENDLYAPPNAME);
 
 #if !defined(_WIN64) && !defined(_DEBUG)
 	if (IsWow64()) {
-		CriticalErrorBoxF(T("Installing the 32-bit version of the software on a 64-bit system is not recommended. Please use the 64-bit installer instead."));
+		CriticalErrorBoxF(L"Installing the 32-bit version of the software on a 64-bit system is not recommended. Please use the 64-bit installer instead.");
 	}
 #endif
 
@@ -944,10 +980,24 @@ INT APIENTRY tWinMain(
 	g_dwInstallerVersion = GetInstallerVersion();
 	g_lpszInstalledVersion = GetInstalledVersionAsString();
 	g_lpszInstallerVersion = GetInstallerVersionAsString();
-	RegReadSz(HKEY_LOCAL_MACHINE, T("SOFTWARE\\VXsoft\\VxKexLdr"), T("KexDir"), g_szInstalledKexDir, ARRAYSIZE(g_szInstalledKexDir));
+	RegReadSz(HKEY_LOCAL_MACHINE, L"SOFTWARE\\VXsoft\\VxKexLdr", L"KexDir", g_szInstalledKexDir, ARRAYSIZE(g_szInstalledKexDir));
 
-	if (StrStrI(lpszCmdLine, T("/UNINSTALL"))) {
-		g_iScene = 5;
+	// SILENTUNATTEND means don't display all the fancy GUI boxes and shit.
+	// Error boxes may still be displayed.
+	bSilentUnattend = !!StrStrI(lpszCmdLine, L"/SILENTUNATTEND");
+
+	if (StrStrI(lpszCmdLine, L"/UNINSTALL")) {
+		if (bSilentUnattend) {
+			UninstallThreadProc(NULL);
+		} else {
+			g_iScene = 5;
+		}
+	} else if (StrStrI(lpszCmdLine, L"/REPAIR")) {
+		if (bSilentUnattend) {
+			RepairThreadProc(NULL);
+		} else {
+			g_iScene = 8;
+		}
 	}
 
 	InitCommonControls();

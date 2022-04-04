@@ -1,0 +1,56 @@
+LIBRARY kernelba33
+EXPORTS
+	;; datetime.c
+	GetSystemTimePreciseAsFileTime
+
+	;; error.c
+	GetOverlappedResultEx
+
+	;; fileopcr.c
+	CreateFile2
+
+	;; gmem.c
+	PrefetchVirtualMemory
+
+	;; module.c
+	LoadLibraryA			= P_LoadLibraryA
+	LoadLibraryW			= P_LoadLibraryW
+	LoadLibraryExA			= P_LoadLibraryExA
+	LoadLibraryExW			= P_LoadLibraryExW
+	GetModuleHandleA		= P_GetModuleHandleA
+	GetModuleHandleW		= P_GetModuleHandleW
+	GetModuleHandleExA		= P_GetModuleHandleExA
+	GetModuleHandleExW		= P_GetModuleHandleExW
+
+	;; pathcch.c
+	PathCchAddBackslash
+	PathCchAddBackslashEx
+	PathCchAddExtension
+	PathCchFindExtension
+	PathCchIsRoot
+	PathCchRemoveBackslash
+	PathCchRemoveBackslashEx
+	PathCchRemoveExtension
+	PathCchRemoveFileSpec
+	PathCchRenameExtension
+	PathCchSkipRoot
+	PathCchStripPrefix
+	PathCchStripToRoot
+	PathIsUNCEx
+
+	;; process.c
+	GetProcessInformation
+	GetProcessMitigationPolicy
+	SetProcessInformation
+	SetProcessMitigationPolicy
+
+	;; synch.c
+	WaitOnAddress
+	WakeByAddressAll
+	WakeByAddressSingle
+
+	;; thread.c
+	GetThreadDescription
+	GetThreadInformation
+	SetThreadDescription
+	SetThreadInformation

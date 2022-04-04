@@ -1,22 +1,23 @@
 #include <Windows.h>
 #include <KexComm.h>
+#include <NtDll.h>
 
 #ifdef _DEBUG
-TCHAR szFriendlyAppName[64] = T("YOU MUST CALL SetFriendlyAppName()");
+WCHAR szFriendlyAppName[64] = L"YOU MUST CALL SetFriendlyAppName()";
 #else
-TCHAR szFriendlyAppName[64];
+WCHAR szFriendlyAppName[64];
 #endif
 
 VOID SetFriendlyAppName(
-	IN	LPCTSTR	lpszFriendlyName)
+	IN	LPCWSTR	lpszFriendlyName)
 {
-	strcpy_s(szFriendlyAppName, ARRAYSIZE(szFriendlyAppName), lpszFriendlyName);
+	wcscpy_s(szFriendlyAppName, ARRAYSIZE(szFriendlyAppName), lpszFriendlyName);
 }
 
-LPCTSTR GetLastErrorAsString(
+LPCWSTR GetLastErrorAsString(
 	VOID)
 {
-	static TCHAR lpszErrMsg[256];
+	static WCHAR lpszErrMsg[256];
 	FormatMessage(
 		FORMAT_MESSAGE_FROM_SYSTEM,
 		NULL, GetLastError(), 0, lpszErrMsg,
@@ -26,18 +27,17 @@ LPCTSTR GetLastErrorAsString(
 
 VOID MessageBoxV(
 	IN	UINT	uType	OPTIONAL,
-	IN	LPCTSTR	lpszFmt,
+	IN	LPCWSTR	lpszFmt,
 	IN	va_list	ap)
 {
-	SIZE_T cch = vscprintf(lpszFmt, ap) + 1;
-	LPTSTR lpText = (LPTSTR) malloc(cch * sizeof(TCHAR));
-	vsprintf_s(lpText, cch, lpszFmt, ap);
+	SIZE_T cch = vscwprintf(lpszFmt, ap) + 1;
+	LPWSTR lpText = (LPWSTR) StackAlloc(cch * sizeof(WCHAR));
+	vswprintf_s(lpText, cch, lpszFmt, ap);
 	MessageBox(NULL, lpText, szFriendlyAppName, uType);
-	free(lpText);
 }
 
 VOID ErrorBoxF(
-	IN	LPCTSTR	lpszFmt, ...)
+	IN	LPCWSTR	lpszFmt, ...)
 {
 	va_list ap;
 	va_start(ap, lpszFmt);
@@ -46,7 +46,7 @@ VOID ErrorBoxF(
 }
 
 NORETURN VOID CriticalErrorBoxF(
-	IN	LPCTSTR	lpszFmt, ...)
+	IN	LPCWSTR	lpszFmt, ...)
 {
 	va_list ap;
 	va_start(ap, lpszFmt);
@@ -56,7 +56,7 @@ NORETURN VOID CriticalErrorBoxF(
 }
 
 VOID InfoBoxF(
-	IN	LPCTSTR	lpszFmt, ...)
+	IN	LPCWSTR	lpszFmt, ...)
 {
 	va_list ap;
 	va_start(ap, lpszFmt);

@@ -1,14 +1,30 @@
 #include <Windows.h>
 #include <KexComm.h>
+#include <NtDll.h>
+
+VOID PrintF(
+	IN	LPCWSTR lpszFmt, ...)
+{
+	va_list ap;
+	SIZE_T cch;
+	LPWSTR lpszText;
+	DWORD dwDiscard;
+	va_start(ap, lpszFmt);
+	cch = vscwprintf(lpszFmt, ap) + 1;
+	lpszText = (LPWSTR) StackAlloc(cch * sizeof(WCHAR));
+	vswprintf_s(lpszText, cch, lpszFmt, ap);
+	WriteConsole(NtCurrentPeb()->ProcessParameters->StandardOutput, lpszText, (DWORD) cch - 1, &dwDiscard, NULL);
+	va_end(ap);
+}
 
 HANDLE CreateTempFile(
-	IN	LPCTSTR					lpszPrefix,
+	IN	LPCWSTR					lpszPrefix,
 	IN	DWORD					dwDesiredAccess,
 	IN	DWORD					dwShareMode,
 	IN	LPSECURITY_ATTRIBUTES	lpSecurityAttributes)
 {
-	static TCHAR szTempDir[MAX_PATH];
-	static TCHAR szTempPath[MAX_PATH];
+	static WCHAR szTempDir[MAX_PATH];
+	static WCHAR szTempPath[MAX_PATH];
 	GetTempPath(ARRAYSIZE(szTempDir), szTempDir);
 	GetTempFileName(szTempDir, lpszPrefix, 0, szTempPath);
 	return CreateFile(szTempPath, dwDesiredAccess, dwShareMode, lpSecurityAttributes,
@@ -31,7 +47,7 @@ BOOL WriteFileWF(
 	
 	cch = _vscwprintf(lpszFmt, ap) + 1;
 	cb = cch * sizeof(WCHAR);
-	lpszBuf = (LPTSTR) AutoAlloc(cb);
+	lpszBuf = (LPWSTR) AutoAlloc(cb);
 	vswprintf_s(lpszBuf, cch, lpszFmt, ap);
 	bResult = WriteFile(hFile, lpszBuf, cb - sizeof(WCHAR), &dwDiscard, NULL);
 	dwError = GetLastError();

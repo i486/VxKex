@@ -18,10 +18,7 @@
     <ClCompile Include="kernel33.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="forwarders.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="woa.c">
+    <ClCompile Include="exports.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -29,8 +26,10 @@
     <ClInclude Include="k32defs.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="k32func.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="kernel33.def">
+      <Filter>Source Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

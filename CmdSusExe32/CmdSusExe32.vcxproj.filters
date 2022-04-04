@@ -15,13 +15,8 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="combase.c">
+    <ClCompile Include="CmdSusExe.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="combase.def">
-      <Filter>Source Files</Filter>
-    </None>
   </ItemGroup>
 </Project>

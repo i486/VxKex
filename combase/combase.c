@@ -1,8 +1,6 @@
 #include <Windows.h>
-#define DLLAPI __declspec(dllexport)
+#include <KexDll.h>
 DECLARE_HANDLE(HSTRING);
-
-typedef LPVOID *PPVOID;
 
 typedef enum RO_INIT_TYPE {
 	RO_INIT_SINGLETHREADED,

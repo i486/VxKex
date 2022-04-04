@@ -3,21 +3,26 @@
 
 BOOL RegReadSz(
 	IN	HKEY	hKey,
-	IN	LPCTSTR	lpszSubKey,
-	IN	LPCTSTR	lpszValueName OPTIONAL,
-	OUT	LPTSTR	lpszData,
+	IN	LPCWSTR	lpszSubKey OPTIONAL,
+	IN	LPCWSTR	lpszValueName OPTIONAL,
+	OUT	LPWSTR	lpszData,
 	IN	DWORD	dwcchData)
 {
-	HKEY hSubKey;
+	HKEY hSubKey = hKey;
 	LSTATUS lStatus;
 
-	dwcchData *= sizeof(TCHAR);
-	lStatus = RegOpenKeyEx(hKey, lpszSubKey, 0, KEY_QUERY_VALUE, &hSubKey);
-	if (lStatus != ERROR_SUCCESS) goto Error;
-	lStatus = RegQueryValueEx(hSubKey, lpszValueName, 0, NULL, (LPBYTE) lpszData, &dwcchData);
-	if (lStatus != ERROR_SUCCESS) goto Error;
+	dwcchData *= sizeof(WCHAR);
 
-	RegCloseKey(hSubKey);
+	if (lpszSubKey) {
+		CHECKED((lStatus = RegOpenKeyEx(hKey, lpszSubKey, 0, KEY_QUERY_VALUE, &hSubKey)) == ERROR_SUCCESS);
+	}
+
+	CHECKED((lStatus = RegQueryValueEx(hSubKey, lpszValueName, 0, NULL, (LPBYTE) lpszData, &dwcchData)) == ERROR_SUCCESS);
+
+	if (lpszSubKey) {
+		RegCloseKey(hSubKey);
+	}
+
 	return TRUE;
 
 Error:
@@ -27,19 +32,23 @@ Error:
 
 BOOL RegWriteSz(
 	IN	HKEY	hKey,
-	IN	LPCTSTR	lpszSubKey,
-	IN	LPCTSTR	lpszValueName OPTIONAL,
-	IN	LPCTSTR	lpszData OPTIONAL)
+	IN	LPCWSTR	lpszSubKey OPTIONAL,
+	IN	LPCWSTR	lpszValueName OPTIONAL,
+	IN	LPCWSTR	lpszData OPTIONAL)
 {
-	HKEY hSubKey;
+	HKEY hSubKey = hKey;
 	LSTATUS lStatus;
 
-	lStatus = RegCreateKeyEx(hKey, lpszSubKey, 0, NULL, 0, KEY_SET_VALUE, NULL, &hSubKey, NULL);
-	if (lStatus != ERROR_SUCCESS) goto Error;
-	lStatus = RegSetValueEx(hSubKey, lpszValueName, 0, REG_SZ, (LPBYTE) lpszData, (DWORD) (strlen(lpszData) + 1) * sizeof(TCHAR));
-	if (lStatus != ERROR_SUCCESS) goto Error;
+	if (lpszSubKey) {
+		CHECKED((lStatus = RegCreateKeyEx(hKey, lpszSubKey, 0, NULL, 0, KEY_SET_VALUE, NULL, &hSubKey, NULL)) == ERROR_SUCCESS);
+	}
 
-	RegCloseKey(hSubKey);
+	CHECKED((lStatus = RegSetValueEx(hSubKey, lpszValueName, 0, REG_SZ, (LPBYTE) lpszData, (DWORD) (wcslen(lpszData) + 1) * sizeof(WCHAR))) == ERROR_SUCCESS);
+
+	if (lpszSubKey) {
+		RegCloseKey(hSubKey);
+	}
+
 	return TRUE;
 
 Error:
@@ -49,20 +58,24 @@ Error:
 
 BOOL RegReadDw(
 	IN	HKEY	hKey,
-	IN	LPCTSTR	lpszSubKey,
-	IN	LPCTSTR	lpszValueName OPTIONAL,
+	IN	LPCWSTR	lpszSubKey OPTIONAL,
+	IN	LPCWSTR	lpszValueName OPTIONAL,
 	OUT	LPDWORD	lpdwData)
 {
-	HKEY hSubKey;
+	HKEY hSubKey = hKey;
 	LSTATUS lStatus;
 	DWORD dwcbData = sizeof(DWORD);
 
-	lStatus = RegOpenKeyEx(hKey, lpszSubKey, 0, KEY_QUERY_VALUE, &hSubKey);
-	if (lStatus != ERROR_SUCCESS) goto Error;
-	lStatus = RegQueryValueEx(hSubKey, lpszValueName, 0, NULL, (LPBYTE) lpdwData, &dwcbData);
-	if (lStatus != ERROR_SUCCESS) goto Error;
+	if (lpszSubKey) {
+		CHECKED((lStatus = RegOpenKeyEx(hKey, lpszSubKey, 0, KEY_QUERY_VALUE, &hSubKey)) == ERROR_SUCCESS);
+	}
 
-	RegCloseKey(hSubKey);
+	CHECKED((lStatus = RegQueryValueEx(hSubKey, lpszValueName, 0, NULL, (LPBYTE) lpdwData, &dwcbData)) == ERROR_SUCCESS);
+
+	if (lpszSubKey) {
+		RegCloseKey(hSubKey);
+	}
+
 	return TRUE;
 
 Error:
@@ -72,19 +85,23 @@ Error:
 
 BOOL RegWriteDw(
 	IN	HKEY	hKey,
-	IN	LPCTSTR	lpszSubKey,
-	IN	LPCTSTR	lpszValueName OPTIONAL,
+	IN	LPCWSTR	lpszSubKey OPTIONAL,
+	IN	LPCWSTR	lpszValueName OPTIONAL,
 	IN	DWORD	dwData)
 {
-	HKEY hSubKey;
+	HKEY hSubKey = hKey;
 	LSTATUS lStatus;
 
-	lStatus = RegCreateKeyEx(hKey, lpszSubKey, 0, NULL, 0, KEY_SET_VALUE, NULL, &hSubKey, NULL);
-	if (lStatus != ERROR_SUCCESS) goto Error;
-	lStatus = RegSetValueEx(hSubKey, lpszValueName, 0, REG_DWORD, (LPBYTE) &dwData, sizeof(DWORD));
-	if (lStatus != ERROR_SUCCESS) goto Error;
+	if (lpszSubKey) {
+		lStatus = RegCreateKeyEx(hKey, lpszSubKey, 0, NULL, 0, KEY_SET_VALUE, NULL, &hSubKey, NULL);
+	}
 
-	RegCloseKey(hSubKey);
+	CHECKED((lStatus = RegSetValueEx(hSubKey, lpszValueName, 0, REG_DWORD, (LPBYTE) &dwData, sizeof(DWORD))) == ERROR_SUCCESS);
+
+	if (lpszSubKey) {
+		RegCloseKey(hSubKey);
+	}
+
 	return TRUE;
 
 Error:
@@ -94,18 +111,22 @@ Error:
 
 BOOL RegDelValue(
 	IN	HKEY	hKey,
-	IN	LPCTSTR	lpszSubKey,
-	IN	LPCTSTR	lpszValueName)
+	IN	LPCWSTR	lpszSubKey OPTIONAL,
+	IN	LPCWSTR	lpszValueName)
 {
-	HKEY hSubKey;
+	HKEY hSubKey = hKey;
 	LSTATUS lStatus;
 
-	lStatus = RegOpenKeyEx(hKey, lpszSubKey, 0, KEY_SET_VALUE, &hSubKey);
-	if (lStatus != ERROR_SUCCESS) goto Error;
-	lStatus = RegDeleteValue(hSubKey, lpszValueName);
-	if (lStatus != ERROR_SUCCESS) goto Error;
+	if (lpszSubKey) {
+		CHECKED((lStatus = RegOpenKeyEx(hKey, lpszSubKey, 0, KEY_SET_VALUE, &hSubKey)) == ERROR_SUCCESS);
+	}
 
-	RegCloseKey(hSubKey);
+	CHECKED((lStatus = RegDeleteValue(hSubKey, lpszValueName)) == ERROR_SUCCESS);
+
+	if (lpszSubKey) {
+		RegCloseKey(hSubKey);
+	}
+
 	return TRUE;
 
 Error:

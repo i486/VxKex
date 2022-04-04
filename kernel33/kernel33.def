@@ -1,0 +1,28 @@
+LIBRARY kernel33
+EXPORTS
+	GetCurrentPackageId
+
+	;; forwarders
+	CreateFile2													= kernelba33.CreateFile2
+	GetModuleHandleA											= kernelba33.GetModuleHandleA
+	GetModuleHandleExA											= kernelba33.GetModuleHandleExA
+	GetModuleHandleExW											= kernelba33.GetModuleHandleExW
+	GetModuleHandleW											= kernelba33.GetModuleHandleW
+	GetOverlappedResultEx										= kernelba33.GetOverlappedResultEx
+	GetProcessInformation										= kernelba33.GetProcessInformation
+	GetProcessMitigationPolicy									= kernelba33.GetProcessMitigationPolicy
+	GetSystemTimePreciseAsFileTime								= kernelba33.GetSystemTimePreciseAsFileTime
+	GetThreadDescription										= kernelba33.GetThreadDescription
+	GetThreadInformation										= kernelba33.GetThreadInformation
+	LoadLibraryA												= kernelba33.LoadLibraryA
+	LoadLibraryExA												= kernelba33.LoadLibraryExA
+	LoadLibraryExW												= kernelba33.LoadLibraryExW
+	LoadLibraryW												= kernelba33.LoadLibraryW
+	PrefetchVirtualMemory										= kernelba33.PrefetchVirtualMemory
+	SetProcessInformation										= kernelba33.SetProcessInformation
+	SetProcessMitigationPolicy									= kernelba33.SetProcessMitigationPolicy
+	SetThreadDescription										= kernelba33.SetThreadDescription
+	SetThreadInformation										= kernelba33.SetThreadInformation
+	WaitOnAddress												= kernelba33.WaitOnAddress
+	WakeByAddressSingle											= kernelba33.WakeByAddressSingle
+	WakeByAddressAll											= kernelba33.WakeByAddressAll

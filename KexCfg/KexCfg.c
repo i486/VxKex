@@ -4,8 +4,8 @@
 #include <winternl.h>
 #include <KexComm.h>
 
-#define APPNAME T("KexCfg")
-#define FRIENDLYAPPNAME T("VxKex Configuration Tool")
+#define APPNAME L"KexCfg"
+#define FRIENDLYAPPNAME L"VxKex Configuration Tool"
 
 #pragma comment(linker,"\"/manifestdependency:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 
@@ -44,20 +44,20 @@
 // The behavior of the program when arguments are provided but do not match
 // the template is undefined.
 
-INT APIENTRY tWinMain(
+INT APIENTRY wWinMain(
 	IN	HINSTANCE	hInstance,
 	IN	HINSTANCE	hPrevInstance,
-	IN	LPTSTR		lpszCmdLine,
+	IN	LPWSTR		lpszCmdLine,
 	IN	INT			iCmdShow)
 {
 	BOOL bRetryAsAdminOnFailure = FALSE;
-	TCHAR szExePath[MAX_PATH];
-	TCHAR szExeName[MAX_PATH];
-	TCHAR szWinVerSpoof[6];
-	TCHAR szVxKexLdrPath[MAX_PATH];
-	TCHAR szIfeoKey[74 + MAX_PATH] = T("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options\\");
-	TCHAR szKexIfeoKey[54 + MAX_PATH] = T("SOFTWARE\\VXsoft\\VxKexLdr\\Image File Execution Options\\");
-	TCHAR szSystem32Path[MAX_PATH];
+	WCHAR szExePath[MAX_PATH];
+	WCHAR szExeName[MAX_PATH];
+	WCHAR szWinVerSpoof[6];
+	WCHAR szVxKexLdrPath[MAX_PATH];
+	WCHAR szIfeoKey[74 + MAX_PATH] = L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options\\";
+	WCHAR szKexIfeoKey[54 + MAX_PATH] = L"SOFTWARE\\VXsoft\\VxKexLdr\\Image File Execution Options\\";
+	WCHAR szSystem32Path[MAX_PATH];
 
 	DWORD dwEnableVxKex;
 	DWORD dwAlwaysShowDebug;
@@ -67,54 +67,54 @@ INT APIENTRY tWinMain(
 
 	SetFriendlyAppName(FRIENDLYAPPNAME);
 
-	if (lpszCmdLine == NULL || strlen(lpszCmdLine) == 0) {
+	if (lpszCmdLine == NULL || wcslen(lpszCmdLine) == 0) {
 		// TODO: display something more useful to the user here e.g. a global configuration panel
-		InfoBoxF(T("This application is not intended to be used standalone. To configure VxKex for a program, ")
-				 T("open the Properties dialog for that program and select the 'VxKex' tab."));
+		InfoBoxF(L"This application is not intended to be used standalone. To configure VxKex for a program, "
+				 L"open the Properties dialog for that program and select the 'VxKex' tab.");
 		ExitProcess(0);
 	}
 
-	sscanf_s(lpszCmdLine, T("\"%259[^\"]\" %I32u \"%5[^\"]\" %I32u %I32u %I32u %I32u"),
-			 szExePath,				ARRAYSIZE(szExePath),
-			 &dwEnableVxKex,
-			 szWinVerSpoof,			ARRAYSIZE(szWinVerSpoof),
-			 &dwAlwaysShowDebug,
-			 &dwDisableForChild,
-			 &dwDisableAppSpecific,
-			 &dwWaitForChild);
+	swscanf_s(lpszCmdLine, L"\"%259[^\"]\" %I32u \"%5[^\"]\" %I32u %I32u %I32u %I32u",
+			  szExePath,				ARRAYSIZE(szExePath),
+			  &dwEnableVxKex,
+			  szWinVerSpoof,			ARRAYSIZE(szWinVerSpoof),
+			  &dwAlwaysShowDebug,
+			  &dwDisableForChild,
+			  &dwDisableAppSpecific,
+			  &dwWaitForChild);
 
 	if (PathIsRelative(szExePath)) {
-		CriticalErrorBoxF(T("An absolute path must be passed to ") APPNAME T("."));
+		CriticalErrorBoxF(L"An absolute path must be passed to " APPNAME L".");
 	}
 
-	strcpy_s(szExeName, ARRAYSIZE(szExeName), szExePath);
+	wcscpy_s(szExeName, ARRAYSIZE(szExeName), szExePath);
 	PathStripPath(szExeName);
-	strcat_s(szIfeoKey, ARRAYSIZE(szIfeoKey), szExeName);
-	strcat_s(szKexIfeoKey, ARRAYSIZE(szKexIfeoKey), szExePath);
-	CHECKED(RegReadSz(HKEY_LOCAL_MACHINE, T("SOFTWARE\\VXsoft\\VxKexLdr"), T("KexDir"), szVxKexLdrPath, ARRAYSIZE(szVxKexLdrPath)));
-	strcat_s(szVxKexLdrPath, ARRAYSIZE(szVxKexLdrPath), T("\\VxKexLdr.exe"));
+	wcscat_s(szIfeoKey, ARRAYSIZE(szIfeoKey), szExeName);
+	wcscat_s(szKexIfeoKey, ARRAYSIZE(szKexIfeoKey), szExePath);
+	CHECKED(RegReadSz(HKEY_LOCAL_MACHINE, L"SOFTWARE\\VXsoft\\VxKexLdr", L"KexDir", szVxKexLdrPath, ARRAYSIZE(szVxKexLdrPath)));
+	wcscat_s(szVxKexLdrPath, ARRAYSIZE(szVxKexLdrPath), L"\\VxKexLdr.exe");
 	CHECKED(GetSystemDirectory(szSystem32Path, ARRAYSIZE(szSystem32Path)));
 	bRetryAsAdminOnFailure = TRUE;
 
 	if (dwEnableVxKex) {
-		TCHAR szOldDebugger[MAX_PATH];
+		WCHAR szOldDebugger[MAX_PATH];
 		
-		if (RegReadSz(HKEY_LOCAL_MACHINE, szIfeoKey, T("Debugger"), szOldDebugger, ARRAYSIZE(szOldDebugger)) &&
+		if (RegReadSz(HKEY_LOCAL_MACHINE, szIfeoKey, L"Debugger", szOldDebugger, ARRAYSIZE(szOldDebugger)) &&
 			!lstrcmpi(szOldDebugger, szVxKexLdrPath)) {
 			// no need to try to write anything to the "Debugger" value
 			// do nothing
 		} else {
-			CHECKED(RegWriteSz(HKEY_LOCAL_MACHINE, szIfeoKey, T("Debugger"), szVxKexLdrPath));
+			CHECKED(RegWriteSz(HKEY_LOCAL_MACHINE, szIfeoKey, L"Debugger", szVxKexLdrPath));
 		}
 	} else {
-		TCHAR szOldDebugger[MAX_PATH];
+		WCHAR szOldDebugger[MAX_PATH];
 
 		// Likewise, only delete the registry key if it exists. This helps avoid spurious
 		// UAC prompts.
-		if (RegReadSz(HKEY_LOCAL_MACHINE, szIfeoKey, T("Debugger"), szOldDebugger, ARRAYSIZE(szOldDebugger))) {
+		if (RegReadSz(HKEY_LOCAL_MACHINE, szIfeoKey, L"Debugger", szOldDebugger, ARRAYSIZE(szOldDebugger))) {
 			// Don't use CHECKED() here because it will sometimes fail wrongly
 			// when the "Debugger" value doesn't exist (e.g. if you disable VxKex twice in a row)
-			if (!RegDelValue(HKEY_LOCAL_MACHINE, szIfeoKey, T("Debugger")) && GetLastError() != ERROR_FILE_NOT_FOUND) {
+			if (!RegDelValue(HKEY_LOCAL_MACHINE, szIfeoKey, L"Debugger") && GetLastError() != ERROR_FILE_NOT_FOUND) {
 				goto Error;
 			}
 		}
@@ -131,31 +131,31 @@ INT APIENTRY tWinMain(
 	//               EnableVxKex(REG_DWORD) = 1
 	//               WinVerSpoof(REG_SZ) = "WIN10"
 	// etc., since backslashes aren't permitted in registry key names.
-	CHECKED(RegWriteDw(HKEY_CURRENT_USER, szKexIfeoKey, T("EnableVxKex"), dwEnableVxKex));
-	CHECKED(RegWriteSz(HKEY_CURRENT_USER, szKexIfeoKey, T("WinVerSpoof"), szWinVerSpoof));
-	CHECKED(RegWriteDw(HKEY_CURRENT_USER, szKexIfeoKey, T("AlwaysShowDebug"), dwAlwaysShowDebug));
-	CHECKED(RegWriteDw(HKEY_CURRENT_USER, szKexIfeoKey, T("DisableForChild"), dwDisableForChild));
-	CHECKED(RegWriteDw(HKEY_CURRENT_USER, szKexIfeoKey, T("DisableAppSpecific"), dwDisableAppSpecific));
-	CHECKED(RegWriteDw(HKEY_CURRENT_USER, szKexIfeoKey, T("WaitForChild"), dwWaitForChild));
+	CHECKED(RegWriteDw(HKEY_CURRENT_USER, szKexIfeoKey, L"EnableVxKex", dwEnableVxKex));
+	CHECKED(RegWriteSz(HKEY_CURRENT_USER, szKexIfeoKey, L"WinVerSpoof", szWinVerSpoof));
+	CHECKED(RegWriteDw(HKEY_CURRENT_USER, szKexIfeoKey, L"AlwaysShowDebug", dwAlwaysShowDebug));
+	CHECKED(RegWriteDw(HKEY_CURRENT_USER, szKexIfeoKey, L"DisableForChild", dwDisableForChild));
+	CHECKED(RegWriteDw(HKEY_CURRENT_USER, szKexIfeoKey, L"DisableAppSpecific", dwDisableAppSpecific));
+	CHECKED(RegWriteDw(HKEY_CURRENT_USER, szKexIfeoKey, L"WaitForChild", dwWaitForChild));
 
 	ExitProcess(0);
 
 Error:
 	if (bRetryAsAdminOnFailure && GetLastError() == ERROR_ACCESS_DENIED) {
-		TCHAR szSelfPath[MAX_PATH];
+		WCHAR szSelfPath[MAX_PATH];
 
 		// if a CHECKED statement fails in here, we will effectively "fall through" to the
 		// other code path which just gives up.
 		bRetryAsAdminOnFailure = FALSE;
 		
 		CHECKED(GetModuleFileName(NULL, szSelfPath, ARRAYSIZE(szSelfPath)));
-		CHECKED(ShellExecute(NULL, T("runas"), szSelfPath, lpszCmdLine, NULL, 0) > (HINSTANCE) 32);
+		CHECKED(ShellExecute(NULL, L"runas", szSelfPath, lpszCmdLine, NULL, 0) > (HINSTANCE) 32);
 		ExitProcess(0);
 	} else if (GetLastError() == ERROR_CANCELLED) {
 		// don't display an unnecessary warning box if the user simply clicked no on the UAC box
 		ExitProcess(0);
 	} else {
-		CriticalErrorBoxF(T("A critical error was encountered while attempting to operate on %s.\nError code: %#010I32x: %s"),
+		CriticalErrorBoxF(L"A critical error was encountered while attempting to operate on %s.\nError code: %#010I32x: %s",
 						  szExePath, GetLastError(), GetLastErrorAsString());
 	}
 }

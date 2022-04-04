@@ -1,8 +1,6 @@
 #include <Windows.h>
+#include <KexDll.h>
 #include <dxgi.h>
-#define DLLAPI __declspec(dllexport)
-
-typedef LPVOID *PPVOID;
 
 DLLAPI HRESULT CreateDXGIFactory2(
 	IN	UINT	Flags,
