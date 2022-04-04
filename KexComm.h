@@ -8,7 +8,6 @@
 #include <malloc.h>
 #include <stdarg.h>
 
-#define T TEXT
 #define ASSUME __assume
 #define NORETURN __declspec(noreturn)
 #define STATIC static
@@ -16,83 +15,84 @@
 #define VOLATILE volatile
 #define DECLSPEC_EXPORT __declspec(dllexport)
 #define CHECKED(x) if (!(x)) goto Error
-#define tWinMain _tWinMain
-#define getch _getch
-#define cprintf _tcprintf
-#define caprintf _cprintf
-#define cwprintf _cwprintf
-#define strlen _tcslen
-#define stricmp _tcsicmp
-#define strnicmp _tcsnicmp
-#define strcpy_s _tcscpy_s
-#define strcat_s _tcscat_s
-#define scprintf _sctprintf
-#define vscprintf _vsctprintf
-#define vsprintf_s _vstprintf_s
-#define sprintf_s _stprintf_s
-#define snprintf_s _sntprintf_s
-#define sscanf_s _stscanf_s
+#define CONCAT(a,b) a##b
+#define L(str) CONCAT(L,str)
+
+#define snwprintf_s _snwprintf_s
+#define vscwprintf _vscwprintf
+#define wcsicmp _wcsicmp
+#define wcsnicmp _wcsnicmp
+
 #define StackAlloc _alloca
 
-#define until (condition) while (!(condition))
-#define unless (condition) if (!(condition))
+#define until(condition) while (!(condition))
+#define unless(condition) if (!(condition))
+#define otherwise else
+#define and &&
+#define or ||
+#define not !
+#define is ==
+#define is_not !=
 
 typedef LPVOID *PPVOID;
 typedef unsigned __int64 QWORD, *PQWORD, *LPQWORD, **PPQWORD;
 typedef LONG KPRIORITY;
 
 EXTERN_C VOID SetFriendlyAppName(
-	IN	LPCTSTR	lpszFriendlyName);
+	IN	LPCWSTR	lpszFriendlyName);
 
-EXTERN_C LPCTSTR GetLastErrorAsString(
+EXTERN_C LPCWSTR GetLastErrorAsString(
 	VOID);
 
 EXTERN_C VOID MessageBoxV(
 	IN	UINT	uType	OPTIONAL,
-	IN	LPCTSTR	lpszFmt,
+	IN	LPCWSTR	lpszFmt,
 	IN	va_list	ap);
 
 EXTERN_C VOID ErrorBoxF(
-	IN	LPCTSTR	lpszFmt, ...);
+	IN	LPCWSTR	lpszFmt, ...);
 
 EXTERN_C NORETURN VOID CriticalErrorBoxF(
-	IN	LPCTSTR	lpszFmt, ...);
+	IN	LPCWSTR	lpszFmt, ...);
 
 EXTERN_C VOID InfoBoxF(
-	IN	LPCTSTR	lpszFmt, ...);
+	IN	LPCWSTR	lpszFmt, ...);
 
 EXTERN_C BOOL RegReadSz(
 	IN	HKEY	hKey,
-	IN	LPCTSTR	lpszSubKey,
-	IN	LPCTSTR	lpszValueName OPTIONAL,
-	OUT	LPTSTR	lpszData,
+	IN	LPCWSTR	lpszSubKey,
+	IN	LPCWSTR	lpszValueName OPTIONAL,
+	OUT	LPWSTR	lpszData,
 	IN	DWORD	dwcchData);
 
 EXTERN_C BOOL RegWriteSz(
 	IN	HKEY	hKey,
-	IN	LPCTSTR	lpszSubKey,
-	IN	LPCTSTR	lpszValueName OPTIONAL,
-	IN	LPCTSTR	lpszData OPTIONAL);
+	IN	LPCWSTR	lpszSubKey,
+	IN	LPCWSTR	lpszValueName OPTIONAL,
+	IN	LPCWSTR	lpszData OPTIONAL);
 
 EXTERN_C BOOL RegReadDw(
 	IN	HKEY	hKey,
-	IN	LPCTSTR	lpszSubKey,
-	IN	LPCTSTR	lpszValueName OPTIONAL,
+	IN	LPCWSTR	lpszSubKey,
+	IN	LPCWSTR	lpszValueName OPTIONAL,
 	OUT	LPDWORD	lpdwData);
 
 EXTERN_C BOOL RegWriteDw(
 	IN	HKEY	hKey,
-	IN	LPCTSTR	lpszSubKey,
-	IN	LPCTSTR	lpszValueName OPTIONAL,
+	IN	LPCWSTR	lpszSubKey,
+	IN	LPCWSTR	lpszValueName OPTIONAL,
 	IN	DWORD	dwData);
 
 EXTERN_C BOOL RegDelValue(
 	IN	HKEY	hKey,
-	IN	LPCTSTR	lpszSubKey,
-	IN	LPCTSTR	lpszValueName);
+	IN	LPCWSTR	lpszSubKey,
+	IN	LPCWSTR	lpszValueName);
+
+VOID PrintF(
+	IN	LPCWSTR lpszFmt, ...);
 
 HANDLE CreateTempFile(
-	IN	LPCTSTR					lpszPrefix,
+	IN	LPCWSTR					lpszPrefix,
 	IN	DWORD					dwDesiredAccess,
 	IN	DWORD					dwShareMode,
 	IN	LPSECURITY_ATTRIBUTES	lpSecurityAttributes);
@@ -109,6 +109,28 @@ LPVOID __AutoStackAllocHelper(
 
 VOID AutoFree(
 	IN	LPVOID	lpv);
+
+LPWSTR GetCommandLineWithoutImageName(
+	VOID);
+
+FORCEINLINE LPVOID DefHeapAlloc(
+	IN	SIZE_T	cb)
+{
+	return HeapAlloc(GetProcessHeap(), 0, cb);
+}
+
+FORCEINLINE VOID DefHeapFree(
+	IN	LPVOID	lpBase)
+{
+	HeapFree(GetProcessHeap(), 0, lpBase);
+}
+
+FORCEINLINE LPVOID DefHeapReAlloc(
+	IN	LPVOID	lpBase,
+	IN	SIZE_T	cbNew)
+{
+	return HeapReAlloc(GetProcessHeap(), 0, lpBase, cbNew);
+}
 
 #define __MAX_STACK_ALLOC_SIZE 1024
 #define AutoAlloc(cb) (((cb) < __MAX_STACK_ALLOC_SIZE) ? __AutoStackAllocHelper(StackAlloc((cb) + 1)) : __AutoHeapAllocHelper((cb) + 1))

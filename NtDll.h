@@ -2,6 +2,9 @@
 #include <Windows.h>
 #include <KexComm.h>
 
+#define STATUS_SUCCESS ((NTSTATUS) 0)
+#define NT_SUCCESS(st) (((NTSTATUS) (st)) >= 0)
+
 #define RTL_MAX_DRIVE_LETTERS 32
 #define PROCESSOR_FEATURE_MAX 64
 #define GDI_HANDLE_BUFFER_SIZE32 34
@@ -39,11 +42,25 @@
 typedef ULONG GDI_HANDLE_BUFFER32[GDI_HANDLE_BUFFER_SIZE32];
 typedef ULONG GDI_HANDLE_BUFFER64[GDI_HANDLE_BUFFER_SIZE64];
 typedef ULONG GDI_HANDLE_BUFFER[GDI_HANDLE_BUFFER_SIZE];
-
 typedef VOID (*PPS_POST_PROCESS_INIT_ROUTINE) (VOID);
 
+typedef struct _PEB *PPEB;
+
+typedef struct _PROCESS_BASIC_INFORMATION {
+    NTSTATUS	ExitStatus;
+    PPEB		PebBaseAddress;
+    ULONG_PTR	AffinityMask;
+    KPRIORITY	BasePriority;
+    ULONG_PTR	UniqueProcessId;
+    ULONG_PTR	InheritedFromUniqueProcessId;
+} PROCESS_BASIC_INFORMATION, *PPROCESS_BASIC_INFORMATION;
+
+typedef struct _PAGE_PRIORITY_INFORMATION {
+    ULONG		PagePriority;
+} PAGE_PRIORITY_INFORMATION, *PPAGE_PRIORITY_INFORMATION;
+
 typedef enum _PROCESSINFOCLASS {
-	ProcessBasicInformation,
+	ProcessBasicInformation,					// PROCESS_BASIC_INFORMATION
 	ProcessQuotaLimits,
 	ProcessIoCounters,
 	ProcessVmCounters,
@@ -75,8 +92,65 @@ typedef enum _PROCESSINFOCLASS {
 	ProcessBreakOnTermination,
 	ProcessDebugObjectHandle,
 	ProcessDebugFlags,
-	ProcessHandleTracing
+	ProcessHandleTracing,
+	ProcessIoPriority,
+	ProcessExecuteFlags,
+	ProcessTlsInformation,
+	ProcessCookie,
+	ProcessImageInformation,
+	ProcessCycleTime,
+	ProcessPagePriority,						// PAGE_PRIORITY_INFORMATION
+	ProcessInstrumentationCallback,
+	ProcessThreadStackAllocation,
+	ProcessWorkingSetWatchEx,
+	ProcessImageFileNameWin32,
+	ProcessImageFileMapping,
+	ProcessAffinityUpdateMode,
+	ProcessMemoryAllocationMode,
+	ProcessGroupInformation,
+	ProcessTokenVirtualizationEnabled,
+	ProcessConsoleHostProcess,
+	ProcessWindowInformation,
+	MaxProcessInfoClass
 } PROCESSINFOCLASS;
+
+typedef enum _THREADINFOCLASS {
+	ThreadBasicInformation,
+	ThreadTimes,
+	ThreadPriority,
+	ThreadBasePriority,
+	ThreadAffinityMask,
+	ThreadImpersonationToken,
+	ThreadDescriptorTableEntry,
+	ThreadEnableAlignmentFaultFixup,
+	ThreadEventPair,
+	ThreadQuerySetWin32StartAddress,
+	ThreadZeroTlsCell,
+	ThreadPerformanceCount,					// 3.51+
+	ThreadAmlLastThread,
+	ThreadIdealProcessor,					// 4.0+
+	ThreadPriorityBoost,
+	ThreadSetTlsArrayAddresses,
+	ThreadIsIoPending,						// 5.0+
+	ThreadHideFromDebugger,
+	ThreadBreakOnTermination,				// 5.2+
+	ThreadSwitchLegacyState,
+	ThreadIsTerminated,
+	ThreadLastSystemCall,					// 6.0+
+	ThreadIoPriority,
+	ThreadCycleTime,
+	ThreadPagePriority,						// PAGE_PRIORITY_INFORMATION
+	ThreadActualBasePriority,
+	ThreadTebInformation,
+	ThreadCSwitchMon,
+	ThreadCSwitchPmu,						// 6.1+
+	ThreadWow64Context,
+	ThreadGroupInformation,
+	ThreadUmsInformation,
+	ThreadCounterProfiling,
+	ThreadIdealProcessorEx,
+	MaxThreadInfoClass
+} THREADINFOCLASS;
 
 typedef enum _NT_PRODUCT_TYPE {
 	NtProductWinNt = 1,
@@ -188,7 +262,7 @@ typedef struct _PEB {																	// 3.51+
 	PPEB_LDR_DATA						Ldr;
 	PRTL_USER_PROCESS_PARAMETERS		ProcessParameters;
 	PVOID								SubSystemData;
-	PVOID								ProcessHeap;
+	HANDLE								ProcessHeap;
 	PRTL_CRITICAL_SECTION				FastPebLock;
 
 	union {
@@ -336,6 +410,22 @@ typedef struct _PEB {																	// 3.51+
 	};
 } PEB, *PPEB;
 
+typedef struct _CLIENT_ID {
+	HANDLE								UniqueProcess;
+	HANDLE								UniqueThread;
+} CLIENT_ID, *PCLIENT_ID;
+
+typedef struct _TEB {
+	NT_TIB								NtTib;
+	PVOID								EnvironmentPointer;
+	CLIENT_ID							ClientId;
+	PVOID								ActiveRpcHandle;
+	PVOID								ThreadLocalStoragePointer;
+	PPEB								ProcessEnvironmentBlock;
+	ULONG								LastErrorValue;
+	ULONG								CountOfOwnedCriticalSections;
+} TEB, *PTEB;
+
 typedef struct _KSYSTEM_TIME {
 	ULONG								LowPart;
 	LONG								High1Time;
@@ -408,16 +498,6 @@ FORCEINLINE PPEB NtCurrentPeb(
 #endif
 }
 
-// ntpsapi.h
-typedef struct _PROCESS_BASIC_INFORMATION {
-    NTSTATUS	ExitStatus;
-    PPEB		PebBaseAddress;
-    ULONG_PTR	AffinityMask;
-    KPRIORITY	BasePriority;
-    ULONG_PTR	UniqueProcessId;
-    ULONG_PTR	InheritedFromUniqueProcessId;
-} PROCESS_BASIC_INFORMATION, *PPROCESS_BASIC_INFORMATION;
-
 //
 // NTDLL function declarations
 //
@@ -429,15 +509,79 @@ NTSYSAPI NTSTATUS NTAPI NtQueryInformationProcess(
 	IN	ULONG				ProcessInformationLength,
 	OUT	PULONG				ReturnLength OPTIONAL);
 
+NTSYSAPI NTSTATUS NTAPI NtSetInformationProcess(
+	IN	HANDLE				ProcessHandle,
+	IN	PROCESSINFOCLASS	ProcessInformationClass,
+	IN	PVOID				ProcessInformation,
+	IN	ULONG				ProcessInformationLength);
+
+NTSYSAPI NTSTATUS NTAPI NtQueryInformationThread(
+	IN	HANDLE				ThreadHandle,
+	IN	THREADINFOCLASS		ThreadInformationClass,
+	OUT	PVOID				ThreadInformation,
+	IN	ULONG				ThreadInformationLength,
+	OUT	PULONG				ReturnLength OPTIONAL);
+
+NTSYSAPI NTSTATUS NTAPI NtSetInformationThread(
+	IN	HANDLE				ThreadHandle,
+	IN	THREADINFOCLASS		ThreadInformationClass,
+	IN	PVOID				ThreadInformation,
+	IN	ULONG				ThreadInformationLength);
+
+NTSYSAPI NTSTATUS NTAPI NtSuspendProcess(
+	IN	HANDLE	ProcessHandle);
+
+NTSYSAPI NTSTATUS NTAPI NtResumeProcess(
+	IN	HANDLE	ProcessHandle);
+
+NTSYSAPI NTSTATUS NTAPI NtSuspendThread(
+	IN	HANDLE	ThreadHandle,
+	OUT	PULONG	PreviousSuspendCount OPTIONAL);
+
+NTSYSAPI NTSTATUS NTAPI NtResumeThread(
+	IN	HANDLE	ThreadHandle,
+	IN	PULONG	PreviousSuspendCount OPTIONAL);
+
+NTSYSAPI NTSTATUS NTAPI NtTerminateProcess(
+	IN	HANDLE		ProcessHandle,
+	IN	NTSTATUS	ExitStatus);
+
+NTSYSAPI NTSTATUS NTAPI NtWaitForSingleObject(
+	IN	HANDLE			Handle,
+	IN	BOOLEAN			Alertable,
+	IN	PLARGE_INTEGER	Timeout);
+
+NTSYSAPI NTSTATUS NTAPI NtClose(
+	IN	HANDLE	Handle);
+
+NTSYSAPI ULONG NTAPI RtlNtStatusToDosError(
+	IN	NTSTATUS	Status);
+
+NTSYSAPI VOID NTAPI RtlSetLastWin32Error(
+	IN	LONG	Win32Error);
+
 NTSYSAPI VOID NTAPI RtlInitUnicodeString(
 	OUT	PUNICODE_STRING		DestinationString,
 	IN	PCWSTR				SourceString OPTIONAL);
+
+NTSYSAPI PVOID NTAPI RtlAllocateHeap(
+	IN	PVOID	HeapHandle,
+	IN	ULONG	Flags OPTIONAL,
+	IN	SIZE_T	Size);
+
+NTSYSAPI BOOLEAN NTAPI RtlFreeHeap(
+	IN	PVOID	HeapHandle,
+	IN	ULONG	Flags OPTIONAL,
+	IN	PVOID	BaseAddress OPTIONAL);
 
 //
 // Miscellaneous macros and inline functions
 //
 
 #define GetProcessHeap() (NtCurrentPeb()->ProcessHeap)
+#define HeapAlloc(hHeap, dwFlags, cbSize) RtlAllocateHeap((hHeap), (dwFlags), (cbSize))
+#define HeapFree(hHeap, dwFlags, lpBase) RtlFreeHeap((hHeap), (dwFlags), (lpBase))
+#define GetCurrentProcess() ((HANDLE) -1)
 
 // doubly linked list functions
 

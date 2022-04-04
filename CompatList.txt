@@ -8,10 +8,10 @@ Bespoke Synth (https://github.com/BespokeSynth)
 Commander Wars (https://github.com/Robosturm/Commander_Wars)
 TerraFirma (https://github.com/mrkite/TerraFirma)
 QBittorrent qt6 (https://www.qbittorrent.org/download.php)
+SBCL (Steel Bank Common Lisp)
 
 Support will be added for the following applications in the near future:
 
 Python 3.9+ and applications that depend on it, such as Blender
-SBCL (Steel Bank Common Lisp)
 KeyMouse (https://github.com/iscooool/KeyMouse)
 Microsoft OneDrive
