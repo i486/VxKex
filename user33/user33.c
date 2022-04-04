@@ -1,6 +1,6 @@
 #include <Windows.h>
-#undef WINUSERAPI
-#define WINUSERAPI __declspec(dllexport)
+#include <Shlwapi.h>
+#include <KexDll.h>
 DECLARE_HANDLE(DPI_AWARENESS_CONTEXT);
 
 WINUSERAPI BOOL WINAPI AdjustWindowRectExForDpi(
@@ -50,7 +50,10 @@ WINUSERAPI UINT WINAPI GetDpiForSystem(
 WINUSERAPI UINT WINAPI GetDpiForWindow(
 	IN	HWND	hWnd)
 {
-	return GetDpiForSystem();
+	HDC hdcWindow = GetDC(hWnd);
+	UINT uDpi = GetDeviceCaps(hdcWindow, LOGPIXELSX);
+	ReleaseDC(hWnd, hdcWindow);
+	return uDpi;
 }
 
 // Coalescable timers are a power-saving feature. They reduce the timer precision
@@ -299,17 +302,24 @@ WINUSERAPI BOOL WINAPI PhysicalToLogicalPointForPerMonitorDPI(
 	return PhysicalToLogicalPoint(hWnd, lpPoint);
 }
 
-#ifdef SPECIFIC_HACK_KEYMOUSE
-#pragma comment(linker, "/export:SetWindowsHookExW=P_SetWindowsHookExW")
-WINUSERAPI
-HHOOK
-WINAPI
-P_SetWindowsHookExW(
-	IN int idHook,
-	IN HOOKPROC lpfn,
-	IN HINSTANCE hmod,
-	IN DWORD dwThreadId)
+WINUSERAPI HHOOK WINAPI PROXY_FUNCTION(SetWindowsHookExW) (
+	IN	INT			idHook,
+	IN	HOOKPROC	lpfn,
+	IN	HINSTANCE	hMod,
+	IN	DWORD		dwThreadId)
 {
-	return NULL;
+	STATIC BOOL bDisableHooks = -1;
+
+	if (bDisableHooks == -1) {
+		WCHAR szAppExe[MAX_PATH];
+		wcscpy_s(szAppExe, ARRAYSIZE(szAppExe), NtCurrentPeb()->ProcessParameters->ImagePathName.Buffer);
+		PathStripPath(szAppExe);
+		bDisableHooks = !wcsicmp(szAppExe, L"KEYMOUSE.EXE");
+	}
+
+	if (bDisableHooks) {
+		return NULL;
+	} else {
+		return SetWindowsHookExW(idHook, lpfn, hMod, dwThreadId);
+	}
 }
-#endif // SPECIFIC_HACK_KEYMOUSE

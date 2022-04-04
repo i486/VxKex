@@ -12,10 +12,10 @@
 // {9AACA888-A5F5-4C01-852E-8A2005C1D45F}
 DEFINE_GUID(CLSID_KexShlEx, 0x9aaca888, 0xa5f5, 0x4c01, 0x85, 0x2e, 0x8a, 0x20, 0x5, 0xc1, 0xd4, 0x5f);
 
-#define CLSID_STRING_KEXSHLEX T("{9AACA888-A5F5-4C01-852E-8A2005C1D45F}")
-#define APPNAME T("KexShlEx")
-#define FRIENDLYAPPNAME T("VxKex Configuration Properties")
-#define REPORT_BUG_URL T("https://github.com/vxiiduu/VxKex/issues")
+#define CLSID_STRING_KEXSHLEX L"{9AACA888-A5F5-4C01-852E-8A2005C1D45F}"
+#define APPNAME L"KexShlEx"
+#define FRIENDLYAPPNAME L"VxKex Configuration Properties"
+#define REPORT_BUG_URL L"https://github.com/vxiiduu/VxKex/issues/new"
 #define DLLAPI EXTERN_C DECLSPEC_EXPORT
 
 #ifdef _WIN64
@@ -56,7 +56,7 @@ private:
 	INT m_cRef;
 
 public:
-	TCHAR m_szExe[MAX_PATH];
+	WCHAR m_szExe[MAX_PATH];
 
 	CKexShlEx()
 	{
@@ -165,7 +165,7 @@ public:
 		psp.hInstance	= g_hInst;
 		psp.pszTemplate	= MAKEINTRESOURCE(IDD_DIALOG1);
 		psp.hIcon		= NULL;
-		psp.pszTitle	= T("VxKex");
+		psp.pszTitle	= L"VxKex";
 		psp.pfnDlgProc	= (DLGPROC) DialogProc;
 		psp.pcRefParent	= &g_cRefDll;
 		psp.pfnCallback	= CallbackProc;
@@ -284,7 +284,7 @@ public:
 HWND CreateToolTip(
 	IN	HWND	hDlg,
 	IN	INT		iToolID,
-	IN	LPTSTR	lpszText)
+	IN	LPWSTR	lpszText)
 {
 	TOOLINFO ToolInfo;
 	HWND hWndTool;
@@ -344,71 +344,71 @@ INT_PTR DialogProc(
 
 	if (uMsg == WM_INITDIALOG) {
 		DWORD dwEnableVxKex = FALSE;
-		TCHAR szWinVerSpoof[6];
+		WCHAR szWinVerSpoof[6];
 		DWORD dwAlwaysShowDebug = FALSE;
 		DWORD dwDisableForChild = FALSE;
 		DWORD dwDisableAppSpecific = FALSE;
 		DWORD dwWaitForChild = FALSE;
-		TCHAR szVxKexLdrPath[MAX_PATH];
-		TCHAR szIfeoDebugger[MAX_PATH];
-		TCHAR szIfeoKey[74 + MAX_PATH] = T("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options\\");
-		TCHAR szKexIfeoKey[54 + MAX_PATH] = T("SOFTWARE\\VXsoft\\VxKexLdr\\Image File Execution Options\\");
-		LPCTSTR lpszExePath = ((LPCKEXSHLEX) (((LPPROPSHEETPAGE) lParam)->lParam))->m_szExe;
-		TCHAR szExePath[MAX_PATH];
-		TCHAR szExeName[MAX_PATH];
+		WCHAR szVxKexLdrPath[MAX_PATH];
+		WCHAR szIfeoDebugger[MAX_PATH];
+		WCHAR szIfeoKey[74 + MAX_PATH] = L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options\\";
+		WCHAR szKexIfeoKey[54 + MAX_PATH] = L"SOFTWARE\\VXsoft\\VxKexLdr\\Image File Execution Options\\";
+		LPCWSTR lpszExePath = ((LPCKEXSHLEX) (((LPPROPSHEETPAGE) lParam)->lParam))->m_szExe;
+		WCHAR szExePath[MAX_PATH];
+		WCHAR szExeName[MAX_PATH];
 		CONST HWND hWndWinVer = GetDlgItem(hWnd, IDWINVERCOMBOBOX);
 
 		// store the pointer to the name of the .EXE in the userdata of the dialog
 		// for convenience purposes. These casts are confusing and horrible, but
 		// it works so don't mess with it. :^)
-		strcpy_s(szExePath, ARRAYSIZE(szExePath), lpszExePath);
+		wcscpy_s(szExePath, ARRAYSIZE(szExePath), lpszExePath);
 		SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR) lpszExePath);
 
 		// populate and set up the Windows version selector
-		ComboBox_AddString(hWndWinVer, T("Windows 8"));
-		ComboBox_AddString(hWndWinVer, T("Windows 8.1"));
-		ComboBox_AddString(hWndWinVer, T("Windows 10"));
-		ComboBox_AddString(hWndWinVer, T("Windows 11"));
-		ComboBox_SetItemData(hWndWinVer, 0, T("WIN8"));
-		ComboBox_SetItemData(hWndWinVer, 1, T("WIN81"));
-		ComboBox_SetItemData(hWndWinVer, 2, T("WIN10"));
-		ComboBox_SetItemData(hWndWinVer, 3, T("WIN11"));
+		ComboBox_AddString(hWndWinVer, L"Windows 8");
+		ComboBox_AddString(hWndWinVer, L"Windows 8.1");
+		ComboBox_AddString(hWndWinVer, L"Windows 10");
+		ComboBox_AddString(hWndWinVer, L"Windows 11");
+		ComboBox_SetItemData(hWndWinVer, 0, L"WIN8");
+		ComboBox_SetItemData(hWndWinVer, 1, L"WIN81");
+		ComboBox_SetItemData(hWndWinVer, 2, L"WIN10");
+		ComboBox_SetItemData(hWndWinVer, 3, L"WIN11");
 		ComboBox_SetCurSel(hWndWinVer, 2); // set default selection to Windows 10
 
-		strcat_s(szKexIfeoKey, ARRAYSIZE(szKexIfeoKey), szExePath);
-		strcpy_s(szExeName, ARRAYSIZE(szExeName), szExePath);
+		wcscat_s(szKexIfeoKey, ARRAYSIZE(szKexIfeoKey), szExePath);
+		wcscpy_s(szExeName, ARRAYSIZE(szExeName), szExePath);
 		PathStripPath(szExeName);
-		strcat_s(szIfeoKey, ARRAYSIZE(szIfeoKey), szExeName);
-		CHECKED(RegReadSz(HKEY_LOCAL_MACHINE, T("SOFTWARE\\VXsoft\\VxKexLdr"), T("KexDir"), szVxKexLdrPath, ARRAYSIZE(szVxKexLdrPath)));
-		strcat_s(szVxKexLdrPath, ARRAYSIZE(szVxKexLdrPath), T("\\VxKexLdr.exe"));
+		wcscat_s(szIfeoKey, ARRAYSIZE(szIfeoKey), szExeName);
+		CHECKED(RegReadSz(HKEY_LOCAL_MACHINE, L"SOFTWARE\\VXsoft\\VxKexLdr", L"KexDir", szVxKexLdrPath, ARRAYSIZE(szVxKexLdrPath)));
+		wcscat_s(szVxKexLdrPath, ARRAYSIZE(szVxKexLdrPath), L"\\VxKexLdr.exe");
 
-		if (RegReadSz(HKEY_LOCAL_MACHINE, szIfeoKey, T("Debugger"), szIfeoDebugger, ARRAYSIZE(szIfeoDebugger)) &&
+		if (RegReadSz(HKEY_LOCAL_MACHINE, szIfeoKey, L"Debugger", szIfeoDebugger, ARRAYSIZE(szIfeoDebugger)) &&
 			!lstrcmp(szIfeoDebugger, szVxKexLdrPath) &&
-			RegReadDw(HKEY_CURRENT_USER, szKexIfeoKey, T("EnableVxKex"), &dwEnableVxKex) && dwEnableVxKex) {
+			RegReadDw(HKEY_CURRENT_USER, szKexIfeoKey, L"EnableVxKex", &dwEnableVxKex) && dwEnableVxKex) {
 			CheckDlgButton(hWnd, IDUSEVXKEX, TRUE);
 		}
 
-		if (RegReadSz(HKEY_CURRENT_USER, szKexIfeoKey, T("WinVerSpoof"), szWinVerSpoof, ARRAYSIZE(szWinVerSpoof))) {
-			if (lstrcmpi(szWinVerSpoof, T("NONE"))) {
+		if (RegReadSz(HKEY_CURRENT_USER, szKexIfeoKey, L"WinVerSpoof", szWinVerSpoof, ARRAYSIZE(szWinVerSpoof))) {
+			if (lstrcmpi(szWinVerSpoof, L"NONE")) {
 				CheckDlgButton(hWnd, IDSPOOFVERSIONCHECK, TRUE);
 				ComboBox_Enable(hWndWinVer, TRUE);
 				
-				if (!lstrcmpi(szWinVerSpoof, T("WIN8"))) {
+				if (!lstrcmpi(szWinVerSpoof, L"WIN8")) {
 					ComboBox_SetCurSel(hWndWinVer, 0);
-				} else if (!lstrcmpi(szWinVerSpoof, T("WIN81"))) {
+				} else if (!lstrcmpi(szWinVerSpoof, L"WIN81")) {
 					ComboBox_SetCurSel(hWndWinVer, 1);
-				} else if (!lstrcmpi(szWinVerSpoof, T("WIN10"))) {
+				} else if (!lstrcmpi(szWinVerSpoof, L"WIN10")) {
 					ComboBox_SetCurSel(hWndWinVer, 2);
-				} else if (!lstrcmpi(szWinVerSpoof, T("WIN11"))) {
+				} else if (!lstrcmpi(szWinVerSpoof, L"WIN11")) {
 					ComboBox_SetCurSel(hWndWinVer, 3);
 				}
 			}
 		}
 
-		RegReadDw(HKEY_CURRENT_USER, szKexIfeoKey, T("AlwaysShowDebug"), &dwAlwaysShowDebug);
-		RegReadDw(HKEY_CURRENT_USER, szKexIfeoKey, T("DisableForChild"), &dwDisableForChild);
-		RegReadDw(HKEY_CURRENT_USER, szKexIfeoKey, T("DisableAppSpecific"), &dwDisableAppSpecific);
-		RegReadDw(HKEY_CURRENT_USER, szKexIfeoKey, T("WaitForChild"), &dwWaitForChild);
+		RegReadDw(HKEY_CURRENT_USER, szKexIfeoKey, L"AlwaysShowDebug", &dwAlwaysShowDebug);
+		RegReadDw(HKEY_CURRENT_USER, szKexIfeoKey, L"DisableForChild", &dwDisableForChild);
+		RegReadDw(HKEY_CURRENT_USER, szKexIfeoKey, L"DisableAppSpecific", &dwDisableAppSpecific);
+		RegReadDw(HKEY_CURRENT_USER, szKexIfeoKey, L"WaitForChild", &dwWaitForChild);
 
 		CheckDlgButton(hWnd, IDALWAYSSHOWDEBUG, dwAlwaysShowDebug);
 		CheckDlgButton(hWnd, IDDISABLEFORCHILD, dwDisableForChild);
@@ -429,19 +429,19 @@ INT_PTR DialogProc(
 			EnableWindow(GetDlgItem(hWnd, IDWAITONCHILD), FALSE);
 		}
 
-		CreateToolTip(hWnd, IDUSEVXKEX, T("Enable or disable the main VxKex compatibility layer."));
-		CreateToolTip(hWnd, IDSPOOFVERSIONCHECK, T("Some applications check the Windows version and refuse to run if it is incorrect. ")
-												 T("This option can help these applications to run correctly."));
-		CreateToolTip(hWnd, IDALWAYSSHOWDEBUG, T("Creates a console window and displays some additional ")
-											   T("information which may be useful for troubleshooting."));
-		CreateToolTip(hWnd, IDDISABLEFORCHILD, T("By default, if this program launches another program, VxKex will be enabled ")
-											   T("for the second program and all subsequent programs which are launched. This option ")
-											   T("disables such behavior."));
-		CreateToolTip(hWnd, IDDISABLEAPPSPECIFIC, T("Disable application-specific code. This is mainly useful for VxKex developers. ")
-												  T("Usually, enabling this option will degrade application compatibility."));
-		CreateToolTip(hWnd, IDWAITONCHILD, T("Wait for the child process to exit before exiting the loader. This is useful in combination ")
-										   T("with the 'Always show debugging information' option which lets you view debug strings. It ")
-										   T("may also be useful to support programs that wait for child processes to exit."));
+		CreateToolTip(hWnd, IDUSEVXKEX, L"Enable or disable the main VxKex compatibility layer.");
+		CreateToolTip(hWnd, IDSPOOFVERSIONCHECK, L"Some applications check the Windows version and refuse to run if it is incorrect. "
+												 L"This option can help these applications to run correctly.");
+		CreateToolTip(hWnd, IDALWAYSSHOWDEBUG, L"Creates a console window and displays some additional "
+											   L"information which may be useful for troubleshooting.");
+		CreateToolTip(hWnd, IDDISABLEFORCHILD, L"By default, if this program launches another program, VxKex will be enabled "
+											   L"for the second program and all subsequent programs which are launched. This option "
+											   L"disables such behavior.");
+		CreateToolTip(hWnd, IDDISABLEAPPSPECIFIC, L"Disable application-specific code. This is mainly useful for VxKex developers. "
+												  L"Usually, enabling this option will degrade application compatibility.");
+		CreateToolTip(hWnd, IDWAITONCHILD, L"Wait for the child process to exit before exiting the loader. This is useful in combination "
+										   L"with the 'Always show debugging information' option which lets you view debug strings. It "
+										   L"may also be useful to support programs that wait for child processes to exit.");
 		CreateToolTip(hWnd, IDREPORTBUG, REPORT_BUG_URL);
 
 		SetFocus(GetDlgItem(hWnd, IDUSEVXKEX));
@@ -462,18 +462,18 @@ INT_PTR DialogProc(
 		HWND hWndWinVer = GetDlgItem(hWnd, IDWINVERCOMBOBOX);
 		STARTUPINFO startupInfo;
 		PROCESS_INFORMATION procInfo;
-		LPCTSTR lpszExeFullPath = (LPCTSTR) GetWindowLongPtr(hWnd, GWLP_USERDATA);
-		TCHAR szKexCfgFullPath[MAX_PATH];
-		TCHAR szKexCfgCmdLine[542];
+		LPCWSTR lpszExeFullPath = (LPCWSTR) GetWindowLongPtr(hWnd, GWLP_USERDATA);
+		WCHAR szKexCfgFullPath[MAX_PATH];
+		WCHAR szKexCfgCmdLine[542];
 
-		CHECKED(RegReadSz(HKEY_LOCAL_MACHINE, T("SOFTWARE\\VXsoft\\VxKexLdr"), T("KexDir"), szKexCfgFullPath, ARRAYSIZE(szKexCfgFullPath)));
-		strcat_s(szKexCfgFullPath, MAX_PATH, T("\\KexCfg.exe"));
+		CHECKED(RegReadSz(HKEY_LOCAL_MACHINE, L"SOFTWARE\\VXsoft\\VxKexLdr", L"KexDir", szKexCfgFullPath, ARRAYSIZE(szKexCfgFullPath)));
+		wcscat_s(szKexCfgFullPath, MAX_PATH, L"\\KexCfg.exe");
 
-		sprintf_s(szKexCfgCmdLine, ARRAYSIZE(szKexCfgCmdLine), T("\"%s\" \"%s\" %d \"%s\" %d %d %d %d"),
+		swprintf_s(szKexCfgCmdLine, ARRAYSIZE(szKexCfgCmdLine), L"\"%s\" \"%s\" %d \"%s\" %d %d %d %d",
 				  szKexCfgFullPath, lpszExeFullPath,
 				  !!IsDlgButtonChecked(hWnd, IDUSEVXKEX),
-				  !!IsDlgButtonChecked(hWnd, IDSPOOFVERSIONCHECK) ? (LPCTSTR) ComboBox_GetItemData(hWndWinVer, ComboBox_GetCurSel(hWndWinVer))
-																  : T("NONE"),
+				  !!IsDlgButtonChecked(hWnd, IDSPOOFVERSIONCHECK) ? (LPCWSTR) ComboBox_GetItemData(hWndWinVer, ComboBox_GetCurSel(hWndWinVer))
+																  : L"NONE",
 				  !!IsDlgButtonChecked(hWnd, IDALWAYSSHOWDEBUG),
 				  !!IsDlgButtonChecked(hWnd, IDDISABLEFORCHILD),
 				  !!IsDlgButtonChecked(hWnd, IDDISABLEAPPSPECIFIC),
@@ -481,7 +481,7 @@ INT_PTR DialogProc(
 		GetStartupInfo(&startupInfo);
 
 		if (CreateProcess(szKexCfgFullPath, szKexCfgCmdLine, NULL, NULL, FALSE, 0, NULL, NULL, &startupInfo, &procInfo) == FALSE) {
-			ErrorBoxF(T("Failed to start KexCfg helper process. Error code: %#010I32x: %s"),
+			ErrorBoxF(L"Failed to start KexCfg helper process. Error code: %#010I32x: %s",
 							  GetLastError(), GetLastErrorAsString());
 			goto Error;
 		}
@@ -495,7 +495,7 @@ INT_PTR DialogProc(
 			    uMsg == WM_NOTIFY && ((LPNMHDR) lParam)->code == NM_RETURN) &&
 			   wParam == IDREPORTBUG) {
 		// user wants to report a bug on the github
-		ShellExecute(hWnd, T("open"), REPORT_BUG_URL, NULL, NULL, SW_NORMAL);
+		ShellExecute(hWnd, L"open", REPORT_BUG_URL, NULL, NULL, SW_NORMAL);
 
 		return TRUE;
 	}
@@ -557,10 +557,10 @@ STDAPI DllGetClassObject(
 STDAPI DllUnregisterServer(
 	VOID)
 {
-	SHDeleteKey(HKEY_CLASSES_ROOT, T("CLSID\\") CLSID_STRING_KEXSHLEX);
+	SHDeleteKey(HKEY_CLASSES_ROOT, L"CLSID\\" CLSID_STRING_KEXSHLEX);
 
 	if (X64) {
-		SHDeleteKey(HKEY_CLASSES_ROOT, T("Wow6432Node\\CLSID\\") CLSID_STRING_KEXSHLEX);
+		SHDeleteKey(HKEY_CLASSES_ROOT, L"Wow6432Node\\CLSID\\" CLSID_STRING_KEXSHLEX);
 	}
 
 	return S_OK;
@@ -591,9 +591,9 @@ STDAPI DllRegisterServer(
 	VOID)
 {
 	BOOL bSuccess;
-	TCHAR szKexShlExDll32[MAX_PATH];
-	TCHAR szKexShlExDll64[MAX_PATH];
-	LPCTSTR szKexShlExDllNative = NULL;
+	WCHAR szKexShlExDll32[MAX_PATH];
+	WCHAR szKexShlExDll64[MAX_PATH];
+	LPCWSTR szKexShlExDllNative = NULL;
 
 	if (X64) {
 		szKexShlExDllNative = szKexShlExDll64;
@@ -601,19 +601,19 @@ STDAPI DllRegisterServer(
 		szKexShlExDllNative = szKexShlExDll32;
 	}
 
-	bSuccess = RegReadSz(HKEY_LOCAL_MACHINE, T("SOFTWARE\\VXsoft\\VxKexLdr"), T("KexDir"), szKexShlExDll32, ARRAYSIZE(szKexShlExDll32));
+	bSuccess = RegReadSz(HKEY_LOCAL_MACHINE, L"SOFTWARE\\VXsoft\\VxKexLdr", L"KexDir", szKexShlExDll32, ARRAYSIZE(szKexShlExDll32));
 	if (bSuccess == FALSE) return E_UNEXPECTED;
 
-	strcpy_s(szKexShlExDll64, MAX_PATH, szKexShlExDll32);
-	strcat_s(szKexShlExDll32, MAX_PATH, T("\\KexShl32.dll"));
-	strcat_s(szKexShlExDll64, MAX_PATH, T("\\KexShlEx.dll"));
+	wcscpy_s(szKexShlExDll64, MAX_PATH, szKexShlExDll32);
+	wcscat_s(szKexShlExDll32, MAX_PATH, L"\\KexShl32.dll");
+	wcscat_s(szKexShlExDll64, MAX_PATH, L"\\KexShlEx.dll");
 
-	CHECKED(RegWriteSz(HKEY_CLASSES_ROOT, T("CLSID\\") CLSID_STRING_KEXSHLEX T("\\InProcServer32"), NULL, szKexShlExDllNative));
-	CHECKED(RegWriteSz(HKEY_CLASSES_ROOT, T("CLSID\\") CLSID_STRING_KEXSHLEX T("\\InProcServer32"), T("ThreadingModel"), T("Apartment")));
+	CHECKED(RegWriteSz(HKEY_CLASSES_ROOT, L"CLSID\\" CLSID_STRING_KEXSHLEX L"\\InProcServer32", NULL, szKexShlExDllNative));
+	CHECKED(RegWriteSz(HKEY_CLASSES_ROOT, L"CLSID\\" CLSID_STRING_KEXSHLEX L"\\InProcServer32", L"ThreadingModel", L"Apartment"));
 
 	if (X64) {
-		CHECKED(RegWriteSz(HKEY_CLASSES_ROOT, T("Wow6432Node\\CLSID\\") CLSID_STRING_KEXSHLEX T("\\InProcServer32"), NULL, szKexShlExDll32));
-		CHECKED(RegWriteSz(HKEY_CLASSES_ROOT, T("Wow6432Node\\CLSID\\") CLSID_STRING_KEXSHLEX T("\\InProcServer32"), T("ThreadingModel"), T("Apartment")));
+		CHECKED(RegWriteSz(HKEY_CLASSES_ROOT, L"Wow6432Node\\CLSID\\" CLSID_STRING_KEXSHLEX L"\\InProcServer32", NULL, szKexShlExDll32));
+		CHECKED(RegWriteSz(HKEY_CLASSES_ROOT, L"Wow6432Node\\CLSID\\" CLSID_STRING_KEXSHLEX L"\\InProcServer32", L"ThreadingModel", L"Apartment"));
 	}
 
 	return S_OK;
@@ -634,25 +634,25 @@ STDAPI DllInstall(
 	IN	LPCWSTR	lpszCmdLine OPTIONAL)
 {
 	if (bInstall) {
-		TCHAR szVxKexLdr[MAX_PATH];
-		TCHAR szOpenVxKexCommand[MAX_PATH + 17];
+		WCHAR szVxKexLdr[MAX_PATH];
+		WCHAR szOpenVxKexCommand[MAX_PATH + 17];
 
 		CHECKED(DllRegisterServer() == S_OK);
-		CHECKED(RegWriteSz(HKEY_CLASSES_ROOT, T("exefile\\shellex\\PropertySheetHandlers\\KexShlEx Property Page"), NULL, CLSID_STRING_KEXSHLEX));
-		CHECKED(RegWriteSz(HKEY_CLASSES_ROOT, T("exefile\\shell\\open_vxkex"), NULL, T("Run with VxKex enabled")));
-		CHECKED(RegWriteSz(HKEY_CLASSES_ROOT, T("exefile\\shell\\open_vxkex"), T("Extended"), T("")));
-		CHECKED(RegReadSz(HKEY_LOCAL_MACHINE, T("SOFTWARE\\VXsoft\\VxKexLdr"), T("KexDir"), szVxKexLdr, ARRAYSIZE(szVxKexLdr)));
-		CHECKED(!strcat_s(szVxKexLdr, ARRAYSIZE(szVxKexLdr), T("\\VxKexLdr.exe")));
-		CHECKED(sprintf_s(szOpenVxKexCommand, ARRAYSIZE(szOpenVxKexCommand), T("\"%s\" /FORCE \"%%1\" \"%%*\""), szVxKexLdr) != -1);
-		CHECKED(RegWriteSz(HKEY_CLASSES_ROOT, T("exefile\\shell\\open_vxkex\\command"), NULL, szOpenVxKexCommand));
+		CHECKED(RegWriteSz(HKEY_CLASSES_ROOT, L"exefile\\shellex\\PropertySheetHandlers\\KexShlEx Property Page", NULL, CLSID_STRING_KEXSHLEX));
+		CHECKED(RegWriteSz(HKEY_CLASSES_ROOT, L"exefile\\shell\\open_vxkex", NULL, L"Run with VxKex enabled"));
+		CHECKED(RegWriteSz(HKEY_CLASSES_ROOT, L"exefile\\shell\\open_vxkex", L"Extended", L""));
+		CHECKED(RegReadSz(HKEY_LOCAL_MACHINE, L"SOFTWARE\\VXsoft\\VxKexLdr", L"KexDir", szVxKexLdr, ARRAYSIZE(szVxKexLdr)));
+		CHECKED(!wcscat_s(szVxKexLdr, ARRAYSIZE(szVxKexLdr), L"\\VxKexLdr.exe"));
+		CHECKED(swprintf_s(szOpenVxKexCommand, ARRAYSIZE(szOpenVxKexCommand), L"\"%s\" /FORCE \"%%1\" \"%%*\"", szVxKexLdr) != -1);
+		CHECKED(RegWriteSz(HKEY_CLASSES_ROOT, L"exefile\\shell\\open_vxkex\\command", NULL, szOpenVxKexCommand));
 	} else {
 		// Important note: You cannot "goto Error" from this section, so no CHECKED(x)
 		// is permitted here. Otherwise it will cause recursion in the case of an error.
 
 		// We use SHDeleteKeyA in preference to RegDeleteTree because it basically does
 		// the same thing but is available since Win2k (instead of only since Vista)
-		SHDeleteKey(HKEY_CLASSES_ROOT, T("exefile\\shellex\\PropertySheetHandlers\\KexShlEx Property Page"));
-		SHDeleteKey(HKEY_CLASSES_ROOT, T("exefile\\shell\\open_vxkex"));
+		SHDeleteKey(HKEY_CLASSES_ROOT, L"exefile\\shellex\\PropertySheetHandlers\\KexShlEx Property Page");
+		SHDeleteKey(HKEY_CLASSES_ROOT, L"exefile\\shell\\open_vxkex");
 		DllUnregisterServer();
 	}
 

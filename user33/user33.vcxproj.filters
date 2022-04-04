@@ -18,8 +18,13 @@
     <ClCompile Include="user33.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="forwarders.c">
+    <ClCompile Include="exports.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="user33.def">
+      <Filter>Source Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

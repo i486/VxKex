@@ -33,7 +33,7 @@ VOID VaWritePtr(
 
 VOID VaWriteSzA(
 	IN	ULONG_PTR	ulDst,
-	IN	LPCTSTR		lpszSrc);
+	IN	LPCWSTR		lpszSrc);
 
 BYTE VaReadByte(
 	IN	ULONG_PTR	ulSrc);

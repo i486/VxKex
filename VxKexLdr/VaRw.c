@@ -9,7 +9,7 @@ VOID VaRead(
 {
 	if (ReadProcessMemory(g_hProc, (LPCVOID) ulSrc, lpDst, nSize, NULL) == FALSE) {
 		if (GetLastError() != ERROR_PARTIAL_COPY) {
-			CriticalErrorBoxF(T("Failed to read process memory at offset %p: %s"),
+			CriticalErrorBoxF(L"Failed to read process memory at offset %p: %s",
 							  ulSrc, GetLastErrorAsString());
 		}
 	}
@@ -23,16 +23,16 @@ VOID VaWrite(
 	DWORD dwOldProtect;
 
 	if (VirtualProtectEx(g_hProc, (LPVOID) ulDst, nSize, PAGE_EXECUTE_READWRITE, &dwOldProtect) == FALSE) {
-		CriticalErrorBoxF(T("Failed to set access protections on process: %s"), GetLastErrorAsString());
+		CriticalErrorBoxF(L"Failed to set access protections on process: %s", GetLastErrorAsString());
 	}
 
 	if (WriteProcessMemory(g_hProc, (LPVOID) ulDst, lpSrc, nSize, NULL) == FALSE) {
-		CriticalErrorBoxF(T("Failed to write process memory at offset %p with %llu bytes of data: %s"),
+		CriticalErrorBoxF(L"Failed to write process memory at offset %p with %llu bytes of data: %s",
 						  ulDst, nSize, GetLastErrorAsString());
 	}
 
 	if (VirtualProtectEx(g_hProc, (LPVOID) ulDst, nSize, dwOldProtect, &dwOldProtect) == FALSE) {
-		CriticalErrorBoxF(T("Failed to un-set access protections on process: %s"), GetLastErrorAsString());
+		CriticalErrorBoxF(L"Failed to un-set access protections on process: %s", GetLastErrorAsString());
 	}
 }
 
@@ -74,9 +74,9 @@ VOID VaWritePtr(
 // write the ANSI string including the ending 0 byte
 VOID VaWriteSzA(
 	IN	ULONG_PTR	ulDst,
-	IN	LPCTSTR		lpszSrc)
+	IN	LPCWSTR		lpszSrc)
 {
-	SIZE_T cch = strlen(lpszSrc) + 1;
+	SIZE_T cch = wcslen(lpszSrc) + 1;
 #ifdef UNICODE
 	CHAR szAnsiString[MAX_PATH];
 	WideCharToMultiByte(CP_UTF8, 0, lpszSrc, -1, szAnsiString, sizeof(szAnsiString), NULL, NULL);

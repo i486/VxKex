@@ -8,19 +8,31 @@
 #include <stdarg.h>
 #include <KexComm.h>
 #include <NtDll.h>
+#include <stdarg.h>
 
 #include "VaRw.h"
 #include "resource.h"
 
-#define APPNAME T("VxKexLdr")
-#define FRIENDLYAPPNAME T("VxKex Loader")
+#define APPNAME L"VxKexLdr"
+#define FRIENDLYAPPNAME L"VxKex Loader"
 #define EXCEPTION_WX86_BREAKPOINT 0x4000001F
+
+typedef struct _KEXIFEOPARAMETERS {
+	DWORD	dwEnableVxKex;
+	WCHAR	szWinVerSpoof[6];
+	DWORD	dwAlwaysShowDebug;
+	DWORD	dwDisableForChild;
+	DWORD	dwDisableAppSpecific;
+	DWORD	dwWaitForChild;
+	DWORD	dwDebuggerSpoof;
+} KEXIFEOPARAMETERS, *PKEXIFEOPARAMETERS, *LPKEXIFEOPARAMETERS;
 
 //
 // Global vars
 //
 
-TCHAR g_szExeFullPath[MAX_PATH];
+WCHAR g_szExeFullPath[MAX_PATH];
+WCHAR g_szKexDir[MAX_PATH];
 ULONG_PTR g_vaExeBase;
 ULONG_PTR g_vaPebBase;
 HANDLE g_hProc = NULL;
@@ -28,6 +40,7 @@ HANDLE g_hThread = NULL;
 DWORD g_dwProcId;
 DWORD g_dwThreadId;
 BOOL g_bExe64 = -1;
+KEXIFEOPARAMETERS g_KexIfeoParameters;
 
 //
 // Utility functions
@@ -38,8 +51,8 @@ VOID Pause(
 {
 	HWND hWndConsole = GetConsoleWindow();
 	if (hWndConsole && IsWindowVisible(hWndConsole)) {
-		cprintf(T("Press any key to continue . . . "));
-		getch();
+		PrintF(L"\nYou may now close the console window.");
+		Sleep(INFINITE);
 	}
 }
 
@@ -47,16 +60,7 @@ NORETURN VOID Exit(
 	IN	DWORD	dwExitCode)
 {
 	Pause();
-	FreeConsole();
 	ExitProcess(dwExitCode);
-}
-
-// FailExit() should only be called on failure.
-NORETURN VOID FailExit(
-	VOID)
-{
-	TerminateProcess(g_hProc, 0);
-	Exit(0);
 }
 
 //
@@ -93,7 +97,7 @@ VOID PatchKernel32ImageVersionCheck(
 		if (bAlreadyPatched) {
 			// this shouldn't happen
 #ifdef _DEBUG
-			CriticalErrorBoxF(T("Internal error: %s(bPatch=TRUE) called inappropriately"), __FUNCTION__);
+			CriticalErrorBoxF(L"Internal error: %s(bPatch=TRUE) called inappropriately", __FUNCTION__);
 #else
 			return;
 #endif
@@ -104,7 +108,7 @@ VOID PatchKernel32ImageVersionCheck(
 
 			if (!lpdwFakeMajorVersion) {
 #ifdef _DEBUG
-				CriticalErrorBoxF(T("Failed to allocate memory: %s"), GetLastErrorAsString());
+				CriticalErrorBoxF(L"Failed to allocate memory: %s", GetLastErrorAsString());
 #else
 				return;
 #endif
@@ -119,7 +123,7 @@ VOID PatchKernel32ImageVersionCheck(
 
 			if (!lpdwFakeMinorVersion) {
 #ifdef _DEBUG
-				CriticalErrorBoxF(T("Failed to allocate memory: %s"), GetLastErrorAsString());
+				CriticalErrorBoxF(L"Failed to allocate memory: %s", GetLastErrorAsString());
 #else
 				return;
 #endif
@@ -134,17 +138,15 @@ VOID PatchKernel32ImageVersionCheck(
 			// this shouldn't happen on win7 and earlier, they only started adding ASLR stuff
 			// in windows 8 IIRC (and we don't care about those)
 #ifdef _DEBUG
-			CriticalErrorBoxF(T("Internal error: Pointer to faked subsystem version too large."));
+			CriticalErrorBoxF(L"Internal error: Pointer to faked subsystem version too large.");
 #else
 			return;
 #endif
 		}
 
-		if (GetModuleInformation(GetCurrentProcess(), GetModuleHandle(T("kernel32.dll")), &k32ModInfo, sizeof(k32ModInfo)) == FALSE) {
-			// give up and hope that the .exe file the user wants to launch doesn't need this
-			// workaround
+		if (GetModuleInformation(GetCurrentProcess(), GetModuleHandle(L"kernel32.dll"), &k32ModInfo, sizeof(k32ModInfo)) == FALSE) {
 #ifdef _DEBUG
-			CriticalErrorBoxF(T("Failed to retrieve module information of KERNEL32.DLL: %s"), GetLastErrorAsString());
+			CriticalErrorBoxF(L"Failed to retrieve module information of KERNEL32.DLL: %s", GetLastErrorAsString());
 #else
 			return;
 #endif
@@ -194,17 +196,13 @@ VOID PatchKernel32ImageVersionCheck(
 	}
 }
 
-
 VOID GetProcessBaseAddressAndPebBaseAddress(
-	IN	HANDLE	hProc)
+	IN	HANDLE		hProc,
+	IN	PULONG_PTR	lpProcessBaseAddress OPTIONAL,
+	IN	PULONG_PTR	lpPebBaseAddress OPTIONAL)
 {
 	NTSTATUS st;
 	PROCESS_BASIC_INFORMATION BasicInfo;
-
-	// Using GetModuleInformation will fail with ERROR_INVALID_HANDLE if Peb(child)->Ldr
-	// is NULL, which is the case when we start a suspended process - since the Ldr struct
-	// is initialized by NTDLL. See nt5src\Win2K3\sdktools\psapi\process.c for more info.
-	// Anyway, that means we must use NtQueryInformationProcess.
 
 	st = NtQueryInformationProcess(
 		hProc,
@@ -214,61 +212,358 @@ VOID GetProcessBaseAddressAndPebBaseAddress(
 		NULL);
 
 	if (!SUCCEEDED(st)) {
-		CriticalErrorBoxF(T("Failed to query process information.\nNTSTATUS error code: %#010I32x"), st);
+		CriticalErrorBoxF(L"Failed to query process information.\nNTSTATUS error code: %#010I32x", st);
 	} else {
 		// The returned PebBaseAddress is in the virtual address space of the
-		// created process, not ours.
-		g_vaPebBase = (ULONG_PTR) BasicInfo.PebBaseAddress;
-		ReadProcessMemory(hProc, &BasicInfo.PebBaseAddress->ImageBaseAddress, &g_vaExeBase, sizeof(g_vaExeBase), NULL);
+		// created process, not ours. It is also always the native PEB (i.e. 64 bit, even
+		// when the process is 32 bit).
+
+		if (lpPebBaseAddress) {
+			*lpPebBaseAddress = (ULONG_PTR) BasicInfo.PebBaseAddress;
+		}
+
+		if (lpProcessBaseAddress) {
+			ReadProcessMemory(hProc, &BasicInfo.PebBaseAddress->ImageBaseAddress,
+							  lpProcessBaseAddress, sizeof(*lpProcessBaseAddress), NULL);
+		}
 	}
 }
 
-BOOL ProcessIs32Bit(
+BOOL ProcessIs64Bit(
 	IN	HANDLE	hProc)
 {
 #ifndef _WIN64
-	return TRUE;
+	return FALSE;
 #else
-	// IsWow64Process doesn't work. Always returns FALSE.
-	WORD w;
-	GetProcessBaseAddressAndPebBaseAddress((g_hProc = hProc));
-	w = VaReadWord(g_vaExeBase + VaReadDword(g_vaExeBase + 0x3C) + 4);
-	return (w == 0x014C);
+	ULONG_PTR vaPeBase;
+	HANDLE hOldProc = g_hProc;
+	ULONG_PTR vaCoffHdr;
+	BOOL bPe64;
+
+	GetProcessBaseAddressAndPebBaseAddress(hProc, &vaPeBase, NULL);
+
+	g_hProc = hProc;
+	vaCoffHdr = vaPeBase + VaReadDword(vaPeBase + 0x3C) + 4;
+	bPe64 = (VaReadWord(vaCoffHdr) == 0x8664) ? TRUE : FALSE;
+	g_hProc = hOldProc;
+
+	return bPe64;
 #endif
 }
 
-// this allows programs to load our DLLs
-// avoids having to add entries to clutter up the system PATH
-VOID AppendKex3264ToPath(
-	IN	INT	bits)
+VOID GetProcessImageFullPath(
+	IN	HANDLE	hProc,
+	OUT	LPWSTR	szFullPath)
 {
-	TCHAR szKexDir[MAX_PATH];
-	TCHAR szPathAppend[MAX_PATH * 2];
-	LPTSTR szPath;
-	DWORD dwcchPath;
+	WCHAR szDosDevice[3] = L"A:";
+	WCHAR szNtDevice[MAX_PATH];
+	NTSTATUS st;
+	struct {
+		UNICODE_STRING us;
+		WCHAR buf[MAX_PATH];
+	} psinfo;
 
-	RegReadSz(HKEY_LOCAL_MACHINE, T("SOFTWARE\\VXsoft\\VxKexLdr"), T("KexDir"), szKexDir, ARRAYSIZE(szKexDir));
-	sprintf_s(szPathAppend, ARRAYSIZE(szPathAppend), T(";%s\\Kex%d"), szKexDir, bits);
-	dwcchPath = GetEnvironmentVariable(T("Path"), NULL, 0) + (DWORD) strlen(szPathAppend);
-	szPath = (LPTSTR) StackAlloc(dwcchPath * sizeof(TCHAR));
-	GetEnvironmentVariable(T("Path"), szPath, dwcchPath);
-	strcat_s(szPath, dwcchPath, szPathAppend);
-	SetEnvironmentVariable(T("Path"), szPath);
+	// This returns a NT style path such as "\Device\HarddiskVolume3\Program Files\whatever.exe"
+	// We can't just read it out of ProcessParameters because that value is not yet initialized.
+	st = NtQueryInformationProcess(
+		hProc,
+		ProcessImageFileName,
+		&psinfo,
+		sizeof(psinfo),
+		NULL);
+
+	for (; szDosDevice[0] <= 'Z'; szDosDevice[0]++) {
+		if (QueryDosDevice(szDosDevice, szNtDevice, ARRAYSIZE(szNtDevice) - 1)) {
+			if (!wcsnicmp(szNtDevice, psinfo.us.Buffer, wcslen(szNtDevice))) {
+				break;
+			}
+		}
+	}
+
+	if (szDosDevice[0] > 'Z') {
+		CriticalErrorBoxF(L"%s was unable to resolve the DOS device name of the executable file '%s'.\n"
+						  L"This may be caused by the file residing on a network share or unmapped drive. "
+						  L"%s does not currently support this scenario, please ensure all executable files "
+						  L"are on mapped drives with drive letters.",
+						  FRIENDLYAPPNAME, FRIENDLYAPPNAME);
+	}
+
+	wcscpy_s(szFullPath, MAX_PATH, szDosDevice);
+	wcscat_s(szFullPath, MAX_PATH, psinfo.us.Buffer + wcslen(szNtDevice));
+}
+
+DWORD GetParentProcessId(
+	VOID)
+{
+	NTSTATUS st;
+	PROCESS_BASIC_INFORMATION pbi;
+
+	st = NtQueryInformationProcess(GetCurrentProcess(),
+								   ProcessBasicInformation,
+								   &pbi, sizeof(pbi), NULL);
+
+	if (st == STATUS_SUCCESS) {
+		return (DWORD) pbi.InheritedFromUniqueProcessId;
+	} else {
+		return -1;
+	}
+}
+
+HANDLE OpenParentProcess(
+	IN	DWORD	dwDesiredAccess)
+{
+	DWORD dwParentId = GetParentProcessId();
+	
+	if (dwParentId != -1) {
+		return OpenProcess(dwDesiredAccess, FALSE, dwParentId);
+	} else {
+		return NULL;
+	}
+}
+
+BOOL ChildProcessIsConsoleProcess(
+	VOID)
+{
+	return VaReadDword(g_vaPebBase + FIELD_OFFSET(PEB, ImageSubsystem)) == IMAGE_SUBSYSTEM_WINDOWS_CUI;
+}
+
+
+// 1. Check if parent process is called cmd.exe or command.com
+// 2. If so:
+//      1. suspend the entire cmd.exe process
+//      2. place a duplicated handle of our child process into the unused "SsHandle" member of parent PEB->Ldr
+//      3. create a remote thread which loads CmdSus32.dll or CmdSus64.dll from KexDir
+// The CmdSus.dll's DllMain procedure will:
+//   1. Call NtWaitForSingleObject to wait for the child process to exit
+//   2. Call NtResumeProcess on the cmd.exe process
+//   3. Return FALSE to unload the DLL and exit thread.
+VOID PerformCmdSusHack(
+	VOID)
+{
+	HANDLE hParent;
+	HANDLE hChild;
+	WCHAR szParentFullName[MAX_PATH];
+	BOOL bParent64;
+	ULONG_PTR vaParentBase;
+	ULONG_PTR vaParentPeb;
+	ULONG_PTR vaParentPebLdr;
+	ULONG_PTR vaDllFullPath;
+	ULONG_PTR vaLoadLibraryW;
+	WCHAR szDllFullPath[MAX_PATH];
+	INT cbDllFullPath;
+
+	hParent = OpenParentProcess(PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION |
+								PROCESS_VM_OPERATION | PROCESS_VM_READ | PROCESS_VM_WRITE |
+								PROCESS_SUSPEND_RESUME | PROCESS_DUP_HANDLE);
+
+	if (!hParent) {
+		// we tried.
+		return;
+	}
+
+	// Now to check the name of the process to see whether it's a recognized shell.
+	// It must be inside the Windows directory as well.
+	GetProcessImageFullPath(hParent, szParentFullName);
+
+	if (!PathIsPrefix(SharedUserData->NtSystemRoot, szParentFullName)) {
+		return;
+	}
+
+	PathStripPath(szParentFullName);
+
+	unless (!wcsicmp(szParentFullName, L"CMD.EXE") ||
+			!wcsicmp(szParentFullName, L"COMMAND.COM") ||
+			!wcsicmp(szParentFullName, L"POWERSHELL.EXE")) {
+		return;
+	}
+
+	// step 1
+	CHECKED(NtSuspendProcess(hParent) == STATUS_SUCCESS);
+
+	if (!wcsicmp(szParentFullName, L"CMD.EXE") || !wcsicmp(szParentFullName, L"COMMAND.COM")) {
+		INPUT EnterKey;
+		HANDLE hStdOut = NtCurrentPeb()->ProcessParameters->StandardOutput;
+		CONSOLE_SCREEN_BUFFER_INFO ScreenBufferInfo;
+		DWORD dwDiscard;
+
+		// We need to send an extra Enter key for CMD.EXE so that it doesn't chew up a line of
+		// input that should have gone to the child process. Powershell doesn't appear to need
+		// this, and if we send the Enter key anyway, it appears in the input stream of the child.
+		EnterKey.type			= INPUT_KEYBOARD;
+		EnterKey.ki.wVk			= VK_RETURN;
+		EnterKey.ki.wScan		= MapVirtualKey(VK_RETURN, MAPVK_VK_TO_VSC);
+		EnterKey.ki.dwFlags		= 0;
+		EnterKey.ki.time		= 0;
+		EnterKey.ki.dwExtraInfo	= GetMessageExtraInfo();
+		SendInput(1, &EnterKey, sizeof(INPUT));
+
+		// We also need to move the cursor up by a column.
+		GetConsoleScreenBufferInfo(hStdOut, &ScreenBufferInfo);
+		ScreenBufferInfo.dwCursorPosition.X = 0;
+		ScreenBufferInfo.dwCursorPosition.Y -= 1;
+		SetConsoleCursorPosition(hStdOut, ScreenBufferInfo.dwCursorPosition);
+
+		// Then erase the screen underneath the cursor.
+		FillConsoleOutputCharacter(
+			hStdOut, ' ',
+			(ScreenBufferInfo.dwSize.Y - ScreenBufferInfo.dwCursorPosition.Y) * ScreenBufferInfo.dwSize.X,
+			ScreenBufferInfo.dwCursorPosition, &dwDiscard);
+	}
+
+	// step 2
+	bParent64 = ProcessIs64Bit(hParent);
+	CHECKED(DuplicateHandle(GetCurrentProcess(), g_hProc, hParent, &hChild, SYNCHRONIZE, FALSE, 0));
+	GetProcessBaseAddressAndPebBaseAddress(hParent, &vaParentBase, &vaParentPeb);
+
+#ifdef _M_X64
+	// if parent is 32 bit but the system is 64 bit, subtract 0x1000 from the returned PEB base,
+	// which will get us the 32 bit PEB which the CmdSus DLL can actually read from.
+	// Note: 0x1000 corresponds to the page size. Perhaps it would be better to get the "real"
+	// page size from GetSystemInfo? Anyway it probably doesn't matter.
+	if (!bParent64) {
+		vaParentPeb -= 0x1000;
+	}
+#endif
+
+	CHECKED(ReadProcessMemory(hParent, (LPVOID) (vaParentPeb + (bParent64 ? 0x18 : 0x0C)), &vaParentPebLdr, bParent64 ? sizeof(QWORD) : sizeof(DWORD), NULL));
+	CHECKED(WriteProcessMemory(hParent, (LPVOID) (vaParentPebLdr + 0x08), &hChild, bParent64 ? sizeof(QWORD) : sizeof(DWORD), NULL));
+
+	// step 3
+	cbDllFullPath = (swprintf_s(szDllFullPath, ARRAYSIZE(szDllFullPath), L"%s\\CmdSus%d.dll", g_szKexDir, bParent64 ? 64 : 32) + 1) * sizeof(WCHAR);
+	vaDllFullPath = (ULONG_PTR) VirtualAllocEx(hParent, NULL, cbDllFullPath, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+	CHECKED(vaDllFullPath != 0);
+	CHECKED(WriteProcessMemory(hParent, (LPVOID) vaDllFullPath, szDllFullPath, cbDllFullPath, NULL));
+
+	if (bParent64) {
+		// 64 bit loader, 64 bit parent process
+		vaLoadLibraryW = (ULONG_PTR) GetProcAddress(GetModuleHandle(L"kernel32.dll"), "LoadLibraryW");
+		CHECKED(vaLoadLibraryW);
+	} else {
+#ifdef _M_X64
+		// 64 bit loader, 32 bit parent process.
+		// just start a helper process to find the 32-bit kernel32 LoadLibraryW
+		STARTUPINFO StartupInfo;
+		PROCESS_INFORMATION ProcInfo;
+		WCHAR szCmdSus32Exe[MAX_PATH];
+		DWORD dwvaLoadLibraryW;
+
+		GetStartupInfo(&StartupInfo);
+		swprintf_s(szCmdSus32Exe, ARRAYSIZE(szCmdSus32Exe), L"%s\\CmdSus32.exe", g_szKexDir);
+		CHECKED(CreateProcess(szCmdSus32Exe, NULL, NULL, NULL, FALSE, 0, NULL, NULL, &StartupInfo, &ProcInfo));
+		NtClose(ProcInfo.hThread);
+		NtWaitForSingleObject(ProcInfo.hProcess, FALSE, NULL);
+		CHECKED(GetExitCodeProcess(ProcInfo.hProcess, &dwvaLoadLibraryW));
+		NtClose(ProcInfo.hProcess);
+		CHECKED(vaLoadLibraryW = dwvaLoadLibraryW);
+#else
+		// 32 bit loader and 32 bit parent process
+		vaLoadLibraryW = (ULONG_PTR) GetProcAddress(GetModuleHandle(L"kernel32.dll"), "LoadLibraryW");
+#endif
+	}
+
+	{
+		// Create the remote thread, which will load CmdSus.dll and execute its DllMain routine.
+		HANDLE hThread = CreateRemoteThread(hParent, NULL, 0, (LPTHREAD_START_ROUTINE) vaLoadLibraryW, (LPVOID) vaDllFullPath, 0, NULL);
+		CHECKED(hThread);
+		NtClose(hThread);
+	}
+
+	goto Exit;
+Error:
+	NtResumeProcess(hParent);
+Exit:
+	NtClose(hParent);
+	return;
+}
+
+// 1. Add the appropriate Kex(32/64) to PATH
+// 2. Patch kernel32 CreateProcess if the subsystem version is incorrect
+// 3. Set g_bExe64 correctly
+VOID PreScanExeFile(
+	VOID)
+{
+	WCHAR szPathAppend[MAX_PATH + 7];
+	LPWSTR szPath;
+	DWORD dwcchPath;
+	HMODULE hModExe;
+	PIMAGE_DOS_HEADER lpDosHdr;
+	PIMAGE_NT_HEADERS lpNtHdr;
+	PIMAGE_FILE_HEADER lpFileHdr;
+	WORD MajorSubsystemVersion;
+	WORD MinorSubsystemVersion;
+	
+	union {
+		PIMAGE_OPTIONAL_HEADER Hdr;
+		PIMAGE_OPTIONAL_HEADER32 Hdr32;
+		PIMAGE_OPTIONAL_HEADER64 Hdr64;
+	} lpOptHdr;
+
+	hModExe = LoadLibraryEx(g_szExeFullPath, NULL, LOAD_LIBRARY_AS_DATAFILE);
+
+	if (!hModExe) {
+		CriticalErrorBoxF(L"Failed to scan the executable file \"%s\": %#010I32x: %s",
+						  g_szExeFullPath, GetLastError(), GetLastErrorAsString());
+	}
+
+	lpDosHdr = (PIMAGE_DOS_HEADER) ((LPBYTE) hModExe);
+
+	if (lpDosHdr->e_magic != IMAGE_DOS_SIGNATURE) {
+		// When you specify LOAD_LIBRARY_AS_DATAFILE and the DLL/EXE is not already
+		// loaded, the returned HMODULE is offset by +1 from the real beginning of
+		// the DOS header.
+		// But when the EXE is already loaded (which can only happen when you use
+		// VxKexLdr to load VxKexLdr), the returned HMODULE is not offset.
+		lpDosHdr = (PIMAGE_DOS_HEADER) (((LPBYTE) hModExe) - 1);
+	}
+
+	lpNtHdr = (PIMAGE_NT_HEADERS) (((LPBYTE) lpDosHdr) + lpDosHdr->e_lfanew);
+	lpFileHdr = &lpNtHdr->FileHeader;
+	lpOptHdr.Hdr = &lpNtHdr->OptionalHeader;
+	g_bExe64 = (lpFileHdr->Machine == 0x8664);
+
+	if (g_bExe64) {
+		MajorSubsystemVersion = lpOptHdr.Hdr64->MajorSubsystemVersion;
+		MinorSubsystemVersion = lpOptHdr.Hdr64->MinorSubsystemVersion;
+	} else {
+		MajorSubsystemVersion = lpOptHdr.Hdr32->MajorSubsystemVersion;
+		MinorSubsystemVersion = lpOptHdr.Hdr32->MinorSubsystemVersion;
+	}
+
+	FreeLibrary(hModExe);
+
+	// If we would fail BasepIsImageVersionOk (also called BasepCheckImageVersion in some versions)
+	// due to the image subsystem versions being too high, then patch it to succeed. It will
+	// be unpatched after the CreateProcess call.
+	if ((MajorSubsystemVersion > SharedUserData->NtMajorVersion) ||
+		((MajorSubsystemVersion == SharedUserData->NtMajorVersion) && (MinorSubsystemVersion > SharedUserData->NtMinorVersion))) {
+		PatchKernel32ImageVersionCheck(TRUE);
+	}
+
+	// Append correct extended DLL directory to PATH environment variable.
+	swprintf_s(szPathAppend, ARRAYSIZE(szPathAppend), L";%s\\Kex%d", g_szKexDir, g_bExe64 ? 64 : 32);
+	dwcchPath = GetEnvironmentVariable(L"Path", NULL, 0) + (DWORD) wcslen(szPathAppend);
+	szPath = (LPWSTR) StackAlloc(dwcchPath * sizeof(WCHAR));
+	GetEnvironmentVariable(L"Path", szPath, dwcchPath);
+	wcscat_s(szPath, dwcchPath, szPathAppend);
+	SetEnvironmentVariable(L"Path", szPath);
 }
 
 VOID CreateSuspendedProcess(
-	IN	LPTSTR	lpszCmdLine)	// Full command-line of the process incl. executable name
+	IN	LPWSTR	lpszCmdLine)	// Full command-line of the process incl. executable name
 {
 	BOOL bSuccess;
-	BOOL bRetryPatchKernel32 = FALSE;
-	BOOL bRetryAppendPath = FALSE;
 	DWORD dwCpError;
 	STARTUPINFO StartupInfo;
 	PROCESS_INFORMATION ProcInfo;
 
 	GetStartupInfo(&StartupInfo);
+	StartupInfo.lpTitle = NULL;
 
-RetryCreateProcess:
+	PreScanExeFile();
+
+	// attach to parent console (if any) to allow child process to inherit it
+	AttachConsole(ATTACH_PARENT_PROCESS);
+
 	bSuccess = CreateProcess(
 		NULL,
 		lpszCmdLine,
@@ -282,66 +577,83 @@ RetryCreateProcess:
 		&ProcInfo);
 	dwCpError = GetLastError();
 
+	// unpatch kernel32 if it was patched before
 	PatchKernel32ImageVersionCheck(FALSE);
 
 	if (!bSuccess) {
 		if (dwCpError == ERROR_BAD_EXE_FORMAT) {
-			if (!bRetryPatchKernel32) {
-				// Since patching kernel32 carries a performance penalty (have to scan through memory), we
-				// only patch kernel32 if CreateProcess fails (which, in most cases, is due to not passing
-				// the image subsystem version check).
-				bRetryPatchKernel32 = TRUE;
-				PatchKernel32ImageVersionCheck(TRUE);
-				goto RetryCreateProcess;
-			} else {
-				// Windows doesn't provide any pre-defined error message for this scenario.
-				// Therefore to prevent user confusion we have to display our own error message.
-				CriticalErrorBoxF(T("Failed to create process: %#010I32x: The executable file is invalid."), dwCpError);
-			}
+			// Windows doesn't provide any pre-defined error message for this scenario.
+			// Therefore to prevent user confusion we have to display our own error message.
+			CriticalErrorBoxF(L"Failed to create process: %#010I32x: The executable file is invalid.", dwCpError);
 		} else if (dwCpError = ERROR_ELEVATION_REQUIRED && !IsUserAnAdmin()) {
 			// Debugging elevated processes as a non-elevated process isn't allowed so we need to re-exec
 			// ourselves as admin.
-			TCHAR szVxKexLdr[MAX_PATH];
-			LPCTSTR lpszCommandLine = GetCommandLine();
-			LPCTSTR lpszSubStr;
+			WCHAR szVxKexLdr[MAX_PATH];
+			LPCWSTR lpszCommandLine = GetCommandLine();
+			LPCWSTR lpszSubStr;
 			GetModuleFileName(NULL, szVxKexLdr, ARRAYSIZE(szVxKexLdr));
 			lpszSubStr = StrStrI(lpszCommandLine, szVxKexLdr);
 
 			if (lpszSubStr == lpszCommandLine || lpszSubStr == lpszCommandLine + 1) {
-				lpszCommandLine = lpszSubStr + lstrlen(szVxKexLdr);
+				lpszCommandLine = lpszSubStr + wcslen(szVxKexLdr);
 			}
 
 			if (*lpszCommandLine == '\"') {
 				++lpszCommandLine;
 			}
 
-			ShellExecute(NULL, T("runas"), szVxKexLdr, lpszCommandLine, NULL, TRUE);
+			ShellExecute(NULL, L"runas", szVxKexLdr, lpszCommandLine, NULL, TRUE);
 			ExitProcess(0);
 		}
 
-		CriticalErrorBoxF(T("Failed to create process: %#010I32x: %s"), dwCpError, GetLastErrorAsString());
+		CriticalErrorBoxF(L"Failed to create process: %#010I32x: %s", dwCpError, GetLastErrorAsString());
 	}
 
-	if (!bRetryAppendPath) {
-		// The most reliable way to find out whether any given process is 32 bits is just to
-		// start it and check. It's bloat but it works.
-		// In the future maybe we will find a way to inject environment variables into a started
-		// process and avoid having to start the process twice.
-		g_bExe64 = !ProcessIs32Bit(ProcInfo.hProcess);
-		AppendKex3264ToPath(g_bExe64 ? 64 : 32);
-		DebugActiveProcessStop(ProcInfo.dwProcessId); // avoid spurious debug events later
-		TerminateProcess(ProcInfo.hProcess, 0);
-		CloseHandle(ProcInfo.hProcess);
-		CloseHandle(ProcInfo.hThread);
-		bRetryAppendPath = TRUE;
-		goto RetryCreateProcess;
-	}
-
-	DebugSetProcessKillOnExit(FALSE);
 	g_hProc = ProcInfo.hProcess;
 	g_hThread = ProcInfo.hThread;
 	g_dwProcId = ProcInfo.dwProcessId;
 	g_dwThreadId = ProcInfo.dwThreadId;
+	GetProcessBaseAddressAndPebBaseAddress(g_hProc, &g_vaExeBase, &g_vaPebBase);
+
+	if (ChildProcessIsConsoleProcess()) {
+		PerformCmdSusHack(); // must be done before freeing console
+	}
+
+	// we don't need this console anymore, a separate one will be allocated later if needed
+	FreeConsole();
+}
+
+VOID CreateNormalProcess(
+	IN	LPWSTR	lpszCmdLine)
+{
+	BOOL bSuccess;
+	DWORD dwCpError;
+	STARTUPINFO StartupInfo;
+	PROCESS_INFORMATION ProcInfo;
+
+	GetStartupInfo(&StartupInfo);
+	StartupInfo.lpTitle = NULL;
+
+	bSuccess = CreateProcess(
+		NULL,
+		lpszCmdLine,
+		NULL,
+		NULL,
+		FALSE,
+		0,
+		NULL,
+		NULL,
+		&StartupInfo,
+		&ProcInfo);
+	dwCpError = GetLastError();
+
+	if (!bSuccess) {
+		if (dwCpError == ERROR_BAD_EXE_FORMAT) {
+			CriticalErrorBoxF(L"Failed to create process: %#010I32x: The executable file is invalid.", dwCpError);
+		} else {
+			CriticalErrorBoxF(L"Failed to create process: %#010I32x: %s", dwCpError, GetLastErrorAsString());
+		}
+	}
 }
 
 ULONG_PTR GetEntryPointVa(
@@ -353,72 +665,39 @@ ULONG_PTR GetEntryPointVa(
 	return vaPeBase + VaReadDword(vaOptHdr + 16);
 }
 
-LPCTSTR KexpGetIfeoKey(
-	IN	LPCTSTR	lpszExeFullPath OPTIONAL)
+BOOL KexOpenIfeoKeyForExe(
+	IN	LPCWSTR	lpszExeFullPath OPTIONAL,
+	IN	REGSAM	samDesired,
+	OUT	PHKEY	phkResult)
 {
-	static TCHAR szKexIfeoKey[54 + MAX_PATH];
-
-	if (lpszExeFullPath == NULL) {
-		lpszExeFullPath = g_szExeFullPath;
-	}
-
-	strcpy_s(szKexIfeoKey, ARRAYSIZE(szKexIfeoKey), T("SOFTWARE\\VXsoft\\VxKexLdr\\Image File Execution Options\\"));
-	strcat_s(szKexIfeoKey, ARRAYSIZE(szKexIfeoKey), lpszExeFullPath);
-	return szKexIfeoKey;
-}
-
-BOOL KexQueryIfeoDw(
-	IN	LPCTSTR	lpszExeFullPath OPTIONAL,
-	IN	LPCTSTR	lpszValueName,
-	OUT	LPDWORD	lpdwResult)
-{
-	return RegReadDw(HKEY_CURRENT_USER, KexpGetIfeoKey(lpszExeFullPath), lpszValueName, lpdwResult);
-}
-
-BOOL KexQueryIfeoSz(
-	IN	LPCTSTR	lpszExeFullPath OPTIONAL,
-	IN	LPCTSTR	lpszValueName,
-	OUT	LPTSTR	lpszResult,
-	IN	DWORD	dwcchResult)
-{
-	return RegReadSz(HKEY_CURRENT_USER, KexpGetIfeoKey(lpszExeFullPath), lpszValueName, lpszResult, dwcchResult);
-}
-
-BOOL ShouldAllocConsole(
-	IN	LPCTSTR	lpszExeFullPath OPTIONAL)
-{
-	DWORD dwShouldAllocConsole;
+	WCHAR szKexIfeoKey[54 + MAX_PATH] = L"SOFTWARE\\VXsoft\\VxKexLdr\\Image File Execution Options\\";
+	LSTATUS lStatus;
 
 	if (lpszExeFullPath) {
-		if (RegReadDw(HKEY_CURRENT_USER, T("SOFTWARE\\VXsoft\\VxKexLdr"), T("ShowDebugInfoByDefault"), &dwShouldAllocConsole)) {
-			return dwShouldAllocConsole;
-		} else {
-			return FALSE;
-		}
-	} else {
-		if (KexQueryIfeoDw(lpszExeFullPath, T("AlwaysShowDebug"), &dwShouldAllocConsole)) {
-			return dwShouldAllocConsole;
-		} else {
-			return FALSE;
-		}
+		wcscat_s(szKexIfeoKey, ARRAYSIZE(szKexIfeoKey), lpszExeFullPath);
 	}
-}
 
-BOOL ShouldDetachAfterDllRewrite(
-	IN	LPCTSTR	lpszExeFullPath)
-{
-	DWORD dwShouldNotDetach;
-	
-	if (KexQueryIfeoDw(lpszExeFullPath, T("WaitForChild"), &dwShouldNotDetach)) {
-		return !dwShouldNotDetach;
+	lStatus = RegOpenKeyEx(HKEY_CURRENT_USER, szKexIfeoKey, 0, samDesired, phkResult);
+
+	if (lStatus != ERROR_SUCCESS) {
+		SetLastError(lStatus);
+		return FALSE;
 	} else {
 		return TRUE;
 	}
 }
 
+BOOL ShouldAllocConsole(
+	VOID)
+{
+	DWORD dwShouldAllocConsole = FALSE;
+	RegReadDw(HKEY_CURRENT_USER, L"SOFTWARE\\VXsoft\\VxKexLdr", L"ShowDebugInfoByDefault", &dwShouldAllocConsole);
+	return dwShouldAllocConsole || g_KexIfeoParameters.dwAlwaysShowDebug;
+}
+
 // user32.dll -> user33.dll etc etc
 VOID RewriteImports(
-	IN	LPCTSTR		lpszImageName OPTIONAL,
+	IN	LPCWSTR		lpszImageName OPTIONAL,
 	IN	ULONG_PTR	vaPeBase)
 {
 	CONST ULONG_PTR vaPeSig = vaPeBase + VaReadDword(vaPeBase + 0x3C);
@@ -438,22 +717,22 @@ VOID RewriteImports(
 	if (g_bExe64 != bPe64) {
 		// Provide a more useful error message to the user than the cryptic shit
 		// which ntdll displays by default.
-		CriticalErrorBoxF(T("The %d-bit DLL '%s' was loaded into a %d-bit application.\n")
-						  T("Architecture of DLLs and applications must match for successful program operation."),
-						  bPe64 ? 64 : 32, lpszImageName ? lpszImageName : T("(unknown)"), g_bExe64 ? 64 : 32);
+		CriticalErrorBoxF(L"The %d-bit DLL '%s' was loaded into a %d-bit application.\n"
+						  L"Architecture of DLLs and applications must match for successful program operation.",
+						  bPe64 ? 64 : 32, lpszImageName ? lpszImageName : L"(unknown)", g_bExe64 ? 64 : 32);
 	}
 
 	if (ulImportDir == 0) {
-		cprintf(T("    This DLL contains no import directory - skipping\n"));
+		PrintF(L"    This DLL contains no import directory - skipping\n");
 		return;
 	}
 
-	lStatus = RegOpenKeyEx(HKEY_LOCAL_MACHINE, T("SOFTWARE\\VXsoft\\VxKexLdr\\DllRewrite"),
-						   0, KEY_QUERY_VALUE | KEY_WOW64_64KEY, &hKeyDllRewrite);
+	lStatus = RegOpenKeyEx(HKEY_LOCAL_MACHINE, L"SOFTWARE\\VXsoft\\VxKexLdr\\DllRewrite",
+						   0, KEY_QUERY_VALUE, &hKeyDllRewrite);
 
 	if (lStatus != ERROR_SUCCESS) {
 		SetLastError(lStatus);
-		CriticalErrorBoxF(T("Failed to open DLL rewrite registry key: %s"), GetLastErrorAsString());
+		CriticalErrorBoxF(L"Failed to open DLL rewrite registry key: %s", GetLastErrorAsString());
 	}
 
 	for (idxIntoImportTbl = 0;; ++idxIntoImportTbl) {
@@ -461,10 +740,10 @@ VOID RewriteImports(
 		CONST DWORD rvaDllName = VaReadDword(ulPtr + 12);
 		CONST ULONG_PTR vaDllName = vaPeBase + rvaDllName;
 #ifdef UNICODE
-		CHAR originalDllNameData[MAX_PATH * sizeof(TCHAR)];
+		CHAR originalDllNameData[MAX_PATH * sizeof(WCHAR)];
 #endif
-		TCHAR szOriginalDllName[MAX_PATH];
-		TCHAR szRewriteDllName[MAX_PATH];
+		WCHAR szOriginalDllName[MAX_PATH];
+		WCHAR szRewriteDllName[MAX_PATH];
 		DWORD dwMaxPath = MAX_PATH;
 
 		if (rvaDllName == 0) {
@@ -483,26 +762,26 @@ VOID RewriteImports(
 								  (LPBYTE) szRewriteDllName, &dwMaxPath);
 
 		if (lStatus == ERROR_SUCCESS) {
-			CONST DWORD dwOriginalLength = (DWORD) strlen(szOriginalDllName);
-			CONST DWORD dwRewriteLength = (DWORD) strlen(szRewriteDllName);
+			CONST DWORD dwOriginalLength = (DWORD) wcslen(szOriginalDllName);
+			CONST DWORD dwRewriteLength = (DWORD) wcslen(szRewriteDllName);
 
 			if (dwRewriteLength > dwOriginalLength) {
 				// IMPORTANT NOTE: When you add more rewrite DLLs to the registry, the length of the
 				// rewrite DLL name MUST BE LESS THAN OR EQUAL to the length of the original DLL name.
-				cprintf(T("    WARNING: The rewrite DLL name %s for original DLL %s is too long. ")
-						T("It is %u bytes but the maximum is %u. Skipping.\n"),
+				PrintF(L"    WARNING: The rewrite DLL name %s for original DLL %s is too long. "
+						L"It is %u bytes but the maximum is %u. Skipping.\n",
 						szRewriteDllName, szOriginalDllName, dwRewriteLength, dwOriginalLength);
 			} else {
-				cprintf(T("    Rewriting DLL import %s -> %s\n"), szOriginalDllName, szRewriteDllName);
+				PrintF(L"    Rewriting DLL import %s -> %s\n", szOriginalDllName, szRewriteDllName);
 				VaWriteSzA(vaDllName, szRewriteDllName);
 			}
 		} else if (lStatus == ERROR_MORE_DATA) {
 			// The data for the registry entry was too long
-			cprintf(T("    WARNING: The rewrite DLL registry entry for the DLL %s ")
-					T("contains invalid data. Skipping.\n"), szOriginalDllName);
+			PrintF(L"    WARNING: The rewrite DLL registry entry for the DLL %s "
+					L"contains invalid data. Skipping.\n", szOriginalDllName);
 		} else {
 			// No rewrite entry was found
-			cprintf(T("    Found DLL import %s - not rewriting\n"), szOriginalDllName);
+			PrintF(L"    Found DLL import %s - not rewriting\n", szOriginalDllName);
 		}
 	}
 
@@ -510,26 +789,11 @@ VOID RewriteImports(
 }
 
 BOOL ShouldRewriteImportsOfDll(
-	IN	LPCTSTR	lpszDllName)
+	IN	LPCWSTR	lpszDllName)
 {
-	TCHAR szKexDir[MAX_PATH];
-	TCHAR szWinDir[MAX_PATH];
-	TCHAR szDllDir[MAX_PATH];
-	LSTATUS lStatus;
-	HKEY hKeyMainConf;
+	WCHAR szDllDir[MAX_PATH];
 
-	lStatus = RegOpenKeyEx(HKEY_LOCAL_MACHINE, T("SOFTWARE\\VXsoft\\" APPNAME),
-						   0, KEY_QUERY_VALUE | KEY_WOW64_64KEY, &hKeyMainConf);
-	if (lStatus != ERROR_SUCCESS) {
-		SetLastError(lStatus);
-		CriticalErrorBoxF(T("Could not open configuration registry key: %s"), GetLastErrorAsString());
-	} else {
-		DWORD dwMaxPath = MAX_PATH;
-		lStatus = RegQueryValueEx(hKeyMainConf, T("KexDir"), NULL, NULL,
-								  (LPBYTE) szKexDir, &dwMaxPath);
-	}
-
-	if (!lpszDllName || !strlen(lpszDllName) || PathIsRelative(lpszDllName)) {
+	if (!lpszDllName || !wcslen(lpszDllName) || PathIsRelative(lpszDllName)) {
 		// just be safe and don't rewrite it, since we don't even know what it is
 		// for relative path: usually only NTDLL is specified as a relative path,
 		// and we don't want to rewrite that either (especially since it has no
@@ -537,11 +801,10 @@ BOOL ShouldRewriteImportsOfDll(
 		return FALSE;
 	}
 
-	GetWindowsDirectory(szWinDir, ARRAYSIZE(szWinDir));
-	strcpy_s(szDllDir, ARRAYSIZE(szDllDir), lpszDllName);
+	wcscpy_s(szDllDir, ARRAYSIZE(szDllDir), lpszDllName);
 	PathRemoveFileSpec(szDllDir);
 
-	if (PathIsPrefix(szWinDir, szDllDir) || PathIsPrefix(szKexDir, szDllDir)) {
+	if (PathIsPrefix(SharedUserData->NtSystemRoot, szDllDir) || PathIsPrefix(g_szKexDir, szDllDir)) {
 		// don't rewrite any imports if the particular DLL is in the Windows folder
 		// or the kernel extensions folder
 		return FALSE;
@@ -551,10 +814,10 @@ BOOL ShouldRewriteImportsOfDll(
 }
 
 // TODO: Make an XP compatible version
-LPTSTR GetFilePathFromHandle(
+LPWSTR GetFilePathFromHandle(
 	IN	HANDLE	hFile)
 {
-	static TCHAR szPath[MAX_PATH + 4];
+	static WCHAR szPath[MAX_PATH + 4];
 
 	if (!GetFinalPathNameByHandle(hFile, szPath, ARRAYSIZE(szPath), 0)) {
 		return NULL;
@@ -571,12 +834,11 @@ LPTSTR GetFilePathFromHandle(
 VOID PerformPostInitializationSteps(
 	VOID)
 {
-	TCHAR szFakedVersion[6];
-	DWORD dwDebuggerSpoof;
+	WCHAR szFakedVersion[6];
 
-	cprintf(T("[KE] Performing post-initialization steps\n"));
+	PrintF(L"[KE] Performing post-initialization steps\n");
 
-	if (KexQueryIfeoSz(g_szExeFullPath, T("WinVerSpoof"), szFakedVersion, ARRAYSIZE(szFakedVersion)) == TRUE) {
+	if (wcscmp(g_KexIfeoParameters.szWinVerSpoof, L"NONE")) {
 		ULONG_PTR vaMajorVersion = g_vaPebBase + (g_bExe64 ? 0x118 : 0xA4);
 		ULONG_PTR vaMinorVersion = vaMajorVersion + sizeof(ULONG);
 		ULONG_PTR vaBuildNumber = vaMinorVersion + sizeof(ULONG);
@@ -589,25 +851,25 @@ VOID PerformPostInitializationSteps(
 		usFakeCSDVersion.MaximumLength = 0;
 		usFakeCSDVersion.Buffer = (PWSTR) vaCSDVersionUS;
 
-		if (!lstrcmpi(szFakedVersion, T("WIN8"))) {
+		if (!wcsicmp(szFakedVersion, L"WIN8")) {
 			VaWriteDword(vaMajorVersion, 6);
 			VaWriteDword(vaMinorVersion, 2);
 			VaWriteWord(vaBuildNumber, 9200);
 			VaWriteWord(vaCSDVersion, 0);
 			VaWrite(vaCSDVersionUS, &usFakeCSDVersion, sizeof(usFakeCSDVersion));
-		} else if (!lstrcmpi(szFakedVersion, T("WIN81"))) {
+		} else if (!wcsicmp(szFakedVersion, L"WIN81")) {
 			VaWriteDword(vaMajorVersion, 6);
 			VaWriteDword(vaMinorVersion, 3);
 			VaWriteWord(vaBuildNumber, 9600);
 			VaWriteWord(vaCSDVersion, 0);
 			VaWrite(vaCSDVersionUS, &usFakeCSDVersion, sizeof(usFakeCSDVersion));
-		} else if (!lstrcmpi(szFakedVersion, T("WIN10"))) {
+		} else if (!wcsicmp(szFakedVersion, L"WIN10")) {
 			VaWriteDword(vaMajorVersion, 10);
 			VaWriteDword(vaMinorVersion, 0);
 			VaWriteWord(vaBuildNumber, 19044);
 			VaWriteWord(vaCSDVersion, 0);
 			VaWrite(vaCSDVersionUS, &usFakeCSDVersion, sizeof(usFakeCSDVersion));
-		} else if (!lstrcmpi(szFakedVersion, T("WIN11"))) {
+		} else if (!wcsicmp(szFakedVersion, L"WIN11")) {
 			VaWriteDword(vaMajorVersion, 10);
 			VaWriteDword(vaMinorVersion, 0);
 			VaWriteWord(vaBuildNumber, 22000);
@@ -615,13 +877,13 @@ VOID PerformPostInitializationSteps(
 			VaWrite(vaCSDVersionUS, &usFakeCSDVersion, sizeof(usFakeCSDVersion));
 		}
 
-		cprintf(T("[KE]    Faked Windows version: %s\n"), szFakedVersion);
+		PrintF(L"[KE]    Faked Windows version: %s\n", szFakedVersion);
 	}
 
-	if (KexQueryIfeoDw(g_szExeFullPath, T("DebuggerSpoof"), &dwDebuggerSpoof)) {
+	if (g_KexIfeoParameters.dwDebuggerSpoof) {
 		ULONG_PTR vaDebuggerPresent = g_vaPebBase + FIELD_OFFSET(PEB, BeingDebugged);
-		VaWriteByte(vaDebuggerPresent, !dwDebuggerSpoof);
-		cprintf(T("[KE]    Spoofed debugger presence\n"));
+		VaWriteByte(vaDebuggerPresent, !g_KexIfeoParameters.dwDebuggerSpoof);
+		PrintF(L"[KE]    Spoofed debugger presence\n");
 	}
 }
 
@@ -634,7 +896,7 @@ VOID RewriteDllImports(
 	CONST ULONG_PTR vaEntryPoint = GetEntryPointVa(g_vaExeBase);
 	CONST BYTE btOriginal = VaReadByte(vaEntryPoint);
 
-	cprintf(T("[KE ProcId=%lu, ThreadId=%lu]\tProcess entry point: %p, Original byte: 0x%02X\n"),
+	PrintF(L"[KE ProcId=%lu, ThreadId=%lu]\tProcess entry point: %p, Original byte: 0x%02X\n",
 			g_dwProcId, g_dwThreadId, vaEntryPoint, btOriginal);
 	VaWriteByte(vaEntryPoint, 0xCC);
 
@@ -652,36 +914,37 @@ VOID RewriteDllImports(
 		WaitForDebugEvent(&DbgEvent, INFINITE);
 
 		if (DbgEvent.dwDebugEventCode == CREATE_PROCESS_DEBUG_EVENT) {
-			cprintf(T("[CP ProcId=%lu]\t\tProcess created.\n"), DbgEvent.dwProcessId);
-			CloseHandle(DbgEvent.u.CreateProcessInfo.hFile);
-			CloseHandle(DbgEvent.u.CreateProcessInfo.hThread);
-			CloseHandle(DbgEvent.u.CreateProcessInfo.hProcess);
+			PrintF(L"[CP ProcId=%lu]\t\tProcess created.\n", DbgEvent.dwProcessId);
+			NtClose(DbgEvent.u.CreateProcessInfo.hFile);
+			NtClose(DbgEvent.u.CreateProcessInfo.hThread);
+			NtClose(DbgEvent.u.CreateProcessInfo.hProcess);
 		} else if (DbgEvent.dwDebugEventCode == LOAD_DLL_DEBUG_EVENT) {
 			HANDLE hDllFile = DbgEvent.u.LoadDll.hFile;
-			LPTSTR lpszDllName;
+			LPWSTR lpszDllName;
 
 			if (!hDllFile || (lpszDllName = GetFilePathFromHandle(hDllFile)) == NULL) {
 				continue;
 			}
 
-			cprintf(T("[LD ProcId=%lu, ThreadId=%lu]\tDLL loaded: %s"), DbgEvent.dwProcessId, DbgEvent.dwThreadId, lpszDllName);
+			PrintF(L"[LD ProcId=%lu, ThreadId=%lu]\tDLL loaded: %s", DbgEvent.dwProcessId, DbgEvent.dwThreadId, lpszDllName);
 
 			if (ShouldRewriteImportsOfDll(lpszDllName)) {
-				cprintf(T(" (imports will be rewritten)\n"));
+				PrintF(L" (imports will be rewritten)\n");
 				PathStripPath(lpszDllName);
 				RewriteImports(lpszDllName, (ULONG_PTR) DbgEvent.u.LoadDll.lpBaseOfDll);
 			} else {
-				cprintf(T(" (imports will NOT be rewritten)\n"));
+				PrintF(L" (imports will NOT be rewritten)\n");
 			}
 		} else if (DbgEvent.dwDebugEventCode == UNLOAD_DLL_DEBUG_EVENT) {
-			cprintf(T("[UL ProcId=%lu, ThreadId=%lu]\tThe DLL at %p was unloaded.\n"),
+			PrintF(L"[UL ProcId=%lu, ThreadId=%lu]\tThe DLL at %p was unloaded.\n",
 					DbgEvent.dwProcessId, DbgEvent.dwThreadId, DbgEvent.u.UnloadDll.lpBaseOfDll);
 		} else if (DbgEvent.dwDebugEventCode == EXIT_PROCESS_DEBUG_EVENT) {
-			cprintf(T("[EP ProcId=%lu]\t\tAttached process has exited.\n"), DbgEvent.dwProcessId);
+			DWORD dwProcId = DbgEvent.dwProcessId;
+			DWORD dwExitCode = DbgEvent.u.ExitProcess.dwExitCode;
 
-			if (DbgEvent.dwProcessId == g_dwProcId) {
-				DWORD dwExitCode;
-				GetExitCodeProcess(g_hProc, &dwExitCode);
+			PrintF(L"[EP ProcId=%lu]\t\tAttached process has exited (code %#010I32x).\n", dwExitCode, dwProcId);
+
+			if (dwProcId == g_dwProcId) {
 				Exit(dwExitCode);
 			}
 		} else if (DbgEvent.dwDebugEventCode == EXCEPTION_DEBUG_EVENT &&
@@ -695,7 +958,7 @@ VOID RewriteDllImports(
 
 			// Must decrement EIP/RIP, restore the original byte, detach the debugger and
 			// resume program execution. Then exit the loader.
-			cprintf(T("[KE ProcId=%lu, ThreadId=%lu]\tProcess has finished loading.\n"),
+			PrintF(L"[KE ProcId=%lu, ThreadId=%lu]\tProcess has finished loading.\n",
 					DbgEvent.dwProcessId, DbgEvent.dwThreadId);
 
 			if (g_bExe64) {
@@ -723,17 +986,18 @@ VOID RewriteDllImports(
 			PerformPostInitializationSteps();
 			ContinueDebugEvent(DbgEvent.dwProcessId, DbgEvent.dwThreadId, DBG_CONTINUE);
 
-			if (ShouldDetachAfterDllRewrite(g_szExeFullPath)) {
+			if (!g_KexIfeoParameters.dwWaitForChild) {
+				DebugSetProcessKillOnExit(FALSE);
 				DebugActiveProcessStop(g_dwProcId);
-				cprintf(T("[KE] Detached from process.\n"));
+				PrintF(L"[KE] Detached from process.\n");
 				return;
 			}
 		} else if (DbgEvent.dwDebugEventCode == OUTPUT_DEBUG_STRING_EVENT) {
 			HANDLE hProc = NULL;
-			LPTSTR lpszBuf = NULL;
+			LPWSTR lpszBuf = NULL;
 			SIZE_T BufSize = DbgEvent.u.DebugString.nDebugStringLength;
 
-			if ((lpszBuf = (LPTSTR) malloc(BufSize)) == NULL) {
+			if ((lpszBuf = (LPWSTR) HeapAlloc(GetProcessHeap(), 0, BufSize)) == NULL) {
 				continue;
 			}
 			
@@ -745,81 +1009,113 @@ VOID RewriteDllImports(
 				continue;
 			}
 
-			CloseHandle(hProc);
+			NtClose(hProc);
 
-#ifdef UNICODE
-			cprintf(T("[DS ProcId=%lu, ThreadId=%lu]\t%S\n"), DbgEvent.dwProcessId, DbgEvent.dwThreadId, lpszBuf);
-#else
-			cprintf(T("[DS ProcId=%lu, ThreadId=%lu]\t%s\n"), DbgEvent.dwProcessId, DbgEvent.dwThreadId, lpszBuf);
-#endif
-
-			free(lpszBuf);
+			PrintF(L"[DS ProcId=%lu, ThreadId=%lu]\t%hs\n", DbgEvent.dwProcessId, DbgEvent.dwThreadId, lpszBuf);
+			HeapFree(GetProcessHeap(), 0, lpszBuf);
 		} else {
-			cprintf(T("[?? ProcId=%lu, ThreadId=%lu]\tUnknown debug event received: %lu\n"),
+			PrintF(L"[?? ProcId=%lu, ThreadId=%lu]\tUnknown debug event received: %lu\n",
 					DbgEvent.dwProcessId, DbgEvent.dwThreadId, DbgEvent.dwDebugEventCode);
 		}
 	}
 }
 
-VOID GetProcessImageFullPath(
-	IN	HANDLE	hProc,
-	OUT	LPTSTR	szFullPath)
+VOID GetFirstCmdLineToken(
+	IN	LPCWSTR	lpszCmdLine,
+	OUT	LPWSTR	lpszFirstCmdLineToken)
 {
-	TCHAR szImageFileName[MAX_PATH];
-	TCHAR szDosDevice[3] = T("A:");
-	TCHAR szNtDevice[MAX_PATH];
+	BOOL bDoubleQuoted = FALSE;
 
-	// This returns a NT style path such as "\Device\HarddiskVolume3\Program Files\whatever.exe"
-	// which is pretty much the verbatim output of NtQueryInformationProcess ProcessImageFileName.
-	GetProcessImageFileName(hProc, szImageFileName, ARRAYSIZE(szImageFileName));
-
-	for (; szDosDevice[0] <= 'Z'; szDosDevice[0]++) {
-		if (QueryDosDevice(szDosDevice, szNtDevice, ARRAYSIZE(szNtDevice) - 1)) {
-			if (!strnicmp(szNtDevice, szImageFileName, strlen(szNtDevice))) {
+	while (*lpszCmdLine > ' ' || (*lpszCmdLine && bDoubleQuoted)) {
+		if (*lpszCmdLine == '"') {
+			if (bDoubleQuoted) {
 				break;
 			}
+
+			bDoubleQuoted = !bDoubleQuoted;
+		} else {
+			*lpszFirstCmdLineToken++ = *lpszCmdLine;
 		}
+
+		lpszCmdLine++;
 	}
 
-	if (szDosDevice[0] > 'Z') {
-		CriticalErrorBoxF(T("%s was unable to resolve the DOS device name of the executable file '%s'.\n")
-						  T("This may be caused by the file residing on a network share or unmapped drive. ")
-						  T("%s does not currently support this scenario, please ensure all executable files ")
-						  T("are on mapped drives with drive letters."),
-						  FRIENDLYAPPNAME, FRIENDLYAPPNAME);
-	}
+	// Ashamedly, I forgot this and spent 10 minutes debugging wtf was going on.
+	*lpszFirstCmdLineToken = '\0';
+}
 
-	strcpy_s(g_szExeFullPath, ARRAYSIZE(g_szExeFullPath), szDosDevice);
-	strcat_s(g_szExeFullPath, ARRAYSIZE(g_szExeFullPath), szImageFileName + strlen(szNtDevice));
+VOID GetExeFullPathFromCmdLine(
+	IN	LPCWSTR	lpszCmdLine,
+	OUT	LPWSTR	lpszExeFullPath)
+{
+	WCHAR szFirstCmdLineToken[MAX_PATH];
+	GetFirstCmdLineToken(lpszCmdLine, szFirstCmdLineToken);
+
+	if (PathIsRelative(szFirstCmdLineToken)) {
+		SearchPath(NULL, szFirstCmdLineToken, L".exe", MAX_PATH, lpszExeFullPath, NULL);
+	} else {
+		wcscpy_s(lpszExeFullPath, MAX_PATH, szFirstCmdLineToken);
+	}
+}
+
+VOID KexReadIfeoParameters(
+	IN	LPCWSTR				szExeFullPath,
+	OUT	LPKEXIFEOPARAMETERS	lpKexIfeoParameters)
+{
+	HKEY hKey;
+
+	ZeroMemory(lpKexIfeoParameters, sizeof(*lpKexIfeoParameters));
+	wcscpy_s(lpKexIfeoParameters->szWinVerSpoof, ARRAYSIZE(lpKexIfeoParameters->szWinVerSpoof), L"NONE");
+	CHECKED(KexOpenIfeoKeyForExe(szExeFullPath, KEY_QUERY_VALUE, &hKey));
+
+	RegReadSz(hKey, NULL, L"WinVerSpoof", lpKexIfeoParameters->szWinVerSpoof, ARRAYSIZE(lpKexIfeoParameters->szWinVerSpoof));
+	RegReadDw(hKey, NULL, L"EnableVxKex",			&lpKexIfeoParameters->dwEnableVxKex);
+	RegReadDw(hKey, NULL, L"AlwaysShowDebug",		&lpKexIfeoParameters->dwAlwaysShowDebug);
+	RegReadDw(hKey, NULL, L"DisableForChild",		&lpKexIfeoParameters->dwDisableForChild);
+	RegReadDw(hKey, NULL, L"DisableAppSpecific",	&lpKexIfeoParameters->dwDisableAppSpecific);
+	RegReadDw(hKey, NULL, L"WaitForChild",			&lpKexIfeoParameters->dwWaitForChild);
+	RegReadDw(hKey, NULL, L"DebuggerSpoof",			&lpKexIfeoParameters->dwDebuggerSpoof);
+
+Error:
+	RegCloseKey(hKey);
+	return;
 }
 
 BOOL SpawnProgramUnderLoader(
-	IN	LPTSTR	lpszCmdLine,
+	IN	LPWSTR	lpszCmdLine,
 	IN	BOOL	bCalledFromDialog,
+	IN	BOOL	bDialogDebugChecked,
 	IN	BOOL	bForce)
 {
-	DWORD dwEnableVxKex;
+	if (!RegReadSz(HKEY_LOCAL_MACHINE, L"SOFTWARE\\VXsoft\\VxKexLdr", L"KexDir", g_szKexDir, ARRAYSIZE(g_szKexDir))) {
+		CriticalErrorBoxF(L"Failed to get the VxKex installation directory. Please reinstall the software to fix this problem.");
+	}
+	
+	GetExeFullPathFromCmdLine(lpszCmdLine, g_szExeFullPath);
+	KexReadIfeoParameters(g_szExeFullPath, &g_KexIfeoParameters);
 
-	CreateSuspendedProcess(lpszCmdLine);
-	GetProcessImageFullPath(g_hProc, g_szExeFullPath);
-
-	if (!bCalledFromDialog && !bForce && (!KexQueryIfeoDw(g_szExeFullPath, T("EnableVxKex"), &dwEnableVxKex) || !dwEnableVxKex)) {
+	if (!bCalledFromDialog && !bForce && !g_KexIfeoParameters.dwEnableVxKex) {
 		// Since the IFEO in HKLM doesn't discriminate by image path and only by name, this check has to
-		// be performed - if we aren't actually supposed to be enabled for this executable, just resume
-		// the thread and be done with it.
-		ResumeThread(g_hThread);
+		// be performed - if we aren't actually supposed to be enabled for this executable, just start
+		// the process normally and be done with it.
+		// Note: on Vista or 7+ (don't remember which) there's some sort of filter that can be used to
+		// make HKLM IFEO only apply to a certain path. Maybe it's worth investigating.
+		CreateNormalProcess(lpszCmdLine);
 		return FALSE;
 	}
 
-	if (!bCalledFromDialog && (ShouldAllocConsole(NULL) || ShouldAllocConsole(g_szExeFullPath))) {
-		// You can't call cprintf() anywhere before this. If you do, all console output
-		// fails to work.
+	CreateSuspendedProcess(lpszCmdLine);
+
+	if ((!bCalledFromDialog && ShouldAllocConsole()) || (bCalledFromDialog && bDialogDebugChecked)) {
+		WCHAR szConsoleTitle[MAX_PATH + 25];
 		AllocConsole();
+		swprintf_s(szConsoleTitle, ARRAYSIZE(szConsoleTitle), L"VxKexLdr Debug Console (%s)", g_szExeFullPath);
+		SetConsoleTitle(L"VxKexLdr Debug Console");
 	}
 
-	GetProcessBaseAddressAndPebBaseAddress(g_hProc);
-	cprintf(T("The process is %d-bit and its base address is %p (PEB base address: %p)\n"),
+	PrintF(L"The process is %d-bit and its base address is %p (PEB base address: %p)\n",
 			g_bExe64 ? 64 : 32, g_vaExeBase, g_vaPebBase);
+
 	RewriteImports(NULL, g_vaExeBase);
 	RewriteDllImports();
 
@@ -829,7 +1125,7 @@ BOOL SpawnProgramUnderLoader(
 HWND CreateToolTip(
 	IN	HWND	hDlg,
 	IN	INT		iToolID,
-	IN	LPTSTR	lpszText)
+	IN	LPWSTR	lpszText)
 {
 	TOOLINFO ToolInfo;
 	HWND hWndTool;
@@ -875,8 +1171,8 @@ INT_PTR CALLBACK DlgProc(
 {
 	LSTATUS lStatus;
 	HKEY hKeyUserSpecificConfig;
-	CONST TCHAR szUserSpecificConfigKey[] = T("SOFTWARE\\VXsoft\\") APPNAME;
-	TCHAR szFilename[MAX_PATH + 2] = T("");
+	CONST WCHAR szUserSpecificConfigKey[] = L"SOFTWARE\\VXsoft\\" APPNAME;
+	WCHAR szFilename[MAX_PATH + 2] = L"";
 	DWORD dwcbFilename = sizeof(szFilename);
 	BOOL bShouldShowDebugInfo;
 	DWORD dwcbShouldShowDebugInfo = sizeof(bShouldShowDebugInfo);
@@ -892,10 +1188,10 @@ INT_PTR CALLBACK DlgProc(
 
 		if (lStatus == ERROR_SUCCESS) {
 			RegQueryValueEx(
-				hKeyUserSpecificConfig, T("LastCmdLine"),
+				hKeyUserSpecificConfig, L"LastCmdLine",
 				0, NULL, (LPBYTE) szFilename, &dwcbFilename);
 			lStatus = RegQueryValueEx(
-				hKeyUserSpecificConfig, T("ShowDebugInfo"),
+				hKeyUserSpecificConfig, L"ShowDebugInfo",
 				0, NULL, (LPBYTE) &bShouldShowDebugInfo, &dwcbShouldShowDebugInfo);
 
 			if (lStatus != ERROR_SUCCESS) {
@@ -907,7 +1203,7 @@ INT_PTR CALLBACK DlgProc(
 			SetDlgItemText(hWnd, IDFILEPATH, szFilename);
 		}
 
-		CreateToolTip(hWnd, IDCHKDEBUG, T("Creates a console window to display additional debugging information"));
+		CreateToolTip(hWnd, IDCHKDEBUG, L"Creates a console window to display additional debugging information");
 		DragAcceptFiles(hWnd, TRUE);
 		return TRUE;
 	case WM_COMMAND:
@@ -924,17 +1220,17 @@ INT_PTR CALLBACK DlgProc(
 			ZeroMemory(&ofn, sizeof(ofn));
 			ofn.lStructSize			= sizeof(ofn);
 			ofn.hwndOwner			= hWnd;
-			ofn.lpstrFilter			= T("Applications (*.exe)\0*.exe\0All Files (*.*)\0*.*\0");
+			ofn.lpstrFilter			= L"Applications (*.exe)\0*.exe\0All Files (*.*)\0*.*\0";
 			ofn.lpstrFile			= szFilename + 1;
 			ofn.nMaxFile			= MAX_PATH;
-			ofn.lpstrInitialDir		= T("C:\\Program Files\\");
+			ofn.lpstrInitialDir		= L"C:\\Program Files\\";
 			ofn.Flags				= OFN_FILEMUSTEXIST | OFN_HIDEREADONLY;
-			ofn.lpstrDefExt			= T("exe");
+			ofn.lpstrDefExt			= L"exe";
 			
 			if (GetOpenFileName(&ofn)) {				
 				// Give the filename some quotes.
 				szFilename[0] = '\"';
-				strcat_s(szFilename, ARRAYSIZE(szFilename), T("\""));
+				wcscat_s(szFilename, ARRAYSIZE(szFilename), L"\"");
 				SetDlgItemText(hWnd, IDFILEPATH, szFilename);
 			}
 
@@ -942,13 +1238,8 @@ INT_PTR CALLBACK DlgProc(
 		} else if (LOWORD(wParam) == IDOK) {
 			GetDlgItemText(hWnd, IDFILEPATH, szFilename, dwcbFilename);
 			bShouldShowDebugInfo = IsDlgButtonChecked(hWnd, IDCHKDEBUG);
-
-			if (bShouldShowDebugInfo) {
-				AllocConsole();
-			}
-
 			EndDialog(hWnd, 0);
-			SpawnProgramUnderLoader(szFilename, TRUE, TRUE);
+			SpawnProgramUnderLoader(szFilename, TRUE, bShouldShowDebugInfo, TRUE);
 
 			// save dialog information in the registry
 			lStatus = RegCreateKeyEx(
@@ -960,12 +1251,12 @@ INT_PTR CALLBACK DlgProc(
 			if (lStatus == ERROR_SUCCESS) {
 				RegSetValueEx(
 					hKeyUserSpecificConfig,
-					T("LastCmdLine"), 0, REG_SZ,
+					L"LastCmdLine", 0, REG_SZ,
 					(LPBYTE) szFilename,
-					(DWORD) strlen(szFilename) * sizeof(TCHAR));
+					(DWORD) wcslen(szFilename) * sizeof(WCHAR));
 				RegSetValueEx(
 					hKeyUserSpecificConfig,
-					T("ShowDebugInfo"), 0, REG_DWORD,
+					L"ShowDebugInfo", 0, REG_DWORD,
 					(LPBYTE) &bShouldShowDebugInfo,
 					sizeof(bShouldShowDebugInfo));
 				RegCloseKey(hKeyUserSpecificConfig);
@@ -983,8 +1274,9 @@ INT_PTR CALLBACK DlgProc(
 
 		break;
 	case WM_DROPFILES:
+		szFilename[0] = '"';
 		DragQueryFile((HDROP) wParam, 0, szFilename + 1, MAX_PATH);
-		strcpy_s(szFilename + strlen(szFilename), 2, T("\""));
+		StringCchCat(szFilename, ARRAYSIZE(szFilename), L"\"");
 		SetDlgItemText(hWnd, IDFILEPATH, szFilename);
 		DragFinish((HDROP) wParam);
 		break;
@@ -993,24 +1285,26 @@ INT_PTR CALLBACK DlgProc(
 	return FALSE;
 }
 
-#define FORCE_FLAG T("/FORCE ")
+#define FORCE_FLAG L"/FORCE "
 
-INT APIENTRY tWinMain(
-	IN	HINSTANCE	hInstance,
-	IN	HINSTANCE	hPrevInstance,
-	IN	LPTSTR		lpszCmdLine,
-	IN	INT			iCmdShow)
+VOID EntryPoint(
+	VOID)
 {
-	SetFriendlyAppName(FRIENDLYAPPNAME);
+	HINSTANCE hInstance = (HINSTANCE) NtCurrentPeb()->ImageBaseAddress;
+	LPWSTR lpszCmdLine = GetCommandLineWithoutImageName();
 
-	if (strlen(lpszCmdLine) == 0) {
+	SetFriendlyAppName(FRIENDLYAPPNAME);
+	hInstance = (HINSTANCE) NtCurrentPeb()->ImageBaseAddress;
+	lpszCmdLine = GetCommandLineWithoutImageName();
+
+	if (*lpszCmdLine == '\0') {
 		InitCommonControls();
 		DialogBox(hInstance, MAKEINTRESOURCE(IDD_DIALOG1), NULL, DlgProc);
 	} else {
-		CONST SIZE_T cchForceFlag = strlen(FORCE_FLAG);
+		CONST SIZE_T cchForceFlag = wcslen(FORCE_FLAG);
 		BOOL bForce = FALSE;
 
-		if (!strnicmp(lpszCmdLine, FORCE_FLAG, cchForceFlag)) {
+		if (!wcsnicmp(lpszCmdLine, FORCE_FLAG, cchForceFlag)) {
 			// This flag is used to bypass the usual checking that we're "supposed" to launch
 			// the program with VxKex enabled. For example, the shell extended context menu entry
 			// will use this flag, to let the user try out VxKex without having to go into the
@@ -1019,7 +1313,7 @@ INT APIENTRY tWinMain(
 			lpszCmdLine += cchForceFlag;
 		}
 
-		SpawnProgramUnderLoader(lpszCmdLine, FALSE, bForce);
+		SpawnProgramUnderLoader(lpszCmdLine, FALSE, FALSE, bForce);
 	}
 
 	Exit(0);

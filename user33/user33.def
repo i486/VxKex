@@ -1,0 +1,25 @@
+LIBRARY user33
+EXPORTS
+	AdjustWindowRectExForDpi
+	GetSystemMetricsForDpi
+	SetProcessDpiAwarenessContext
+	SetThreadDpiAwarenessContext
+	GetDpiForSystem
+	GetDpiForWindow
+	SetCoalescableTimer
+	EnableNonClientDpiScaling
+	EnableMouseInPointer
+	GetDisplayAutoRotationPreferences
+	SetDisplayAutoRotationPreferences
+	GetPointerDevices
+	GetPointerType
+	GetPointerInfo
+	GetPointerDeviceRects
+	GetPointerTouchInfo
+	GetPointerFrameTouchInfo
+	GetPointerFrameTouchInfoHistory
+	GetPointerPenInfo
+	GetPointerPenInfoHistory
+	SkipPointerFrameMessages
+	LogicalToPhysicalPointForPerMonitorDPI
+	PhysicalToLogicalPointForPerMonitorDPI

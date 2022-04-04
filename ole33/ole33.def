@@ -1,0 +1,3 @@
+LIBRARY ole33
+EXPORTS
+	CoIncrementMTAUsage

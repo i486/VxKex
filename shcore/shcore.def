@@ -1,0 +1,7 @@
+LIBRARY shcore
+EXPORTS
+	GetDpiForMonitor
+	GetDpiForShellUIComponent
+	SetProcessDpiAwareness
+	GetProcessDpiAwareness
+	GetScaleFactorForMonitor
