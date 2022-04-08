@@ -240,6 +240,39 @@ typedef struct _RTL_USER_PROCESS_PARAMETERS {
 	RTL_DRIVE_LETTER_CURDIR				CurrentDirectories[RTL_MAX_DRIVE_LETTERS];
 } RTL_USER_PROCESS_PARAMETERS, *PRTL_USER_PROCESS_PARAMETERS;
 
+// for more info on this "API set" crap - https://lucasg.github.io/2017/10/15/Api-set-resolution
+typedef struct _API_SET_NAMESPACE {
+	ULONG	Version;
+	ULONG	Size;
+	ULONG	Flags;
+	ULONG	Count;
+	ULONG	EntryOffset;
+	ULONG	HashOffset;
+	ULONG	HashFactor;
+} API_SET_NAMESPACE, *PAPI_SET_NAMESPACE;
+
+typedef struct _API_SET_HASH_ENTRY {
+	ULONG	Hash;
+	ULONG	Index;
+} API_SET_HASH_ENTRY, *PAPI_SET_HASH_ENTRY;
+
+typedef struct _API_SET_NAMESPACE_ENTRY {
+	ULONG	Flags;
+	ULONG	NameOffset;
+	ULONG	NameLength;
+	ULONG	HashedLength;
+	ULONG	ValueOffset;
+	ULONG	ValueCount;
+} API_SET_NAMESPACE_ENTRY, *PAPI_SET_NAMESPACE_ENTRY;
+
+typedef struct _API_SET_VALUE_ENTRY {
+	ULONG	Flags;
+	ULONG	NameOffset;
+	ULONG	NameLength;
+	ULONG	ValueOffset;
+	ULONG	ValueLength;
+} API_SET_VALUE_ENTRY;
+
 typedef struct _PEB {																	// 3.51+
 	BOOLEAN								InheritedAddressSpace;
 	BOOLEAN								ReadImageFileExecOptions;
@@ -312,7 +345,7 @@ typedef struct _PEB {																	// 3.51+
 	union {
 		PPEB_FREE_BLOCK					FreeList;										// 3.10-6.0
 		ULONG							SparePebPtr0;									// 6.0
-		PVOID							ApiSetMap;										// 6.1+
+		PAPI_SET_NAMESPACE				ApiSetMap;										// 6.1+
 	};
 
 	ULONG								TlsExpansionCounter;
@@ -488,16 +521,6 @@ typedef struct _KUSER_SHARED_DATA {														// 3.50+
 
 STATIC CONST PKUSER_SHARED_DATA SharedUserData = (PKUSER_SHARED_DATA) 0x7FFE0000;
 
-FORCEINLINE PPEB NtCurrentPeb(
-	VOID)
-{
-#ifdef _M_X64
-	return (PPEB) __readgsqword(0x60);
-#else
-	return (PPEB) __readfsdword(0x30);
-#endif
-}
-
 //
 // NTDLL function declarations
 //
@@ -582,6 +605,16 @@ NTSYSAPI BOOLEAN NTAPI RtlFreeHeap(
 #define HeapAlloc(hHeap, dwFlags, cbSize) RtlAllocateHeap((hHeap), (dwFlags), (cbSize))
 #define HeapFree(hHeap, dwFlags, lpBase) RtlFreeHeap((hHeap), (dwFlags), (lpBase))
 #define GetCurrentProcess() ((HANDLE) -1)
+
+FORCEINLINE PPEB NtCurrentPeb(
+	VOID)
+{
+#ifdef _M_X64
+	return (PPEB) __readgsqword(0x60);
+#else
+	return (PPEB) __readfsdword(0x30);
+#endif
+}
 
 // doubly linked list functions
 

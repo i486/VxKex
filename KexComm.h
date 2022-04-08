@@ -8,6 +8,9 @@
 #include <malloc.h>
 #include <stdarg.h>
 
+#undef MAX_PATH
+#define MAX_PATH ((SIZE_T) 260)
+
 #define ASSUME __assume
 #define NORETURN __declspec(noreturn)
 #define STATIC static
@@ -107,7 +110,7 @@ LPVOID __AutoHeapAllocHelper(
 LPVOID __AutoStackAllocHelper(
 	IN	LPVOID	lpv);
 
-VOID AutoFree(
+VOID __AutoFreeHelper(
 	IN	LPVOID	lpv);
 
 LPWSTR GetCommandLineWithoutImageName(
@@ -132,8 +135,13 @@ FORCEINLINE LPVOID DefHeapReAlloc(
 	return HeapReAlloc(GetProcessHeap(), 0, lpBase, cbNew);
 }
 
-#define __MAX_STACK_ALLOC_SIZE 1024
+// application can override this
+#ifndef __MAX_STACK_ALLOC_SIZE
+#  define __MAX_STACK_ALLOC_SIZE 1024
+#endif
+
 #define AutoAlloc(cb) (((cb) < __MAX_STACK_ALLOC_SIZE) ? __AutoStackAllocHelper(StackAlloc((cb) + 1)) : __AutoHeapAllocHelper((cb) + 1))
+#define AutoFree(lpv) do { __AutoFreeHelper(lpv); lpv = NULL; } while(0)
 
 #ifdef UNICODE
 #define WriteFileF WriteFileWF

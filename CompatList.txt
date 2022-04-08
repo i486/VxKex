@@ -3,15 +3,17 @@ an issue and it will be tested and added. If you find an application that does n
 work, you may also open an issue to request support.
 
 The following applications have been tested to work with the latest version of VxKex:
+(devs: keep this and the following list in alphabetical order)
 
 Bespoke Synth (https://github.com/BespokeSynth)
+Blender 3.1.2 (portable version only - installer does not work)
 Commander Wars (https://github.com/Robosturm/Commander_Wars)
-TerraFirma (https://github.com/mrkite/TerraFirma)
+KeyMouse (https://github.com/iscooool/KeyMouse)
+Python 3.10.4 (portable version, or "embeddable package" only - installer does not work)
 QBittorrent qt6 (https://www.qbittorrent.org/download.php)
 SBCL (Steel Bank Common Lisp)
+TerraFirma (https://github.com/mrkite/TerraFirma)
 
 Support will be added for the following applications in the near future:
 
-Python 3.9+ and applications that depend on it, such as Blender
-KeyMouse (https://github.com/iscooool/KeyMouse)
-Microsoft OneDrive
+Microsoft OneDrive installer
