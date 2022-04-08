@@ -183,11 +183,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="appmodel.c" />
     <ClCompile Include="exports.c" />
     <ClCompile Include="kernel33.c" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="k32defs.h" />
+    <ClInclude Include="appmodel.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="kernel33.def" />

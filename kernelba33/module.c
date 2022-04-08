@@ -63,6 +63,7 @@ WINBASEAPI HMODULE WINAPI PROXY_FUNCTION(LoadLibraryExW) (
 	KexNormalizeDllNameW(lpszLibFileName, szBaseNameWithExt);
 
 	if (KexRewriteDllNameW(szBaseNameWithExt)) {
+		ODS(L"%s: %s -> %s", L(__FUNCTION__), lpszLibFileName, szBaseNameWithExt);
 		return LoadLibraryExW(szBaseNameWithExt, hFile, dwFlags);
 	} else {
 		return LoadLibraryExW(lpszLibFileName, hFile, dwFlags);
@@ -152,11 +153,24 @@ WINBASEAPI HMODULE WINAPI PROXY_FUNCTION(GetModuleHandleW) (
 	return hMod;
 }
 
-HMODULE WINAPI PROXY_FUNCTION(GetModuleHandleA) (
+WINBASEAPI HMODULE WINAPI PROXY_FUNCTION(GetModuleHandleA) (
 	IN	LPCSTR	lpszModuleName OPTIONAL)
 {
 	HMODULE hMod;
 	ODS_ENTRY(L"(\"%hs\")", lpszModuleName);
 	P_GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, lpszModuleName, &hMod);
 	return hMod;
+}
+
+WINBASEAPI FARPROC WINAPI PROXY_FUNCTION(GetProcAddress) (
+	IN	HMODULE	hMod,
+	IN	LPCSTR	lpszProcName)
+{
+	if (IsBadReadPtr(lpszProcName, 1)) {
+		ODS_ENTRY(L"(%p, %p)", hMod, lpszProcName);
+	} else {
+		ODS_ENTRY(L"(%p, \"%hs\")", hMod, lpszProcName);
+	}
+
+	return GetProcAddress(hMod, lpszProcName);
 }

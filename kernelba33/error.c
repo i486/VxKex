@@ -39,7 +39,7 @@ WINBASEAPI BOOL WINAPI GetOverlappedResultEx(
 	if (NT_SUCCESS(lpOverlapped->Internal)) {
 		return TRUE;
 	} else {
-		BaseSetLastNTError(lpOverlapped->Internal);
+		BaseSetLastNTError((NTSTATUS) lpOverlapped->Internal);
 		return FALSE;
 	}
 }

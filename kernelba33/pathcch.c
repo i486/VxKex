@@ -5,11 +5,37 @@
 
 #include "pathcch.h"
 
+#define HRCHECKED(x) hr = (x); if (FAILED(hr)) goto Error
+
+STATIC BOOL StrBeginsWith(
+	IN	LPCWSTR	lpszBig,
+	IN	LPCWSTR	lpszSmall)
+{
+	return !wcsncmp(lpszBig, lpszSmall, wcslen(lpszSmall));
+}
+
+STATIC BOOL StrBeginsWithI(
+	IN	LPCWSTR	lpszBig,
+	IN	LPCWSTR	lpszSmall)
+{
+	return !wcsnicmp(lpszBig, lpszSmall, wcslen(lpszSmall));
+}
+
 // check if path begins with \\?\ prefix and has a drive letter and colon after it
 STATIC BOOL IsExtendedLengthDosDevicePath(
 	IN	LPCWSTR	lpszPath)
 {
-	if (!wcsncmp(lpszPath, L"\\\\?\\", 4) && iswalpha(lpszPath[4]) && lpszPath[5] == ':') {
+	if (StrBeginsWith(lpszPath, L"\\\\?\\") && iswalpha(lpszPath[4]) && lpszPath[5] == ':') {
+		return TRUE;
+	} else {
+		return FALSE;
+	}
+}
+
+STATIC BOOL IsDosDevicePath(
+	IN	LPCWSTR	lpszPath)
+{
+	if (iswalpha(lpszPath[0]) && lpszPath[1] == ':' && (lpszPath[2] == '\\' || lpszPath[2] == '\0')) {
 		return TRUE;
 	} else {
 		return FALSE;
@@ -19,39 +45,167 @@ STATIC BOOL IsExtendedLengthDosDevicePath(
 STATIC BOOL IsVolumeGuidPath(
 	IN	LPCWSTR	lpszPath)
 {
-	if (!wcsnicmp(lpszPath, L"\\\\?\\Volume{", 11) && wcslen(&lpszPath[10]) >= 38) {
+	if (StrBeginsWithI(lpszPath, L"\\\\?\\Volume{") && wcslen(&lpszPath[10]) >= 38) {
 		return TRUE;
 	} else {
 		return FALSE;
 	}
 }
 
+STATIC BOOL IsPrefixedPath(
+	IN	LPCWSTR	lpszPath)
+{
+	return StrBeginsWith(lpszPath, L"\\\\?\\");
+}
+
 STATIC BOOL IsPrefixedUncPath(
 	IN	LPCWSTR	lpszPath)
 {
-	return !wcsnicmp(lpszPath, L"\\\\?\\UNC\\", 8);
+	return StrBeginsWithI(lpszPath, L"\\\\?\\UNC\\");
 }
 
-#if 0
+STATIC BOOL IsFullyQualifiedPath(
+	IN	LPCWSTR	lpszPath)
+{
+	return IsDosDevicePath(lpszPath) || StrBeginsWith(lpszPath, L"\\\\");
+}
+
 WINPATHCCHAPI HRESULT WINAPI PathAllocCanonicalize(
 	IN	LPCWSTR	lpszPathIn,
 	IN	DWORD	dwFlags,
 	OUT	LPWSTR	*ppszPathOut)
 {
+	LPWSTR lpszPathOut = NULL;
+	SIZE_T cchPathIn;
+	SIZE_T cchAlloc;
+	BOOL bAllowLongPaths = dwFlags & PATHCCH_ALLOW_LONG_PATHS;
+	HRESULT hr;
+
 	ODS_ENTRY(L"(L\"%.200ws\", %I32u, %p)", lpszPathIn, dwFlags, ppszPathOut);
+
+	if (!ppszPathOut) {
+		return E_INVALIDARG;
+	}
+
+	*ppszPathOut = NULL;
+	cchPathIn = wcslen(lpszPathIn);
+
+	if (cchPathIn > PATHCCH_MAX_CCH) {
+		return PATHCCH_E_FILENAME_TOO_LONG;
+	}
+
+	if (cchPathIn > 0) {
+		cchAlloc = cchPathIn + 1;
+	} else {
+		cchAlloc = 2;
+	}
+
+	if (cchAlloc > MAX_PATH && bAllowLongPaths) {
+		// add space for \\?\ prefix
+		cchAlloc += 6;
+	}
+
+	// limit maximum path length
+	if (cchAlloc > (bAllowLongPaths ? PATHCCH_MAX_CCH : MAX_PATH)) {
+		cchAlloc = (bAllowLongPaths ? PATHCCH_MAX_CCH : MAX_PATH);
+	}
+
+	lpszPathOut = (LPWSTR) LocalAlloc(LMEM_ZEROINIT, cchAlloc * sizeof(WCHAR));
+
+	if (!lpszPathOut) {
+		return E_OUTOFMEMORY;
+	}
+
+	hr = PathCchCanonicalizeEx(lpszPathOut, cchAlloc, lpszPathIn, dwFlags);
+
+	if (FAILED(hr)) {
+		LocalFree(lpszPathOut);
+		return hr;
+	}
+
+	*ppszPathOut = lpszPathOut;
 	return S_OK;
 }
 
 WINPATHCCHAPI HRESULT WINAPI PathAllocCombine(
-	IN	LPCWSTR	lpszPathIn,
-	IN	LPCWSTR	lpszMore,
+	IN	LPCWSTR	lpszPathIn OPTIONAL,
+	IN	LPCWSTR	lpszMore OPTIONAL,
 	IN	DWORD	dwFlags,
 	OUT	LPWSTR	*ppszPathOut)
 {
+	SIZE_T cchPathIn = 0;
+	SIZE_T cchMore = 0;
+	SIZE_T cchPathOut;
+	LPWSTR lpszPathOut;
+	BOOL bAllowLongPaths = dwFlags & PATHCCH_ALLOW_LONG_PATHS;
+	HRESULT hr;
+
 	ODS_ENTRY(L"(L\"%.200ws\", L\"%.200ws\", %I32u, %p)", lpszPathIn, lpszMore, dwFlags, ppszPathOut);
+
+	//if (lpszMore && !wcscmp(lpszMore, L"\\\\?\\Volume{e51a1864-6f2d-4019-b73d-f4e60e600c26}")) __debugbreak();
+
+	if (!ppszPathOut) {
+		return E_INVALIDARG;
+	}
+
+	*ppszPathOut = NULL;
+
+	if (lpszPathIn == NULL && lpszMore == NULL) {
+		return E_INVALIDARG;
+	}
+
+	if (lpszPathIn) {
+		cchPathIn = wcslen(lpszPathIn);
+
+		if (cchPathIn > 0) {
+			cchPathIn++; // add space for '\0'
+		}
+
+		if (cchPathIn >= PATHCCH_MAX_CCH) {
+			return PATHCCH_E_FILENAME_TOO_LONG;
+		}
+	}
+
+	if (lpszMore) {
+		cchMore = wcslen(lpszMore);
+
+		if (cchMore > 0) {
+			cchMore++;
+		}
+
+		if (cchMore >= PATHCCH_MAX_CCH) {
+			return PATHCCH_E_FILENAME_TOO_LONG;
+		}
+	}
+
+	cchPathOut = cchMore + cchPathIn;
+
+	if (cchPathOut == 0) {
+		cchPathOut = 2; // for backslash and null terminator
+	} else if (cchPathOut > (bAllowLongPaths ? PATHCCH_MAX_CCH : MAX_PATH)) {
+		cchPathOut = bAllowLongPaths ? PATHCCH_MAX_CCH : MAX_PATH;
+	}
+
+	if (cchPathOut > MAX_PATH && bAllowLongPaths) {
+		cchPathOut += 6; // for \\?\ or \\?\UNC\ 
+	}
+
+	lpszPathOut = (LPWSTR) LocalAlloc(LMEM_ZEROINIT, cchPathOut * sizeof(WCHAR));
+
+	if (!lpszPathOut) {
+		return E_OUTOFMEMORY;
+	}
+
+	hr = PathCchCombineEx(lpszPathOut, cchPathOut, lpszPathIn, lpszMore, dwFlags);
+
+	if (FAILED(hr)) {
+		LocalFree(lpszPathOut);
+		return hr;
+	}
+
+	*ppszPathOut = lpszPathOut;
 	return S_OK;
 }
-#endif
 
 // ALL TESTS PASSED, DO NOT MODIFY
 //
@@ -172,7 +326,6 @@ WINPATHCCHAPI HRESULT WINAPI PathCchAddExtension(
 	return StringCchCatEx(lpszPath, cchPath, lpszExt, NULL, NULL, STRSAFE_NO_TRUNCATION);
 }
 
-#if 0
 WINPATHCCHAPI HRESULT WINAPI PathCchAppend(
 	IN OUT	LPWSTR	lpszPath,
 	IN		SIZE_T	cchPath,
@@ -187,8 +340,33 @@ WINPATHCCHAPI HRESULT WINAPI PathCchAppendEx(
 	IN		LPCWSTR	lpszMore OPTIONAL,
 	IN		DWORD	dwFlags)
 {
+	HRESULT hr;
+	SIZE_T cchPathCopy;
+	LPWSTR lpszPathCopy;
+
 	ODS_ENTRY(L"(L\"%.200ws\", %Iu, L\"%.200ws\", %I32u)", lpszPath, cchPath, lpszMore, dwFlags);
-	return S_OK;
+
+	if (!lpszPath) {
+		return E_INVALIDARG;
+	}
+
+	if (lpszMore && !PathIsUNCEx(lpszMore, NULL) && !StrBeginsWith(lpszMore, L"\\\\?\\")) {
+		until (*lpszMore != '\\') {
+			lpszMore++;
+		}
+	}
+
+	cchPathCopy = wcslen(lpszPath) + 1;
+	lpszPathCopy = (LPWSTR) AutoAlloc(cchPathCopy * sizeof(WCHAR));
+
+	if (!lpszPathCopy) {
+		return E_OUTOFMEMORY;
+	}
+
+	RtlCopyMemory(lpszPathCopy, lpszPath, cchPathCopy * sizeof(WCHAR));
+	hr = PathCchCombineEx(lpszPath, cchPath, lpszPathCopy, lpszMore, dwFlags);
+	AutoFree(lpszPathCopy);
+	return hr;
 }
 
 WINPATHCCHAPI HRESULT WINAPI PathCchCanonicalize(
@@ -196,17 +374,225 @@ WINPATHCCHAPI HRESULT WINAPI PathCchCanonicalize(
 	IN		SIZE_T	cchPathOut,
 	IN		LPCWSTR	lpszPathIn)
 {
-	return PathCchCanonicalizeEx(lpszPathOut, cchPathOut, lpszPathIn, 0);
+	return PathCchCanonicalizeEx(lpszPathOut, cchPathOut, lpszPathIn, PATHCCH_NONE);
 }
 
+// Test results:
+// NULL														-> Access violation
+// <empty string>											-> \
+// ..C\a\b													-> ..C\a\b
+// C														-> C
+// C\..														-> \
+// C\..\D:\a\b												-> \D:\a\b (Failed)
+// C:														-> C:\
+// C:D														-> C:D
+// C:\														-> C:\
+// C:\\														-> C:\\
+// C:\\.													-> C:\
+// C:\a\\..													-> C:\a\
+// C:\a\\.\													-> C:\a\\
+// C:\a\b\c\..\d											-> C:\a\b\d
+// \\?\														-> \\?\
+// \\?\C													-> \\?\C
+// \\?\C\..\D												-> \\?\D
+// \\?\C\..\D:\a\b											-> \\?\D:\a\b
+// \\?\C:													-> C:\
+// \\?\C:\Windows\..\Program Files							-> C:\Program Files
+// \\?\Volume{00000000-0000-0000-0000-000000000000}			-> \\?\Volume{00000000-0000-0000-0000-000000000000}
+// \\?\Volume{00000000-0000-0000-0000-000000000000}\		-> \\?\Volume{00000000-0000-0000-0000-000000000000}\
+// \\?\Volume{00000000-0000-0000-0000-000000000000}\..\		-> \\?\Volume{00000000-0000-0000-0000-000000000000}\
+// \\?\Volume{Invalid0-0000-0000-0000-000000000000}\..\		-> \\?\
+// \\?\Volume{Invalid0-0000-0000-0000-000000000000}\.\		-> \\?\Volume{Invalid0-0000-0000-0000-000000000000}\
+// \\a\b\c\d\e\f											-> \\a\b\c\d\e\f
+// \\a\..\b\c\d\e\f											-> \\b\c\d\e\f
+// \\..\a\..\b\c\d\e\f										-> \\b\c\d\e\f
+// \\?\UNC\a\b\c\d											-> \\a\b\c\d
+// \\?\UNC\a\b\c\d\											-> \\a\b\c\d\ 
+// \\?\UNC\a\b\c\d\.										-> \\a\b\c\d
+// \\?\UNC\a\b\c\d\.\										-> \\a\b\c\d\ 
+// \\?\UNC\a\..\b\c\d										-> \\b\c\d
 WINPATHCCHAPI HRESULT WINAPI PathCchCanonicalizeEx(
 	OUT	LPWSTR	lpszPathOut,
 	IN	SIZE_T	cchPathOut,
 	IN	LPCWSTR	lpszPathIn,
 	IN	DWORD	dwFlags)
 {
+	LPCWSTR lpszServer;
+	LPWSTR lpszOriginalPathOut = lpszPathOut;
+	SIZE_T cchOriginalPathOut = cchPathOut;
+	SIZE_T cchPathIn;
+	BOOL bLongPathAllowed = (dwFlags & (PATHCCH_ALLOW_LONG_PATHS | PATHCCH_ENSURE_IS_EXTENDED_LENGTH_PATH));
+	HRESULT hr;
+
 	ODS_ENTRY(L"(%p, %Iu, L\"%.200ws\", %I32u)", lpszPathOut, cchPathOut, lpszPathIn, dwFlags);
+
+	if (lpszPathOut == lpszPathIn) {
+		return E_INVALIDARG;
+	}
+
+	HRCHECKED(StringCchCopy(lpszOriginalPathOut, cchOriginalPathOut, L""));
+
+	if (cchPathOut > PATHCCH_MAX_CCH) {
+		return E_INVALIDARG;
+	}
+
+	cchPathIn = wcslen(lpszPathIn) + 1;
+
+	if (cchPathIn > MAX_PATH) {
+		if (cchPathIn > PATHCCH_MAX_CCH || !bLongPathAllowed) {
+			return PATHCCH_E_FILENAME_TOO_LONG;
+		}
+	}
+
+	if (!bLongPathAllowed && cchPathOut > MAX_PATH) {
+		// limit the number of written characters, if long paths aren't permitted
+		cchPathOut = MAX_PATH;
+	}
+
+	// Basically there are 6 formatting cases that we handle:
+	// 1. Plain DOS-device path: C:\a\b\c (incl. stub such as "C:")
+	// 2. Extended DOS-device path: \\?\C:\a\b\c (incl. stub such as "\\?\C:")
+	// 3. Volume GUID path: \\?\Volume{guid}\a\b\c
+	// 4. Plain UNC path: \\server\share\a\b\c
+	// 5. Extended UNC path: \\?\UNC\server\share\a\b\c
+	// 6. None of the above
+	// In all cases except 5, we will strip away a beginning portion of the path as follows,
+	// to produce a "stripped path". (Not the same as what PathCchSkipRoot does):
+	// 1. Remove drive letter, colon and first backslash (if present) -> a\b\c
+	// 2. Remove \\?\ prefix and treat as (1) -> a\b\c
+	// 3. Remove volume GUID prefix and first backslash (if present) -> a\b\c
+	// 4. Remove \\ prefix -> server\share\a\b\c
+	// 5. Remove \\?\UNC prefix and first backslash (if present) -> server\share\a\b\c
+
+	if (PathIsUNCEx(lpszPathIn, &lpszServer)) {
+		// This branch handles both plain and extended UNC paths.
+		lpszPathIn = lpszServer;
+
+		if (bLongPathAllowed) {
+			HRCHECKED(StringCchCopyEx(lpszPathOut, cchPathOut, L"\\\\?\\UNC\\", &lpszPathOut, &cchPathOut, 0));
+		} else {
+			HRCHECKED(StringCchCopyEx(lpszPathOut, cchPathOut, L"\\\\", &lpszPathOut, &cchPathOut, 0));
+		}
+	} else if (IsVolumeGuidPath(lpszPathIn)) {
+		// Handles volume GUID paths.
+		HRCHECKED(StringCchCopyNEx(lpszPathOut, cchPathOut, lpszPathIn, 49, &lpszPathOut, &cchPathOut, 0));
+		lpszPathIn += 48;
+
+		if (*lpszPathIn != '\0') {
+			lpszPathIn++;
+		}
+	} else if (IsExtendedLengthDosDevicePath(lpszPathIn)) {
+		// Handles extended DOS-device paths.
+		lpszPathIn += 4; // skip past \\?\ prefix since we will decide whether to add it separately
+		goto HandleDosDevicePath;
+	} else if (IsDosDevicePath(lpszPathIn)) {
+		// Handles plain DOS-device paths.
+		WCHAR wcDriveLetter;
+
+HandleDosDevicePath:
+		wcDriveLetter = lpszPathIn[0];
+		lpszPathIn += 2;
+
+		if (*lpszPathIn != '\0') {
+			lpszPathIn++;
+		}
+
+		if (bLongPathAllowed) {
+			HRCHECKED(StringCchPrintfEx(lpszPathOut, cchPathOut, &lpszPathOut, &cchPathOut, 0, L"\\\\?\\%wc:\\", wcDriveLetter));
+		} else {
+			HRCHECKED(StringCchPrintfEx(lpszPathOut, cchPathOut, &lpszPathOut, &cchPathOut, 0, L"%wc:\\", wcDriveLetter));
+		}
+	}
+
+	// Handle the "stripped path".
+	while (*lpszPathIn != '\0') {
+		LPCWSTR lpszNextSegment = wcschr(lpszPathIn, '\\');
+
+		if (!lpszNextSegment) {
+			// This means we are already at the last path segment. Fast forward until
+			// lpszSectionEnd points to the terminating null.
+			lpszNextSegment = lpszPathIn;
+
+			until (*lpszNextSegment == '\0') {
+				lpszNextSegment++;
+			}
+		} else {
+			lpszNextSegment++;
+		}
+
+		// if the current path segment is a . or .. then skip it
+		if (lpszPathIn[0] == '.') {
+			if (lpszPathIn[1] == '.') {
+				if (lpszPathIn[2] == '\\' || lpszPathIn[2] == '\0') {
+					lpszPathIn = lpszNextSegment;
+					continue;
+				}
+			} else {
+				if (lpszPathIn[1] == '\\' || lpszPathIn[1] == '\0') {
+					lpszPathIn = lpszNextSegment;
+					continue;
+				}
+			}
+		}
+
+		// if the next path segment is a .. then skip the current one and the next one
+		if (lpszNextSegment[0] == '.') {
+			if (lpszNextSegment[1] == '.') {
+				if (lpszNextSegment[2] == '\\') {
+					lpszPathIn = lpszNextSegment + 3;
+					continue;
+				} else if (lpszNextSegment[2] == '\0') {
+					// remove the backslash from the output
+					if (lpszPathOut > lpszOriginalPathOut && lpszPathOut[-1] == '\\') {
+						lpszPathOut[-1] = '\0';
+					}
+
+					break;
+				}
+			} else if (lpszNextSegment[1] == '\0') {
+				// don't append backslash if next segment is \. and the path ends there
+				StringCchCopyNEx(lpszPathOut, cchPathOut, lpszPathIn, lpszNextSegment - lpszPathIn - 1, &lpszPathOut, &cchPathOut, 0);
+				break;
+			}
+		}
+
+		// otherwise copy the current segment to output
+		StringCchCopyNEx(lpszPathOut, cchPathOut, lpszPathIn, lpszNextSegment - lpszPathIn, &lpszPathOut, &cchPathOut, 0);
+		lpszPathIn = lpszNextSegment;
+	}
+
+	// Remove all trailing periods, unless preceded by a '*' character.
+	// In this case, retain 1 trailing period.
+	lpszPathOut--;
+
+	if (lpszPathOut > lpszOriginalPathOut) {
+		until (*lpszPathOut != '.') {
+			lpszPathOut--;
+		}
+
+		if (*lpszPathOut == '*') {
+			lpszPathOut += 2;
+		} else {
+			lpszPathOut += 1;
+		}
+
+		*lpszPathOut = '\0';
+	}
+
+	// If output path is a root (e.g. "C:"), or if the caller specifies it, ensure it has a backslash at the end.
+	if ((lpszOriginalPathOut[0] && lpszOriginalPathOut[1] == ':' && lpszOriginalPathOut[2] == '\0')
+		|| (dwFlags & PATHCCH_ENSURE_TRAILING_SLASH)) {
+		HRCHECKED(PathCchAddBackslash(lpszOriginalPathOut, cchOriginalPathOut));
+	} else if (*lpszOriginalPathOut == '\0') {
+		// If the output path is empty, replace it with "\"
+		HRCHECKED(StringCchCopy(lpszOriginalPathOut, cchOriginalPathOut, L"\\"));
+	}
+
 	return S_OK;
+
+Error:
+	StringCchCopy(lpszOriginalPathOut, cchOriginalPathOut, L"");
+	return hr;
 }
 
 WINPATHCCHAPI HRESULT WINAPI PathCchCombine(
@@ -225,10 +611,105 @@ WINPATHCCHAPI HRESULT WINAPI PathCchCombineEx(
 	IN	LPCWSTR	lpszMore OPTIONAL,
 	IN	DWORD	dwFlags)
 {
-	ODS_ENTRY(L"(%p, %Iu, L\"%.200ws\", L\"%.200ws\", %I32u)", lpszPathOut, cchPathOut, lpszPathIn, lpszMore, dwFlags);
+	SIZE_T cchBuf = cchPathOut;
+	LPWSTR lpszBuf = NULL;
+	HRESULT hr;
+
+	ODS_ENTRY(L"(%p, %Iu, L\"%ws\", L\"%ws\", %I32u)", lpszPathOut, cchPathOut, lpszPathIn, lpszMore, dwFlags);
+
+	if (!lpszPathOut || !cchPathOut || cchPathOut > PATHCCH_MAX_CCH) {
+		return E_INVALIDARG;
+	}
+
+	if (!lpszPathIn && !lpszMore) {
+		HRCHECKED(E_INVALIDARG);
+	}
+
+	if (lpszPathIn && wcslen(lpszPathIn) >= PATHCCH_MAX_CCH) {
+		HRCHECKED(PATHCCH_E_FILENAME_TOO_LONG);
+	}
+
+	if (lpszMore && wcslen(lpszMore) >= PATHCCH_MAX_CCH) {
+		HRCHECKED(PATHCCH_E_FILENAME_TOO_LONG);
+	}
+
+	// If lpszPathIn is a blank string or NULL, or if lpszMore is fully qualified,
+	// it is canonicalized directly to the output buffer without being combined.
+	if (!lpszPathIn || *lpszPathIn == '\0' || (lpszMore && IsFullyQualifiedPath(lpszMore))) {
+		if (lpszMore) {
+			return PathCchCanonicalizeEx(lpszPathOut, cchPathOut, lpszMore, dwFlags);
+		}
+	}
+
+	// If lpszMore is a blank string or NULL, canonicalize lpszPathIn directly to the
+	// output buffer.
+	if (!lpszMore || *lpszMore == '\0') {
+		if (lpszPathIn) {
+			return PathCchCanonicalizeEx(lpszPathOut, cchPathOut, lpszPathIn, dwFlags);
+		}
+	}
+
+	// If lpszMore begins with a backslash:
+	// - copy the root of lpszPathIn to temporary buffer
+	// - append lpszMore to temporary buffer
+	// - canonicalize temporary buffer to lpszPathOut
+	if (*lpszMore == '\\') {
+		LPWSTR lpszPathInRootEnd;
+		HRCHECKED(PathCchSkipRoot(lpszPathIn, &lpszPathInRootEnd));
+
+		if (lpszPathInRootEnd > lpszPathIn) {
+			// lpszPathIn contains a root
+
+			if (lpszPathInRootEnd[-1] == '\\') {
+				// ensure no backslash - since we know lpszMore already starts with one
+				lpszPathInRootEnd--;
+			}
+
+			lpszBuf = (LPWSTR) AutoAlloc(cchBuf * sizeof(WCHAR));
+
+			if (!lpszBuf) {
+				HRCHECKED(E_OUTOFMEMORY);
+			}
+
+			HRCHECKED(StringCchCopyN(lpszBuf, cchBuf, lpszPathIn, lpszPathInRootEnd - lpszPathIn));
+			HRCHECKED(StringCchCat(lpszBuf, cchBuf, lpszMore));
+			HRCHECKED(PathCchCanonicalizeEx(lpszPathOut, cchPathOut, lpszBuf, dwFlags));
+
+			AutoFree(lpszBuf);
+			return S_OK;
+		} else {
+			// lpszPathIn does not contain a root
+			return PathCchCanonicalizeEx(lpszPathOut, cchPathOut, lpszMore, dwFlags);
+		}
+	}
+
+	// Otherwise:
+	// - copy lpszPathIn to temporary buffer
+	// - add backslash (if not already present)
+	// - append lpszMore
+	// - canonicalize temporary buffer to lpszPathOut
+	{
+		lpszBuf = (LPWSTR) AutoAlloc(cchBuf * sizeof(WCHAR));
+
+		if (!lpszBuf) {
+			HRCHECKED(E_OUTOFMEMORY);
+		}
+
+		HRCHECKED(StringCchCopy(lpszBuf, cchBuf, lpszPathIn));
+		HRCHECKED(PathCchAddBackslash(lpszBuf, cchBuf));
+		HRCHECKED(StringCchCat(lpszBuf, cchBuf, lpszMore));
+		HRCHECKED(PathCchCanonicalizeEx(lpszPathOut, cchPathOut, lpszBuf, dwFlags));
+
+		AutoFree(lpszBuf);
+	}
+
 	return S_OK;
+
+Error:
+	AutoFree(lpszBuf);
+	StringCchCopy(lpszPathOut, cchPathOut, L"");
+	return hr;
 }
-#endif
 
 // ALL TESTS PASSED, DO NOT MODIFY
 //

@@ -1,5 +1,8 @@
 LIBRARY kernelba33
 EXPORTS
+	;; ceip.c
+	CeipIsOptedIn
+
 	;; datetime.c
 	GetSystemTimePreciseAsFileTime
 
@@ -21,11 +24,20 @@ EXPORTS
 	GetModuleHandleW		= P_GetModuleHandleW
 	GetModuleHandleExA		= P_GetModuleHandleExA
 	GetModuleHandleExW		= P_GetModuleHandleExW
+	GetProcAddress			= P_GetProcAddress
 
 	;; pathcch.c
+	PathAllocCanonicalize
+	PathAllocCombine
 	PathCchAddBackslash
 	PathCchAddBackslashEx
 	PathCchAddExtension
+	PathCchAppend
+	PathCchAppendEx
+	PathCchCanonicalize
+	PathCchCanonicalizeEx
+	PathCchCombine
+	PathCchCombineEx
 	PathCchFindExtension
 	PathCchIsRoot
 	PathCchRemoveBackslash
@@ -54,3 +66,6 @@ EXPORTS
 	GetThreadInformation
 	SetThreadDescription
 	SetThreadInformation
+
+	;; forwarders (NTD33)
+	ResolveDelayLoadedAPI							= ntd33.LdrResolveDelayLoadedAPI

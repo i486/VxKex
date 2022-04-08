@@ -48,6 +48,9 @@
     <ClCompile Include="process.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="ceip.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="kernelba33.def">
