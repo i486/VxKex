@@ -16,7 +16,7 @@
 
 #define ARRAY_SIZE ARRAYSIZE
 #pragma warning(disable:4002)
-#define ok(expr, ...) do { if (!(expr)) { _cprintf("Assertion FAILED in %s:%d: ", __FUNCTION__, __LINE__); _cprintf(__VA_ARGS__); nFailed++; } else {_cprintf("Assertion PASSED: %s\n", #expr); nPassed++;}} while(0)
+#define ok(expr, ...) do { if (!(expr)) { _cprintf("Assertion FAILED in %s:%d: ", __FUNCTION__, __LINE__); _cprintf(__VA_ARGS__); nFailed++; } else {nPassed++;}} while(0)
 #define broken(x) x
 #define win_skip _cprintf
 #define wine_dbgstr_w(x) x
@@ -2341,7 +2341,7 @@ static void test_PathIsUNCEx(void)
 
 int main(void)
 {
-    HMODULE hmod = LoadLibraryA("api-ms-win-core-path-l1-1-0.dll");
+    HMODULE hmod = LoadLibraryW(L"C:\\Users\\vxiiduu\\Documents\\Visual Studio 2010\\Projects\\VxKex\\x64\\Debug\\kernelba33.dll");
 
 #ifndef __INTELLISENSE__
     pPathAllocCanonicalize = (void *)GetProcAddress(hmod, "PathAllocCanonicalize");

@@ -1,0 +1,4 @@
+LIBRARY ntd33
+EXPORTS
+	ApiSetQueryApiSetPresence
+	LdrResolveDelayLoadedAPI

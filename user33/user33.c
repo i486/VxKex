@@ -310,6 +310,7 @@ WINUSERAPI HHOOK WINAPI PROXY_FUNCTION(SetWindowsHookExW) (
 {
 	STATIC BOOL bDisableHooks = -1;
 
+	// TODO TODO TODO: Make this respect the "disable app-specific hacks" VxKex option.
 	if (bDisableHooks == -1) {
 		WCHAR szAppExe[MAX_PATH];
 		wcscpy_s(szAppExe, ARRAYSIZE(szAppExe), NtCurrentPeb()->ProcessParameters->ImagePathName.Buffer);

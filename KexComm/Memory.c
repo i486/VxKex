@@ -29,7 +29,7 @@ LPVOID __AutoStackAllocHelper(
 	return (LPVOID) (lpb + 1);
 }
 
-VOID AutoFree(
+VOID __AutoFreeHelper(
 	IN	LPVOID	lpv)
 {
 	LPBYTE lpb = ((LPBYTE) lpv) - 1;

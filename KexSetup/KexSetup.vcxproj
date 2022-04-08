@@ -166,6 +166,7 @@
     <ClCompile Include="KexSetup.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="dllrewrt.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>

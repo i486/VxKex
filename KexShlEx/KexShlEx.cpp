@@ -643,7 +643,7 @@ STDAPI DllInstall(
 		CHECKED(RegWriteSz(HKEY_CLASSES_ROOT, L"exefile\\shell\\open_vxkex", L"Extended", L""));
 		CHECKED(RegReadSz(HKEY_LOCAL_MACHINE, L"SOFTWARE\\VXsoft\\VxKexLdr", L"KexDir", szVxKexLdr, ARRAYSIZE(szVxKexLdr)));
 		CHECKED(!wcscat_s(szVxKexLdr, ARRAYSIZE(szVxKexLdr), L"\\VxKexLdr.exe"));
-		CHECKED(swprintf_s(szOpenVxKexCommand, ARRAYSIZE(szOpenVxKexCommand), L"\"%s\" /FORCE \"%%1\" \"%%*\"", szVxKexLdr) != -1);
+		CHECKED(swprintf_s(szOpenVxKexCommand, ARRAYSIZE(szOpenVxKexCommand), L"\"%s\" /FORCE \"%%1\"", szVxKexLdr) != -1);
 		CHECKED(RegWriteSz(HKEY_CLASSES_ROOT, L"exefile\\shell\\open_vxkex\\command", NULL, szOpenVxKexCommand));
 	} else {
 		// Important note: You cannot "goto Error" from this section, so no CHECKED(x)

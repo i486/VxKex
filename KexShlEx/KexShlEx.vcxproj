@@ -90,6 +90,9 @@
       <ModuleDefinitionFile>KexShlEx.def</ModuleDefinitionFile>
       <AdditionalLibraryDirectories>$(SolutionDir);$(TargetDir)</AdditionalLibraryDirectories>
     </Link>
+    <ResourceCompile>
+      <AdditionalIncludeDirectories>$(SolutionDir)</AdditionalIncludeDirectories>
+    </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -107,6 +110,9 @@
       <ModuleDefinitionFile>KexShlEx.def</ModuleDefinitionFile>
       <AdditionalLibraryDirectories>$(SolutionDir);$(TargetDir)</AdditionalLibraryDirectories>
     </Link>
+    <ResourceCompile>
+      <AdditionalIncludeDirectories>$(SolutionDir)</AdditionalIncludeDirectories>
+    </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -128,6 +134,9 @@
       <ModuleDefinitionFile>KexShlEx.def</ModuleDefinitionFile>
       <AdditionalLibraryDirectories>$(SolutionDir);$(TargetDir)</AdditionalLibraryDirectories>
     </Link>
+    <ResourceCompile>
+      <AdditionalIncludeDirectories>$(SolutionDir)</AdditionalIncludeDirectories>
+    </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -149,6 +158,9 @@
       <ModuleDefinitionFile>KexShlEx.def</ModuleDefinitionFile>
       <AdditionalLibraryDirectories>$(SolutionDir);$(TargetDir)</AdditionalLibraryDirectories>
     </Link>
+    <ResourceCompile>
+      <AdditionalIncludeDirectories>$(SolutionDir)</AdditionalIncludeDirectories>
+    </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="KexShlEx.cpp" />

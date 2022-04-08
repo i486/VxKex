@@ -371,16 +371,14 @@ VOID PerformCmdSusHack(
 
 	PathStripPath(szParentFullName);
 
-	unless (!wcsicmp(szParentFullName, L"CMD.EXE") ||
-			!wcsicmp(szParentFullName, L"COMMAND.COM") ||
-			!wcsicmp(szParentFullName, L"POWERSHELL.EXE")) {
+	unless (!wcsicmp(szParentFullName, L"CMD.EXE") || !wcsicmp(szParentFullName, L"POWERSHELL.EXE")) {
 		return;
 	}
 
 	// step 1
 	CHECKED(NtSuspendProcess(hParent) == STATUS_SUCCESS);
 
-	if (!wcsicmp(szParentFullName, L"CMD.EXE") || !wcsicmp(szParentFullName, L"COMMAND.COM")) {
+	if (!wcsicmp(szParentFullName, L"CMD.EXE")) {
 		INPUT EnterKey;
 		HANDLE hStdOut = NtCurrentPeb()->ProcessParameters->StandardOutput;
 		CONSOLE_SCREEN_BUFFER_INFO ScreenBufferInfo;
@@ -604,6 +602,9 @@ VOID CreateSuspendedProcess(
 
 			ShellExecute(NULL, L"runas", szVxKexLdr, lpszCommandLine, NULL, TRUE);
 			ExitProcess(0);
+		} else if (dwCpError == 0) {
+			// This can happen, for example, if you try to run winload.exe or ntoskrnl.exe
+			CriticalErrorBoxF(L"Failed to create process: Unspecified error.");
 		}
 
 		CriticalErrorBoxF(L"Failed to create process: %#010I32x: %s", dwCpError, GetLastErrorAsString());
@@ -626,34 +627,10 @@ VOID CreateSuspendedProcess(
 VOID CreateNormalProcess(
 	IN	LPWSTR	lpszCmdLine)
 {
-	BOOL bSuccess;
-	DWORD dwCpError;
-	STARTUPINFO StartupInfo;
-	PROCESS_INFORMATION ProcInfo;
-
-	GetStartupInfo(&StartupInfo);
-	StartupInfo.lpTitle = NULL;
-
-	bSuccess = CreateProcess(
-		NULL,
-		lpszCmdLine,
-		NULL,
-		NULL,
-		FALSE,
-		0,
-		NULL,
-		NULL,
-		&StartupInfo,
-		&ProcInfo);
-	dwCpError = GetLastError();
-
-	if (!bSuccess) {
-		if (dwCpError == ERROR_BAD_EXE_FORMAT) {
-			CriticalErrorBoxF(L"Failed to create process: %#010I32x: The executable file is invalid.", dwCpError);
-		} else {
-			CriticalErrorBoxF(L"Failed to create process: %#010I32x: %s", dwCpError, GetLastErrorAsString());
-		}
-	}
+	CreateSuspendedProcess(lpszCmdLine);
+	DebugSetProcessKillOnExit(FALSE);
+	DebugActiveProcessStop(g_dwProcId);
+	NtResumeThread(g_hThread, NULL);
 }
 
 ULONG_PTR GetEntryPointVa(
@@ -710,6 +687,7 @@ VOID RewriteImports(
 	CONST ULONG_PTR ulImportDir = VaReadPtr(vaImportDir);
 	CONST ULONG_PTR vaImportTbl = vaPeBase + (ulImportDir & 0x00000000FFFFFFFF);
 	
+	BOOL bAtLeastOneDllWasRewritten = FALSE;
 	HKEY hKeyDllRewrite;
 	ULONG_PTR idxIntoImportTbl;
 	LSTATUS lStatus;
@@ -772,6 +750,7 @@ VOID RewriteImports(
 						L"It is %u bytes but the maximum is %u. Skipping.\n",
 						szRewriteDllName, szOriginalDllName, dwRewriteLength, dwOriginalLength);
 			} else {
+				bAtLeastOneDllWasRewritten = TRUE;
 				PrintF(L"    Rewriting DLL import %s -> %s\n", szOriginalDllName, szRewriteDllName);
 				VaWriteSzA(vaDllName, szRewriteDllName);
 			}
@@ -782,6 +761,23 @@ VOID RewriteImports(
 		} else {
 			// No rewrite entry was found
 			PrintF(L"    Found DLL import %s - not rewriting\n", szOriginalDllName);
+		}
+	}
+
+	if (bAtLeastOneDllWasRewritten) {
+		// A Bound Import Directory will cause process initialization to fail. So we simply zero
+		// it out.
+		// Bound imports are a performance optimization, but basically we can't use it because
+		// the bound import addresses are dependent on the "real" function addresses within the
+		// imported DLL - and since we have replaced one or more imported DLLs, these pre-calculated
+		// function addresses are no longer valid, so we just have to delete it.
+
+		CONST ULONG_PTR vaBoundImportDir = vaOptHdr + (bPe64 ? 200 : 184);
+		CONST DWORD dwBoundImportDirRva = VaReadDword(vaBoundImportDir);
+
+		if (dwBoundImportDirRva) {
+			PrintF(L"    Found a Bound Import Directory - zeroing\n");
+			VaWriteDword(vaBoundImportDir, 0);
 		}
 	}
 
@@ -1052,7 +1048,10 @@ VOID GetExeFullPathFromCmdLine(
 	GetFirstCmdLineToken(lpszCmdLine, szFirstCmdLineToken);
 
 	if (PathIsRelative(szFirstCmdLineToken)) {
-		SearchPath(NULL, szFirstCmdLineToken, L".exe", MAX_PATH, lpszExeFullPath, NULL);
+		if (!SearchPath(NULL, szFirstCmdLineToken, L".exe", MAX_PATH, lpszExeFullPath, NULL)) {
+			CriticalErrorBoxF(L"Unable to locate \"%s\": %s",
+							  szFirstCmdLineToken, GetLastErrorAsString());
+		}
 	} else {
 		wcscpy_s(lpszExeFullPath, MAX_PATH, szFirstCmdLineToken);
 	}
@@ -1088,7 +1087,7 @@ BOOL SpawnProgramUnderLoader(
 	IN	BOOL	bForce)
 {
 	if (!RegReadSz(HKEY_LOCAL_MACHINE, L"SOFTWARE\\VXsoft\\VxKexLdr", L"KexDir", g_szKexDir, ARRAYSIZE(g_szKexDir))) {
-		CriticalErrorBoxF(L"Failed to get the VxKex installation directory. Please reinstall the software to fix this problem.");
+		CriticalErrorBoxF(L"Could not find the VxKex installation directory. Please reinstall the software to fix this problem.");
 	}
 	
 	GetExeFullPathFromCmdLine(lpszCmdLine, g_szExeFullPath);
@@ -1113,6 +1112,7 @@ BOOL SpawnProgramUnderLoader(
 		SetConsoleTitle(L"VxKexLdr Debug Console");
 	}
 
+	PrintF(L"Process command line: %s\n", lpszCmdLine);
 	PrintF(L"The process is %d-bit and its base address is %p (PEB base address: %p)\n",
 			g_bExe64 ? 64 : 32, g_vaExeBase, g_vaPebBase);
 

@@ -556,65 +556,7 @@ BOOL KexInstall(
 		ADD_UNINSTALL_VALUE(RegWriteDw, L"NoRepair", 1);
 	}
 
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-com-l1-1-0.dll",						L"ole33.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-com-l1-1-1.dll",						L"ole33.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-rtlsupport-l1-2-0.dll",				L"ntdll.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-psapi-l1-1-0.dll",					L"kernel33.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-sidebyside-l1-1-0.dll",				L"kernel33.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-console-l2-1-0.dll",					L"kernel33.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-datetime-l1-1-1.dll",					L"kernel33.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-errorhandling-l1-1-1.dll",			L"kernel33.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-fibers-l1-1-1.dll",					L"kernel33.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-file-l1-2-2.dll",						L"kernel33.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-file-l2-1-1.dll",						L"kernel33.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-heap-obsolete-l1-1-0.dll",			L"kernel33.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-heap-l1-2-0.dll",						L"kernel33.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-heap-l2-1-0.dll",						L"kernel33.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-io-l1-1-1.dll",						L"kernel33.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-kernel32-legacy-l1-1-0.dll",			L"kernel33.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-kernel32-legacy-l1-1-1.dll",			L"kernel33.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-largeinteger-l1-1-0.dll",				L"kernel33.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-libraryloader-l1-2-0.dll",			L"kernel33.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-libraryloader-l1-2-1.dll",			L"kernel33.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-localization-l1-2-1.dll",				L"kernel33.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-localization-obsolete-l1-2-0.dll",	L"kernel33.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-path-l1-1-0.dll",						L"kernel33.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-processthreads-l1-1-1.dll",			L"kernel33.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-processthreads-l1-1-2.dll",			L"kernel33.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-processthreads-l1-1-3.dll",			L"kernel33.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-processtopology-obsolete-l1-1-0.dll",	L"kernel33.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-downlevel-kernel32-l2-1-0.dll",			L"kernel33.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-synch-l1-2-0.dll",					L"kernel33.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-synch-l1-2-1.dll",					L"kernel33.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-sysinfo-l1-2-0.dll",					L"kernel33.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-sysinfo-l1-2-1.dll",					L"kernel33.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-systemtopology-l1-1-0.dll",			L"kernel33.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-threadpool-legacy-l1-1-0.dll",		L"kernel33.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-threadpool-l1-2-0.dll",				L"kernel33.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-versionansi-l1-1-0.dll",				L"version.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-version-l1-1-0.dll",					L"version.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-winrt-error-l1-1-0.dll",				L"combase.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-winrt-error-l1-1-1.dll",				L"combase.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-winrt-l1-1-0.dll",					L"combase.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-winrt-string-l1-1-0.dll",				L"combase.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-registry-l1-1-0.dll",					L"advapi32.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-registry-l2-1-0.dll",					L"advapi32.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-eventing-classicprovider-l1-1-0.dll",		L"advapi32.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-eventing-provider-l1-1-0.dll",				L"advapi32.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-security-systemfunctions-l1-1-0.dll",		L"advapi32.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-mm-time-l1-1-0.dll",						L"winmm.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-ntuser-sysparams-l1-1-0.dll",				L"user33.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-shell-namespace-l1-1-0.dll",				L"shell32.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-shcore-obsolete-l1-1-0.dll",				L"shcore.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-shcore-scaling-l1-1-0.dll",				L"shcore.dll");
-	ADD_DLL_REWRITE_ENTRY(L"api-ms-win-shcore-scaling-l1-1-1.dll",				L"shcore.dll");
-	ADD_DLL_REWRITE_ENTRY(L"ext-ms-win-uiacore-l1-1-0.dll",						L"uiautomationcore.dll");
-	ADD_DLL_REWRITE_ENTRY(L"ext-ms-win-uiacore-l1-1-1.dll",						L"uiautomationcore.dll");
-	ADD_DLL_REWRITE_ENTRY(L"dxgi.dll",											L"dxg1.dll");
-	ADD_DLL_REWRITE_ENTRY(L"kernel32.dll",										L"kernel33.dll");
-	ADD_DLL_REWRITE_ENTRY(L"ole32.dll",											L"ole33.dll");
-	ADD_DLL_REWRITE_ENTRY(L"user32.dll",											L"user33.dll");
-	ADD_DLL_REWRITE_ENTRY(L"xinput1_4.dll",										L"xinput1_3.dll");
+	#include "dllrewrt.h"
 
 	// create KexDir and subdirectories if it doesn't exist, and copy self-EXE to it
 	{
