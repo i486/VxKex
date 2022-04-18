@@ -55,6 +55,15 @@ NORETURN VOID CriticalErrorBoxF(
 	ExitProcess(0);
 }
 
+VOID WarningBoxF(
+	IN	LPCWSTR	lpszFmt, ...)
+{
+	va_list ap;
+	va_start(ap, lpszFmt);
+	MessageBoxV(MB_ICONWARNING | MB_OK, lpszFmt, ap);
+	va_end(ap);
+}
+
 VOID InfoBoxF(
 	IN	LPCWSTR	lpszFmt, ...)
 {

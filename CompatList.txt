@@ -9,11 +9,8 @@ Bespoke Synth (https://github.com/BespokeSynth)
 Blender 3.1.2 (portable version only - installer does not work)
 Commander Wars (https://github.com/Robosturm/Commander_Wars)
 KeyMouse (https://github.com/iscooool/KeyMouse)
+OneDrive installer
 Python 3.10.4 (portable version, or "embeddable package" only - installer does not work)
 QBittorrent qt6 (https://www.qbittorrent.org/download.php)
 SBCL (Steel Bank Common Lisp)
 TerraFirma (https://github.com/mrkite/TerraFirma)
-
-Support will be added for the following applications in the near future:
-
-Microsoft OneDrive installer

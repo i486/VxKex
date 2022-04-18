@@ -49,6 +49,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ExtendedDlls", "ExtendedDll
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "KexComponents", "KexComponents", "{7457560B-11A4-45FE-919A-52760C90A533}"
 	ProjectSection(SolutionItems) = preProject
+		AppSpecificHacks.txt = AppSpecificHacks.txt
 		ChangeLog.txt = ChangeLog.txt
 		CompatList.txt = CompatList.txt
 		Readme.txt = Readme.txt
@@ -66,6 +67,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Common Headers", "Common Headers", "{14941210-9C7B-4C81-8BE8-9B0AEDEE42C3}"
 	ProjectSection(SolutionItems) = preProject
 		KexComm.h = KexComm.h
+		KexData.h = KexData.h
 		KexDll.h = KexDll.h
 		NtDll.h = NtDll.h
 		VxKex.h = VxKex.h

@@ -1,5 +1,11 @@
 #include "VaRw.h"
 
+// define this if you need to trace VaRead and VaWrite
+//#define ENABLE_VA_LOGGING
+
+VOID LogF(
+	IN	LPCWSTR lpszFmt, ...);
+
 extern HANDLE g_hProc;
 
 VOID VaRead(
@@ -13,6 +19,23 @@ VOID VaRead(
 							  ulSrc, GetLastErrorAsString());
 		}
 	}
+
+#ifdef _DEBUG
+#ifdef ENABLE_VA_LOGGING
+	switch (nSize) {
+	case 1:
+		LogF(L"[VA] VaRead ulSrc=%p; *lpDst=0x%02hx ('%hc'); nSize=%Iu\r\n", ulSrc, *(LPBYTE) lpDst, isprint(*(CHAR*) lpDst) ? *(CHAR*) lpDst : ' ', nSize); break;
+	case 2:
+		LogF(L"[VA] VaRead ulSrc=%p; *lpDst=0x%04hx ('%wc'); nSize=%Iu\r\n", ulSrc, *(LPWORD) lpDst, iswprint(*(WCHAR*) lpDst) ? *(WCHAR*) lpDst : ' ', nSize); break;
+	case 4:
+		LogF(L"[VA] VaRead ulSrc=%p; *lpDst=0x%08I32x; nSize=%Iu\r\n", ulSrc, *(LPDWORD) lpDst, nSize); break;
+	case 8:
+		LogF(L"[VA] VaRead ulSrc=%p; *lpDst=0x%016I64x; nSize=%Iu\r\n", ulSrc, *(LPQWORD) lpDst, nSize); break;
+	default:
+		LogF(L"[VA] VaRead ulSrc=%p; lpDst=%p; nSize=%Iu\r\n", ulSrc, lpDst, nSize); break;
+	}
+#endif
+#endif
 }
 
 VOID VaWrite(
@@ -21,6 +44,23 @@ VOID VaWrite(
 	IN	SIZE_T		nSize)
 {
 	DWORD dwOldProtect;
+
+#ifdef _DEBUG
+#ifdef ENABLE_VA_LOGGING
+	switch (nSize) {
+	case 1:
+		LogF(L"[VA] VaWrite ulDst=%p; *lpSrc=0x%02hx ('%hc'); nSize=%Iu\r\n", ulDst, *(LPBYTE) lpSrc, isprint(*(CHAR*) lpSrc) ? *(CHAR*) lpSrc : ' ', nSize); break;
+	case 2:
+		LogF(L"[VA] VaWrite ulDst=%p; *lpSrc=0x%04hx ('%wc'); nSize=%Iu\r\n", ulDst, *(LPWORD) lpSrc, iswprint(*(WCHAR*) lpSrc) ? *(WCHAR*) lpSrc : ' ', nSize); break;
+	case 4:
+		LogF(L"[VA] VaWrite ulDst=%p; *lpSrc=0x%08I32x; nSize=%Iu\r\n", ulDst, *(LPDWORD) lpSrc, nSize); break;
+	case 8:
+		LogF(L"[VA] VaWrite ulDst=%p; *lpSrc=0x%016I64x; nSize=%Iu\r\n", ulDst, *(LPQWORD) lpSrc, nSize); break;
+	default:
+		LogF(L"[VA] VaWrite ulDst=%p; lpSrc=%p; nSize=%Iu\r\n", ulDst, lpSrc, nSize); break;
+	}
+#endif
+#endif
 
 	if (VirtualProtectEx(g_hProc, (LPVOID) ulDst, nSize, PAGE_EXECUTE_READWRITE, &dwOldProtect) == FALSE) {
 		CriticalErrorBoxF(L"Failed to set access protections on process: %s", GetLastErrorAsString());

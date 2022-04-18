@@ -17,14 +17,14 @@
 //  128                            |   8KB / 4KB
 //  256                            |  16KB / 8KB
 
-// TODO: move this hash table into KexData
 ACVAHASHTABLEENTRY WaitOnAddressHashTable[16];
 
-// TODO: move this initialization into VxKexLdr
 VOID DllMain_InitWoa(
 	VOID)
 {
 	INT i;
+
+	ODS_ENTRY();
 
 	for (i = 0; i < ARRAYSIZE(WaitOnAddressHashTable); ++i) {
 		LPACVAHASHTABLEENTRY lpHashTableEntry = &WaitOnAddressHashTable[i];

@@ -2,6 +2,7 @@
 #include <Windows.h>
 #include <KexComm.h>
 
+typedef LONG NTSTATUS;
 #define STATUS_SUCCESS ((NTSTATUS) 0)
 #define NT_SUCCESS(st) (((NTSTATUS) (st)) >= 0)
 
@@ -58,6 +59,21 @@ typedef struct _PROCESS_BASIC_INFORMATION {
 typedef struct _PAGE_PRIORITY_INFORMATION {
     ULONG		PagePriority;
 } PAGE_PRIORITY_INFORMATION, *PPAGE_PRIORITY_INFORMATION;
+
+#pragma pack(push, 1)
+typedef struct _PROCESS_DEVICEMAP_INFORMATION {
+	union {
+		struct {
+			HANDLE DirectoryHandle;
+		} Set;
+		
+		struct {
+			ULONG DriveMap;
+			UCHAR DriveType[32];
+		} Query;
+	};
+} PROCESS_DEVICEMAP_INFORMATION, *PPROCESS_DEVICEMAP_INFORMATION;
+#pragma pack(pop)
 
 typedef enum _PROCESSINFOCLASS {
 	ProcessBasicInformation,					// PROCESS_BASIC_INFORMATION
@@ -174,6 +190,12 @@ typedef struct _UNICODE_STRING {
 	USHORT								MaximumLength;
 	PWCHAR								Buffer;
 } UNICODE_STRING, *PUNICODE_STRING;
+
+typedef struct _UNICODE_STRING32 {
+	USHORT								Length;
+	USHORT								MaximumLength;
+	DWORD								Buffer;
+} UNICODE_STRING32, *PUNICODE_STRING32;
 
 typedef struct _PEB_LDR_DATA {															// 3.51+
 	ULONG								Length;
@@ -577,22 +599,25 @@ NTSYSAPI NTSTATUS NTAPI NtWaitForSingleObject(
 NTSYSAPI NTSTATUS NTAPI NtClose(
 	IN	HANDLE	Handle);
 
-NTSYSAPI ULONG NTAPI RtlNtStatusToDosError(
+ULONG NTAPI RtlNtStatusToDosError(
 	IN	NTSTATUS	Status);
 
-NTSYSAPI VOID NTAPI RtlSetLastWin32Error(
+LONG NTAPI RtlGetLastWin32Error(
+	VOID);
+
+VOID NTAPI RtlSetLastWin32Error(
 	IN	LONG	Win32Error);
 
-NTSYSAPI VOID NTAPI RtlInitUnicodeString(
+VOID NTAPI RtlInitUnicodeString(
 	OUT	PUNICODE_STRING		DestinationString,
 	IN	PCWSTR				SourceString OPTIONAL);
 
-NTSYSAPI PVOID NTAPI RtlAllocateHeap(
+PVOID NTAPI RtlAllocateHeap(
 	IN	PVOID	HeapHandle,
 	IN	ULONG	Flags OPTIONAL,
 	IN	SIZE_T	Size);
 
-NTSYSAPI BOOLEAN NTAPI RtlFreeHeap(
+BOOLEAN NTAPI RtlFreeHeap(
 	IN	PVOID	HeapHandle,
 	IN	ULONG	Flags OPTIONAL,
 	IN	PVOID	BaseAddress OPTIONAL);

@@ -1,0 +1,42 @@
+This file details all the application-specific compatibility workarounds contained in VxKex.
+If you add a new workaround, you MUST document it and its reason for existence in this file.
+Otherwise, the hacks will accumulate and become unmaintainable.
+Furthermore, in the source code, you must include a comment with the word "APPSPECIFICHACK"
+in it, to facilitate textual search and location of these compatibility workarounds. As
+soon as VxKex contains sufficient functionality to no longer require a hack it should be
+removed.
+
+Application Name:		Autodesk Maya
+Executable Name:		MAYA.EXE, MAYABATCH.EXE
+Executable Version:		all
+Architecture:			x86 and x64
+Added Version:			0.0.0.2
+Removed Version:		N/A
+Description:
+	In VXKEXLDR.EXE, the user-friendly bitness mismatch error box is disabled because the
+	Autodesk licensing executable AdskLicensingAgent.exe is a 32-bit executable
+	intentionally loaded into the 64-bit application, and is not actually an error.
+
+Application Name:		OneDrive Installer
+Executable Name:		ONEDRIVESETUP.EXE
+Executable Version:		all
+Architecture:			x86 and x64
+Added Version:			0.0.0.2
+Removed Version:		N/A
+Description:
+	In VXKEXLDR.EXE, the Windows version spoof functionality is disabled because this
+	setup application checks the Windows version and calls extra incompatible APIs (which
+	will cause a crash) if it is higher than Windows 7.
+	In KERNEL33.DLL, the function VerifyVersionInfoW will always return TRUE, since the
+	setup application will call this specific function to display its error dialog.
+
+Application Name:		KeyMouse
+Executable Name:		KEYMOUSE.EXE
+Executable Version:		all
+Architecture:			x86 and x64
+Added Version:			0.0.0.1
+Removed Version:		N/A
+Description:
+	In USER33.DLL, the function SetWindowsHookExW is disabled, because the hooks that
+	KeyMouse installs cause Explorer to crash on Windows 7. Disabling hooks for this
+	application has no severe detrimental effects, AFAICT.

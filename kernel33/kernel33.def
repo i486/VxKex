@@ -4,6 +4,9 @@ EXPORTS
 	ClosePackageInfo
 	GetCurrentPackageId
 
+	;; version.c
+	VerifyVersionInfoW											= P_VerifyVersionInfoW
+
 	;; forwarders - KERNELBA33
 	CeipIsOptedIn												= kernelba33.CeipIsOptedIn
 	CreateFile2													= kernelba33.CreateFile2

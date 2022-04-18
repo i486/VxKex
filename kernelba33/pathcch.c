@@ -142,8 +142,6 @@ WINPATHCCHAPI HRESULT WINAPI PathAllocCombine(
 
 	ODS_ENTRY(L"(L\"%.200ws\", L\"%.200ws\", %I32u, %p)", lpszPathIn, lpszMore, dwFlags, ppszPathOut);
 
-	//if (lpszMore && !wcscmp(lpszMore, L"\\\\?\\Volume{e51a1864-6f2d-4019-b73d-f4e60e600c26}")) __debugbreak();
-
 	if (!ppszPathOut) {
 		return E_INVALIDARG;
 	}

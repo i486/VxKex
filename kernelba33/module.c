@@ -63,7 +63,7 @@ WINBASEAPI HMODULE WINAPI PROXY_FUNCTION(LoadLibraryExW) (
 	KexNormalizeDllNameW(lpszLibFileName, szBaseNameWithExt);
 
 	if (KexRewriteDllNameW(szBaseNameWithExt)) {
-		ODS(L"%s: %s -> %s", L(__FUNCTION__), lpszLibFileName, szBaseNameWithExt);
+		ODS(L"%s -> %s", lpszLibFileName, szBaseNameWithExt);
 		return LoadLibraryExW(szBaseNameWithExt, hFile, dwFlags);
 	} else {
 		return LoadLibraryExW(lpszLibFileName, hFile, dwFlags);

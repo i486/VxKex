@@ -1,6 +1,10 @@
 #pragma once
 #pragma comment(linker,"\"/manifestdependency:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 
+//
+// VxKex Common Components
+//
+
 #include <VxKex.h>
 #include <Windows.h>
 #include <tchar.h>
@@ -48,7 +52,7 @@ EXTERN_C LPCWSTR GetLastErrorAsString(
 	VOID);
 
 EXTERN_C VOID MessageBoxV(
-	IN	UINT	uType	OPTIONAL,
+	IN	UINT	uType OPTIONAL,
 	IN	LPCWSTR	lpszFmt,
 	IN	va_list	ap);
 
@@ -56,6 +60,9 @@ EXTERN_C VOID ErrorBoxF(
 	IN	LPCWSTR	lpszFmt, ...);
 
 EXTERN_C NORETURN VOID CriticalErrorBoxF(
+	IN	LPCWSTR	lpszFmt, ...);
+
+EXTERN_C VOID WarningBoxF(
 	IN	LPCWSTR	lpszFmt, ...);
 
 EXTERN_C VOID InfoBoxF(
@@ -104,6 +111,12 @@ BOOL WriteFileWF(
 	IN	HANDLE	hFile,
 	IN	LPCWSTR	lpszFmt, ...);
 
+LPWSTR ConvertDeviceHarddiskToDosPath(
+	IN	LPWSTR lpszPath);
+
+LPWSTR GetFilePathFromHandle(
+	IN	HANDLE	hFile);
+
 LPVOID __AutoHeapAllocHelper(
 	IN	SIZE_T	cb);
 
@@ -144,7 +157,7 @@ FORCEINLINE LPVOID DefHeapReAlloc(
 #define AutoFree(lpv) do { __AutoFreeHelper(lpv); lpv = NULL; } while(0)
 
 #ifdef UNICODE
-#define WriteFileF WriteFileWF
+#  define WriteFileF WriteFileWF
 #else
-#define WriteFileF WriteFileAF
+#  define WriteFileF WriteFileAF
 #endif

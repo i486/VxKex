@@ -54,7 +54,7 @@ INT APIENTRY wWinMain(
 	WCHAR szExePath[MAX_PATH];
 	WCHAR szExeName[MAX_PATH];
 	WCHAR szWinVerSpoof[6];
-	WCHAR szVxKexLdrPath[MAX_PATH];
+	WCHAR szVxKexLdrPath[MAX_PATH + 2] = L"\"";
 	WCHAR szIfeoKey[74 + MAX_PATH] = L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options\\";
 	WCHAR szKexIfeoKey[54 + MAX_PATH] = L"SOFTWARE\\VXsoft\\VxKexLdr\\Image File Execution Options\\";
 	WCHAR szSystem32Path[MAX_PATH];
@@ -91,8 +91,9 @@ INT APIENTRY wWinMain(
 	PathStripPath(szExeName);
 	wcscat_s(szIfeoKey, ARRAYSIZE(szIfeoKey), szExeName);
 	wcscat_s(szKexIfeoKey, ARRAYSIZE(szKexIfeoKey), szExePath);
-	CHECKED(RegReadSz(HKEY_LOCAL_MACHINE, L"SOFTWARE\\VXsoft\\VxKexLdr", L"KexDir", szVxKexLdrPath, ARRAYSIZE(szVxKexLdrPath)));
-	wcscat_s(szVxKexLdrPath, ARRAYSIZE(szVxKexLdrPath), L"\\VxKexLdr.exe");
+	CHECKED(RegReadSz(HKEY_LOCAL_MACHINE, L"SOFTWARE\\VXsoft\\VxKexLdr", L"KexDir",
+					  szVxKexLdrPath + 1, ARRAYSIZE(szVxKexLdrPath) - 2));
+	wcscat_s(szVxKexLdrPath, ARRAYSIZE(szVxKexLdrPath), L"\\VxKexLdr.exe\"");
 	CHECKED(GetSystemDirectory(szSystem32Path, ARRAYSIZE(szSystem32Path)));
 	bRetryAsAdminOnFailure = TRUE;
 

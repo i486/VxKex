@@ -1,6 +1,8 @@
 #include <Windows.h>
+#include <Psapi.h>
 #include <KexComm.h>
 #include <NtDll.h>
+#include <BaseDll.h>
 
 VOID PrintF(
 	IN	LPCWSTR lpszFmt, ...)
@@ -56,4 +58,79 @@ BOOL WriteFileWF(
 	va_end(ap);
 	SetLastError(dwError);
 	return bResult;
+}
+
+LPWSTR ConvertDeviceHarddiskToDosPath(
+	IN	LPWSTR lpszPath)
+{
+	NTSTATUS st;
+	WORD wBit = 25;
+	DWORD dwLogicalDrives;
+	PROCESS_DEVICEMAP_INFORMATION pdi;
+	DWORD dwSize = sizeof(pdi);
+
+	st = NtQueryInformationProcess(
+		GetCurrentProcess(),
+		ProcessDeviceMap,
+		&pdi,
+		sizeof(pdi),
+		NULL);
+
+	if (!NT_SUCCESS(st)) {
+		BaseSetLastNTError(st);
+		return NULL;
+	}
+
+	dwLogicalDrives = pdi.Query.DriveMap;
+
+	do {
+		if (dwLogicalDrives & (1 << wBit)) {
+			WCHAR szNtDevice[64];
+			WCHAR szDosDevice[3] = {'A' + wBit, ':', '\0'};
+			SIZE_T cchNtDevice;
+
+			if (QueryDosDevice(szDosDevice, szNtDevice, ARRAYSIZE(szNtDevice))) {
+				cchNtDevice = wcslen(szNtDevice);
+
+				if (!wcsnicmp(szNtDevice, lpszPath, cchNtDevice)) {
+					LPWSTR lpszDosPath = lpszPath + (cchNtDevice - 2);
+					lpszDosPath[0] = szDosDevice[0];
+					lpszDosPath[1] = szDosDevice[1];
+					return lpszDosPath;
+				}
+			}
+		}
+
+		wBit--;
+	} until (wBit is 0);
+
+	return NULL;
+}
+
+LPWSTR GetFilePathFromHandle(
+	IN	HANDLE	hFile)
+{
+	HANDLE hMapping = NULL;
+	LPVOID lpMapping = NULL;
+	STATIC WCHAR szPath[MAX_PATH + 32];
+
+	CHECKED(hMapping = CreateFileMapping(hFile, NULL, PAGE_READONLY, 0, 1, NULL));
+	CHECKED(lpMapping = MapViewOfFile(hMapping, FILE_MAP_READ, 0, 0, 1));
+	CHECKED(GetMappedFileName(GetCurrentProcess(), lpMapping, szPath, ARRAYSIZE(szPath)));
+
+	// At this point, szPath contains a path like \Device\HarddiskVolume7\Windows\system32\ntdll.dll
+	// It must be converted into a normal path like C:\Windows\system32\ntdll.dll
+
+	return ConvertDeviceHarddiskToDosPath(szPath);
+
+Error:
+	if (lpMapping) {
+		UnmapViewOfFile(lpMapping);
+	}
+
+	if (hMapping) {
+		NtClose(hMapping);
+	}
+
+	return NULL;
 }
