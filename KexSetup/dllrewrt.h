@@ -7,6 +7,7 @@
 ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-apiquery-l1-1-0.dll",					L"ntd33.dll");
 ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-com-l1-1-0.dll",						L"ole33.dll");
 ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-com-l1-1-1.dll",						L"ole33.dll");
+ADD_DLL_REWRITE_ENTRY(L"api-ms-win-downlevel-ole32-l1-1-0.dll",					L"ole33.dll");
 ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-rtlsupport-l1-2-0.dll",					L"ntdll.dll");
 ADD_DLL_REWRITE_ENTRY(L"api-ms-win-appmodel-runtime-l1-1-1.dll",				L"kernel33.dll");
 ADD_DLL_REWRITE_ENTRY(L"api-ms-win-core-psapi-l1-1-0.dll",						L"kernel33.dll");
