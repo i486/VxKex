@@ -3,7 +3,10 @@
 #include <KexComm.h>
 
 typedef LONG NTSTATUS;
-#define STATUS_SUCCESS ((NTSTATUS) 0)
+#define STATUS_SUCCESS						((NTSTATUS) 0)
+#define STATUS_IMAGE_MP_UP_MISMATCH			((NTSTATUS) 0xC0000249L)
+#define STATUS_INVALID_IMAGE_FORMAT			((NTSTATUS) 0xC000007BL)
+#define STATUS_IMAGE_MACHINE_TYPE_MISMATCH	((NTSTATUS) 0x4000000EL)
 #define NT_SUCCESS(st) (((NTSTATUS) (st)) >= 0)
 
 #define RTL_MAX_DRIVE_LETTERS 32
@@ -598,6 +601,14 @@ NTSYSAPI NTSTATUS NTAPI NtWaitForSingleObject(
 
 NTSYSAPI NTSTATUS NTAPI NtClose(
 	IN	HANDLE	Handle);
+
+NTSYSAPI NTSTATUS NTAPI NtRaiseHardError(
+	IN	NTSTATUS	ErrorStatus,
+	IN	ULONG		NumberOfParameters,
+	IN	ULONG		UnicodeStringParameterMask,
+	IN	PULONG_PTR	Parameters,
+	IN	ULONG		ValidResponseOptions,
+	OUT	PULONG		Response);
 
 ULONG NTAPI RtlNtStatusToDosError(
 	IN	NTSTATUS	Status);

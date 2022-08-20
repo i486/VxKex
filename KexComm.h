@@ -44,9 +44,16 @@
 typedef LPVOID *PPVOID;
 typedef unsigned __int64 QWORD, *PQWORD, *LPQWORD, **PPQWORD;
 typedef LONG KPRIORITY;
+typedef LONG NTSTATUS;
 
 EXTERN_C VOID SetFriendlyAppName(
 	IN	LPCWSTR	lpszFriendlyName);
+
+EXTERN_C LPCWSTR Win32ErrorAsString(
+	IN	DWORD	dw);
+
+EXTERN_C LPCWSTR NtStatusAsString(
+	IN	NTSTATUS st);
 
 EXTERN_C LPCWSTR GetLastErrorAsString(
 	VOID);

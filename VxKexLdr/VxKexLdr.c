@@ -1,4 +1,5 @@
 #include <Windows.h>
+#include <WindowsX.h>
 #include <Psapi.h>
 #include <CommCtrl.h>
 #include <Shlwapi.h>
@@ -815,9 +816,6 @@ SkipBitnessMismatchError:
 			// The data for the registry entry was too long
 			LogF(L"    WARNING: The rewrite DLL registry entry for the DLL %s "
 					L"contains invalid data. Skipping.\r\n", szOriginalDllName);
-		} else {
-			// No rewrite entry was found
-			LogF(L"    Found DLL import %s - not rewriting\r\n", szOriginalDllName);
 		}
 	}
 
@@ -977,6 +975,211 @@ SkipWinVerSpoof:
 	}
 }
 
+HWND CreateToolTip(
+	IN	HWND	hDlg,
+	IN	INT		iToolID,
+	IN	LPWSTR	lpszText)
+{
+	TOOLINFO ToolInfo;
+	HWND hWndTool;
+	HWND hWndTip;
+
+	if (!iToolID || !hDlg || !lpszText) {
+		return NULL;
+	}
+
+	// Get the window of the tool.
+	hWndTool = GetDlgItem(hDlg, iToolID);
+
+	// Create the tooltip.
+	hWndTip = CreateWindowEx(
+		0, TOOLTIPS_CLASS, NULL,
+		WS_POPUP | TTS_ALWAYSTIP,
+		CW_USEDEFAULT, CW_USEDEFAULT,
+		CW_USEDEFAULT, CW_USEDEFAULT,
+		hDlg, NULL, 
+		NULL, NULL);
+
+	if (!hWndTool || !hWndTip) {
+		return NULL;
+	}
+
+	// Associate the tooltip with the tool.
+	ZeroMemory(&ToolInfo, sizeof(ToolInfo));
+	ToolInfo.cbSize = sizeof(ToolInfo);
+	ToolInfo.hwnd = hDlg;
+	ToolInfo.uFlags = TTF_IDISHWND | TTF_SUBCLASS;
+	ToolInfo.uId = (UINT_PTR) hWndTool;
+	ToolInfo.lpszText = lpszText;
+	SendMessage(hWndTip, TTM_ADDTOOL, 0, (LPARAM) &ToolInfo);
+
+	return hWndTip;
+}
+
+STATIC NTSTATUS stHe = 0;
+STATIC DWORD dwHe = 0;
+STATIC LPWSTR lpszHe1 = NULL;
+STATIC LPWSTR lpszHe2 = NULL;
+
+// The possible NTSTATUS codes are:
+//   STATUS_IMAGE_MACHINE_TYPE_MISMATCH		- someone tried running an ARM/other architecture binary or dll (%s)
+//   STATUS_INVALID_IMAGE_FORMAT			- PE is corrupt (%s)
+//   STATUS_DLL_NOT_FOUND					- a DLL is missing (%s)
+//   STATUS_ORDINAL_NOT_FOUND				- DLL ordinal function is missing (%d, %s)
+//   STATUS_ENTRYPOINT_NOT_FOUND			- DLL function is missing (%s, %s)
+INT_PTR CALLBACK HeDlgProc(
+	IN	HWND	hWnd,
+	IN	UINT	uMsg,
+	IN	WPARAM	wParam,
+	IN	LPARAM	lParam)
+{
+	WCHAR szErrStmt[MAX_PATH + 86];
+	STATIC HWND hWndDebugLog = NULL;
+
+	switch (uMsg) {
+	case WM_INITDIALOG:
+		switch (stHe) {
+		case STATUS_DLL_NOT_FOUND:
+			SetWindowText(hWnd, L"DLL Not Found");
+			StringCchPrintf(szErrStmt, ARRAYSIZE(szErrStmt),
+							L"The required %s was not found while attempting to launch %s.",
+							lpszHe1, g_lpszExeBaseName);
+			break;
+		case STATUS_ENTRYPOINT_NOT_FOUND:
+			SetWindowText(hWnd, L"Missing Function In DLL");
+			StringCchPrintf(szErrStmt, ARRAYSIZE(szErrStmt),
+							L"The required function %s was not found in %s while attempting to launch %s.",
+							lpszHe1, lpszHe2, g_lpszExeBaseName);
+			break;
+		case STATUS_ORDINAL_NOT_FOUND:
+			SetWindowText(hWnd, L"Missing Function In DLL");
+			StringCchPrintf(szErrStmt, ARRAYSIZE(szErrStmt),
+							L"The required ordinal function #%s was not found in %s while attempting to launch %s.",
+							dwHe, lpszHe1, g_lpszExeBaseName);
+			break;
+		case STATUS_INVALID_IMAGE_FORMAT:
+			SetWindowText(hWnd, L"Invalid or Corrupt Executable or DLL");
+			StringCchPrintf(szErrStmt, ARRAYSIZE(szErrStmt),
+							L"%s is invalid or corrupt. %s cannot start.",
+							lpszHe1, g_lpszExeBaseName);
+			break;
+		case STATUS_IMAGE_MACHINE_TYPE_MISMATCH:
+			SetWindowText(hWnd, L"Processor Architecture Mismatch");
+			StringCchPrintf(szErrStmt, ARRAYSIZE(szErrStmt),
+							L"%s is designed for a different processor architecture. %s cannot start.",
+							lpszHe1, g_lpszExeBaseName);
+			break;
+		default:
+			StringCchPrintf(szErrStmt, ARRAYSIZE(szErrStmt),
+							L"An unrecoverable fatal error has occurred during the initialization of %s.\r\n"
+							L"The error code is 0x%08x: %s",
+							g_lpszExeBaseName, stHe, NtStatusAsString(stHe));
+			break;
+		}
+
+		SetDlgItemText(hWnd, IDERRSTATEMENT, szErrStmt);
+		SendDlgItemMessage(hWnd, IDERRICON, STM_SETICON, (WPARAM) LoadIcon(NULL, IDI_ERROR), 0);
+		hWndDebugLog = GetDlgItem(hWnd, IDDEBUGLOG);
+
+		// give our edit control a monospaced font
+		SendMessage(hWndDebugLog, WM_SETFONT, (WPARAM) CreateFont(
+					-MulDiv(8, GetDeviceCaps(GetDC(hWndDebugLog), LOGPIXELSY), 72),
+					0, 0, 0, FW_NORMAL, 0, 0, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS,
+					CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE,
+					L"Consolas"), MAKELPARAM(TRUE, 0));
+
+		// populate the edit control with the contents of the log
+		// the edit control is read-write in case the user wants to censor some private info
+		if (g_hLogFile) {
+			HANDLE hMapping;
+			LPCWSTR lpszDocument;
+			CHECKED(hMapping = CreateFileMapping(g_hLogFile, NULL, PAGE_READONLY, 0, 0, NULL));
+			CHECKED(lpszDocument = (LPCWSTR) MapViewOfFile(hMapping, FILE_MAP_READ, 0, 0, 0));
+			Edit_SetText(hWndDebugLog, lpszDocument);
+			UnmapViewOfFile(lpszDocument);
+			CloseHandle(hMapping);
+		} else {
+Error:
+			// whoops...
+			Edit_SetText(hWndDebugLog, L"No log file is available.");
+		}
+
+		CreateToolTip(hWnd, IDBUGREPORT, L"Opens the GitHub issue reporter in your browser");
+		return TRUE;
+	case WM_COMMAND:
+		if (LOWORD(wParam) == IDCANCEL) {
+			EndDialog(hWnd, 0);
+		} else if (LOWORD(wParam) == IDCOPYCLIPBOARD) {
+			if (OpenClipboard(hWndDebugLog)) {
+				CONST INT cchDocument = GetWindowTextLength(hWndDebugLog) + 1;
+				HGLOBAL hglbDocument = GlobalAlloc(GMEM_MOVEABLE, cchDocument * sizeof(WCHAR));
+				LPWSTR lpszDocument;
+
+				if (hglbDocument == NULL) {
+					CloseClipboard();
+					break;
+				}
+
+				lpszDocument = (LPWSTR) GlobalLock(hglbDocument);
+				GetWindowText(hWndDebugLog, lpszDocument, cchDocument);
+				GlobalUnlock(hglbDocument);
+
+				EmptyClipboard();
+				SetClipboardData(CF_UNICODETEXT, hglbDocument);
+				CloseClipboard();
+				GlobalFree(hglbDocument);
+			}
+		} else if (LOWORD(wParam) == IDBUGREPORT) {
+			WCHAR szUrl[512];
+
+			// TODO: we can add text to issue body as well using ?body=whatever
+			switch (stHe) {
+			case STATUS_DLL_NOT_FOUND:
+				StringCchPrintf(szUrl, ARRAYSIZE(szUrl),
+					L"https://github.com/vxiiduu/VxKex/issues/new?template=-dll-not-found--error.md&title=%s+not+found+when+trying+to+run+%s",
+					lpszHe1, g_lpszExeBaseName);
+				break;
+			case STATUS_ORDINAL_NOT_FOUND:
+				StringCchPrintf(szUrl, ARRAYSIZE(szUrl),
+					L"https://github.com/vxiiduu/VxKex/issues/new?template=-missing-function--error.md&title=Ordinal+%d+not+found+in+%s+when+trying+to+run+%s",
+					dwHe, lpszHe1, g_lpszExeBaseName);
+				break;
+			case STATUS_ENTRYPOINT_NOT_FOUND:
+				StringCchPrintf(szUrl, ARRAYSIZE(szUrl),
+					L"https://github.com/vxiiduu/VxKex/issues/new?template=-missing-function--error.md&title=Function+%s+not+found+in+%s+when+trying+to+run+%s",
+					lpszHe1, lpszHe2, g_lpszExeBaseName);
+				break;
+			default:
+				StringCchPrintf(szUrl, ARRAYSIZE(szUrl),
+					L"https://github.com/vxiiduu/VxKex/issues/new?title=Error+when+running+%s",
+					g_lpszExeBaseName);
+				break;
+			}
+
+			ShellExecute(hWnd, L"open", szUrl, NULL, NULL, SW_SHOWNORMAL);
+		}
+
+		break;
+	}
+
+	return FALSE;
+}
+
+VOID VklHardError(
+	IN	NTSTATUS	st,
+	IN	DWORD		dw,
+	IN	LPWSTR		lpsz1,
+	IN	LPWSTR		lpsz2)
+{
+	stHe = st;
+	dwHe = dw;
+	lpszHe1 = lpsz1;
+	lpszHe2 = lpsz2;
+
+	LogF(L"    st=0x%08x,dw=%I32d,lpsz1=%s,lpsz2=%s\r\n", st, dw, lpsz1, lpsz2);
+	DialogBox(NULL, MAKEINTRESOURCE(IDD_DIALOG2), NULL, HeDlgProc);
+}
+
 // Monitors the process for DLL imports.
 VOID RewriteDllImports(
 	VOID)
@@ -984,18 +1187,31 @@ VOID RewriteDllImports(
 	DEBUG_EVENT DbgEvent;
 	BOOL bResumed = FALSE;
 	CONST ULONG_PTR vaEntryPoint = GetEntryPointVa(g_vaExeBase);
+	CONST ULONG_PTR vaNtRaiseHardError = (ULONG_PTR) &NtRaiseHardError;
 	CONST BYTE btOriginal = VaReadByte(vaEntryPoint);
+	CONST BYTE btOriginalHardError = VaReadByte(vaNtRaiseHardError);
 
-	LogF(L"[KE ProcId=%lu, ThreadId=%lu]\tProcess entry point: %p, Original byte: 0x%02X\r\n",
+	LogF(L"[KE ProcId=%lu, ThreadId=%lu]\tProcess entry point: 0x%p, Original byte: 0x%02X\r\n",
 			g_dwProcId, g_dwThreadId, vaEntryPoint, btOriginal);
 	VaWriteByte(vaEntryPoint, 0xCC);
+
+	// The hard error handler is an additional debugging aid for development.
+	// It traps a call to NtRaiseHardError, which is usually called when a DLL is missing, or
+	// a function in a particular DLL is missing. Then it can be put into the log file, and an
+	// appropriate informational message box can be displayed to the user.
+	// The information which is inside the hard error message cannot be obtained through any
+	// other means, since NTDLL raises an exception /after/ deleting all the information which
+	// was sent to NtRaiseHardError.
+	LogF(L"[KE ProcId=%lu, ThreadId=%lu]\tAdding hard error handler at 0x%p. Original byte: 0x%02X\r\n",
+		 g_dwProcId, g_dwThreadId, vaNtRaiseHardError, btOriginalHardError);
+	VaWriteByte(vaNtRaiseHardError, 0xCC);
 
 	DbgEvent.dwProcessId = g_dwProcId;
 	DbgEvent.dwThreadId = g_dwThreadId;
 
 	while (TRUE) {
 		if (!bResumed) {
-			ResumeThread(g_hThread);
+			NtResumeThread(g_hThread, 0);
 			bResumed = TRUE;
 		} else {
 			ContinueDebugEvent(DbgEvent.dwProcessId, DbgEvent.dwThreadId, DBG_EXCEPTION_NOT_HANDLED);
@@ -1016,14 +1232,11 @@ VOID RewriteDllImports(
 				continue;
 			}
 
-			LogF(L"[LD ProcId=%lu, ThreadId=%lu]\tDLL loaded: %s", DbgEvent.dwProcessId, DbgEvent.dwThreadId, lpszDllName);
+			LogF(L"[LD ProcId=%lu, ThreadId=%lu]\tDLL loaded: %s\r\n", DbgEvent.dwProcessId, DbgEvent.dwThreadId, lpszDllName);
 
 			if (ShouldRewriteImportsOfDll(lpszDllName)) {
-				LogF(L" (imports will be rewritten)\r\n");
 				PathStripPath(lpszDllName);
 				RewriteImports(lpszDllName, (ULONG_PTR) DbgEvent.u.LoadDll.lpBaseOfDll);
-			} else {
-				LogF(L" (imports will NOT be rewritten)\r\n");
 			}
 		} else if (DbgEvent.dwDebugEventCode == UNLOAD_DLL_DEBUG_EVENT) {
 			LogF(L"[UL ProcId=%lu, ThreadId=%lu]\tThe DLL at %p was unloaded.\r\n",
@@ -1077,9 +1290,65 @@ VOID RewriteDllImports(
 			ContinueDebugEvent(DbgEvent.dwProcessId, DbgEvent.dwThreadId, DBG_CONTINUE);
 
 			if (!g_KexData.IfeoParameters.dwWaitForChild) {
+				VaWriteByte(vaNtRaiseHardError, btOriginalHardError);
 				DebugSetProcessKillOnExit(FALSE);
 				DebugActiveProcessStop(g_dwProcId);
 				LogF(L"[KE] Detached from process.\r\n");
+				return;
+			}
+		} else if (DbgEvent.dwDebugEventCode == EXCEPTION_DEBUG_EVENT &&
+				   (DbgEvent.u.Exception.ExceptionRecord.ExceptionCode == EXCEPTION_BREAKPOINT ||
+				    DbgEvent.u.Exception.ExceptionRecord.ExceptionCode == EXCEPTION_WX86_BREAKPOINT) &&
+				   DbgEvent.u.Exception.ExceptionRecord.ExceptionAddress == (PVOID) vaNtRaiseHardError) {
+			CONTEXT Ctx;
+			UINT i;
+			HANDLE hProc;
+			NTSTATUS st;
+			WCHAR sz1[MAX_PATH];
+			WCHAR sz2[MAX_PATH];
+			DWORD dw;
+
+			LogF(L"[HE ProcId=%lu, ThreadId=%lu]\tHard Error has been raised.\r\n", DbgEvent.dwProcessId, DbgEvent.dwThreadId);
+
+			// Now we need to read the parameters of the Hard Error.
+			// Here is a quick reference for the information we need to code this.
+			// We don't need to bother with ValidResponseOptions and Response.
+			// TODO: add 32 bit support.
+			//
+			// NTSTATUS NtRaiseHardError (						64 bit			32 bit
+			//		IN NTSTATUS ErrorStatus,					RCX				[ESP]
+			//		IN ULONG NumberOfParameters,				RDX				[ESP+4]
+			//		IN ULONG UnicodeStringParameterMask,		R8				[ESP+8]
+			//		IN PULONG_PTR Parameters,					R9				[ESP+12]
+			//		IN ULONG ValidResponseOptions,
+			//		OUT PULONG Response);
+			//
+			// The "Parameters" parameter is a pointer to an array of pointers to
+			// UNICODE_STRING structures.
+
+#ifdef _WIN64
+			Ctx.ContextFlags = CONTEXT_INTEGER;
+			GetThreadContext(g_hThread, &Ctx);
+			st = (NTSTATUS) Ctx.Rcx;
+			LogF(L"    Status code: 0x%I32x - %s", st, NtStatusAsString(st));
+
+			if (Ctx.Rdx > 0) {
+				for (i = 0; i < Ctx.Rdx; ++i) {
+					if (Ctx.R8 & (QWORD) (1 << i)) {
+						VaReadSzW(VaReadPtr(VaReadPtr(Ctx.R9 + i * sizeof(PVOID)) + FIELD_OFFSET(UNICODE_STRING, Buffer)),
+								  i ? sz2 : sz1, MAX_PATH);
+					} else {
+						dw = VaReadDword(VaReadPtr(Ctx.R9));
+					}
+				}
+			}
+#endif
+
+			VklHardError(st, dw, sz1, sz2);
+			
+			if ((hProc = OpenProcess(PROCESS_TERMINATE, FALSE, DbgEvent.dwProcessId))) {
+				LogF(L"[KE] Terminating process.");
+				TerminateProcess(hProc, 0);
 				return;
 			}
 		} else if (DbgEvent.dwDebugEventCode == OUTPUT_DEBUG_STRING_EVENT) {
@@ -1108,6 +1377,28 @@ VOID RewriteDllImports(
 			// strings being printed twice. Very strange. Maybe I'm calling
 			// it wrong or whatever.
 			ContinueDebugEvent(DbgEvent.dwProcessId, DbgEvent.dwThreadId, DBG_CONTINUE);
+		} else if (DbgEvent.dwDebugEventCode == EXCEPTION_DEBUG_EVENT) {
+			LogF(L"[EX ProcId=%lu, ThreadId=%lu]\t%sxception occurred at 0x%p\r\n", DbgEvent.dwProcessId, DbgEvent.dwThreadId,
+				 DbgEvent.u.Exception.dwFirstChance ? L"First-chance e"
+													: (DbgEvent.u.Exception.ExceptionRecord.ExceptionFlags & EXCEPTION_NONCONTINUABLE ? L"Noncontinuable e"
+																																	  : L"E"),
+				 DbgEvent.u.Exception.ExceptionRecord.ExceptionAddress);
+			// Exception codes are NTSTATUSes
+			LogF(L"    Exception code: 0x%08x: %s", DbgEvent.u.Exception.ExceptionRecord.ExceptionCode,
+														NtStatusAsString(DbgEvent.u.Exception.ExceptionRecord.ExceptionCode));
+
+			if (DbgEvent.u.Exception.ExceptionRecord.ExceptionCode == EXCEPTION_ACCESS_VIOLATION
+				&& DbgEvent.u.Exception.ExceptionRecord.NumberParameters == 2) {
+				LogF(L"    Attempted to %s the address 0x%p\r\n",
+					 DbgEvent.u.Exception.ExceptionRecord.ExceptionInformation[0] ? L"write" : L"read",
+					 DbgEvent.u.Exception.ExceptionRecord.ExceptionInformation[1]);
+			}
+		} else if (DbgEvent.dwDebugEventCode == CREATE_THREAD_DEBUG_EVENT) {
+			LogF(L"[TH ProcId=%lu, ThreadId=%lu]\tThread created (starting address: 0x%p)\r\n",
+				 DbgEvent.dwProcessId, DbgEvent.dwThreadId, DbgEvent.u.CreateThread.lpStartAddress);
+		} else if (DbgEvent.dwDebugEventCode == EXIT_THREAD_DEBUG_EVENT) {
+			LogF(L"[TH ProcId=%lu, ThreadId=%lu]\tThread exited (exit code: 0x%08I32x)\r\n",
+				 DbgEvent.dwProcessId, DbgEvent.dwThreadId, DbgEvent.u.ExitThread.dwExitCode);
 		} else {
 			LogF(L"[?? ProcId=%lu, ThreadId=%lu]\tUnknown debug event received: %lu\r\n",
 					DbgEvent.dwProcessId, DbgEvent.dwThreadId, DbgEvent.dwDebugEventCode);
@@ -1182,7 +1473,6 @@ Error:
 HANDLE KexOpenLogFile(
 	IN	LPCWSTR	szExeFullPath)
 {
-#ifdef _DEBUG
 	HANDLE hLogFile;
 	WCHAR szLogFileName[MAX_PATH] = L"";
 
@@ -1196,7 +1486,7 @@ HANDLE KexOpenLogFile(
 
 	hLogFile = CreateFile(
 		szLogFileName,
-		GENERIC_WRITE,
+		GENERIC_READ | GENERIC_WRITE,
 		FILE_SHARE_READ | FILE_SHARE_WRITE,
 		NULL,
 		CREATE_ALWAYS,
@@ -1207,6 +1497,7 @@ HANDLE KexOpenLogFile(
 	return hLogFile;
 
 Error:
+#ifdef _DEBUG
 	WarningBoxF(L"Unable to open the log file %s: %s", szLogFileName, GetLastErrorAsString());
 #endif // ifdef _DEBUG
 
@@ -1279,51 +1570,12 @@ BOOL SpawnProgramUnderLoader(
 
 	LogF(L"[KE] Copying KexData structure to child process\r\n");
 	CopyKexDataToChild();
+
+	LogF(L"[KE] Rewriting imports of executable file\r\n");
 	RewriteImports(g_lpszExeBaseName, g_vaExeBase);
 	RewriteDllImports();
 
 	return TRUE;
-}
-
-HWND CreateToolTip(
-	IN	HWND	hDlg,
-	IN	INT		iToolID,
-	IN	LPWSTR	lpszText)
-{
-	TOOLINFO ToolInfo;
-	HWND hWndTool;
-	HWND hWndTip;
-
-	if (!iToolID || !hDlg || !lpszText) {
-		return NULL;
-	}
-
-	// Get the window of the tool.
-	hWndTool = GetDlgItem(hDlg, iToolID);
-
-	// Create the tooltip.
-	hWndTip = CreateWindowEx(
-		0, TOOLTIPS_CLASS, NULL,
-		WS_POPUP | TTS_ALWAYSTIP,
-		CW_USEDEFAULT, CW_USEDEFAULT,
-		CW_USEDEFAULT, CW_USEDEFAULT,
-		hDlg, NULL, 
-		NULL, NULL);
-
-	if (!hWndTool || !hWndTip) {
-		return NULL;
-	}
-
-	// Associate the tooltip with the tool.
-	ZeroMemory(&ToolInfo, sizeof(ToolInfo));
-	ToolInfo.cbSize = sizeof(ToolInfo);
-	ToolInfo.hwnd = hDlg;
-	ToolInfo.uFlags = TTF_IDISHWND | TTF_SUBCLASS;
-	ToolInfo.uId = (UINT_PTR) hWndTool;
-	ToolInfo.lpszText = lpszText;
-	SendMessage(hWndTip, TTM_ADDTOOL, 0, (LPARAM) &ToolInfo);
-
-	return hWndTip;
 }
 
 INT_PTR CALLBACK DlgProc(
