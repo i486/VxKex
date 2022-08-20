@@ -304,7 +304,7 @@ VOID SetScene(
 	if (iScene == 1) {
 		// operation selection
 		WCHAR szCurrentInfo[35 + 15 + MAX_PATH];
-		WCHAR szInstallInfo[25 + 15 + 1];
+		WCHAR szInstallInfo[64];
 
 		SetDlgItemText(hWnd, IDHDRTEXT, L"Select Operation");
 		SetDlgItemText(hWnd, IDHDRSUBTEXT, L"VxKex is already installed. Choose what you want Setup to do:");
@@ -323,7 +323,8 @@ VOID SetScene(
 			EnableWindow(GetDlgItem(hWnd, IDS1RBUPDATE), TRUE);
 		}
 
-		swprintf_s(szInstallInfo, ARRAYSIZE(szInstallInfo), L"The installer version is %s", g_lpszInstallerVersion);
+		swprintf_s(szInstallInfo, ARRAYSIZE(szInstallInfo), L"The installer version is %s (Build: %s, %s)",
+				   g_lpszInstallerVersion, L(__DATE__), L(__TIME__));
 		EnableWindow(GetDlgItem(hWnd, IDBACK), FALSE);
 
 		if (!(IsDlgButtonChecked(hWnd, IDS1RBUNINST) || IsDlgButtonChecked(hWnd, IDS1RBREPAIR) || IsDlgButtonChecked(hWnd, IDS1RBUPDATE))) {

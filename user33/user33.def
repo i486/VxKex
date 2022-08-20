@@ -4,9 +4,12 @@ EXPORTS
 	GetSystemMetricsForDpi
 	SetProcessDpiAwarenessContext
 	SetThreadDpiAwarenessContext
+	GetAwarenessFromDpiAwarenessContext
 	GetDpiForSystem
 	GetDpiForWindow
+	GetWindowDpiAwarenessContext
 	SetCoalescableTimer
+	SystemParametersInfoForDpi
 	EnableNonClientDpiScaling
 	EnableMouseInPointer
 	GetDisplayAutoRotationPreferences

@@ -350,7 +350,7 @@ INT_PTR DialogProc(
 		DWORD dwDisableAppSpecific = FALSE;
 		DWORD dwWaitForChild = FALSE;
 		WCHAR szVxKexLdrPath[MAX_PATH];
-		WCHAR szIfeoDebugger[MAX_PATH];
+		WCHAR szIfeoDebugger[MAX_PATH + 2];
 		WCHAR szIfeoKey[74 + MAX_PATH] = L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options\\";
 		WCHAR szKexIfeoKey[54 + MAX_PATH] = L"SOFTWARE\\VXsoft\\VxKexLdr\\Image File Execution Options\\";
 		LPCWSTR lpszExePath = ((LPCKEXSHLEX) (((LPPROPSHEETPAGE) lParam)->lParam))->m_szExe;
@@ -383,7 +383,7 @@ INT_PTR DialogProc(
 		wcscat_s(szVxKexLdrPath, ARRAYSIZE(szVxKexLdrPath), L"\\VxKexLdr.exe");
 
 		if (RegReadSz(HKEY_LOCAL_MACHINE, szIfeoKey, L"Debugger", szIfeoDebugger, ARRAYSIZE(szIfeoDebugger)) &&
-			!lstrcmp(szIfeoDebugger, szVxKexLdrPath) &&
+			(!wcsicmp(szIfeoDebugger, szVxKexLdrPath) || !wcsnicmp(szIfeoDebugger+1, szVxKexLdrPath, wcslen(szVxKexLdrPath))) &&
 			RegReadDw(HKEY_CURRENT_USER, szKexIfeoKey, L"EnableVxKex", &dwEnableVxKex) && dwEnableVxKex) {
 			CheckDlgButton(hWnd, IDUSEVXKEX, TRUE);
 		}

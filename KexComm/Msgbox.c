@@ -14,15 +14,27 @@ VOID SetFriendlyAppName(
 	wcscpy_s(szFriendlyAppName, ARRAYSIZE(szFriendlyAppName), lpszFriendlyName);
 }
 
-LPCWSTR GetLastErrorAsString(
-	VOID)
+LPCWSTR Win32ErrorAsString(
+	IN	DWORD	dw)
 {
 	static WCHAR lpszErrMsg[256];
 	FormatMessage(
 		FORMAT_MESSAGE_FROM_SYSTEM,
-		NULL, GetLastError(), 0, lpszErrMsg,
+		NULL, dw, 0, lpszErrMsg,
 		ARRAYSIZE(lpszErrMsg) - 1, NULL);
 	return lpszErrMsg;
+}
+
+LPCWSTR NtStatusAsString(
+	IN	NTSTATUS st)
+{
+	return Win32ErrorAsString(RtlNtStatusToDosError(st));
+}
+
+LPCWSTR GetLastErrorAsString(
+	VOID)
+{
+	return Win32ErrorAsString(GetLastError());
 }
 
 VOID MessageBoxV(
