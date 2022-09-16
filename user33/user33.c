@@ -237,6 +237,7 @@ WINUSERAPI BOOL WINAPI GetPointerDevices(
 	IN OUT	UINT32				*deviceCount,
 	OUT		POINTER_DEVICE_INFO	*pointerDevices)
 {
+	ODS_ENTRY();
 	*deviceCount = 0;
 	return TRUE;
 }
@@ -245,6 +246,7 @@ WINUSERAPI BOOL WINAPI GetPointerType(
 	IN	DWORD				dwPointerId,
 	OUT	POINTER_INPUT_TYPE	*pointerType)
 {
+	ODS_ENTRY();
 	*pointerType = PT_MOUSE;
 	return TRUE;
 }
@@ -253,6 +255,8 @@ WINUSERAPI BOOL WINAPI GetPointerInfo(
 	IN	DWORD			dwPointerId,
 	OUT	POINTER_INFO	*pointerInfo)
 {
+	ODS_ENTRY();
+
 	pointerInfo->pointerType = PT_MOUSE;
 	pointerInfo->pointerId = dwPointerId;
 	pointerInfo->frameId = 0;
@@ -278,6 +282,8 @@ WINUSERAPI BOOL WINAPI GetPointerDeviceRects(
 	OUT	LPRECT	lprcPointerDeviceRect,
 	OUT	LPRECT	lprcDisplayRect)
 {
+	ODS_ENTRY();
+
 	lprcPointerDeviceRect->top = 0;
 	lprcPointerDeviceRect->left = 0;
 	lprcPointerDeviceRect->bottom = GetSystemMetrics(SM_CYVIRTUALSCREEN);
@@ -295,6 +301,7 @@ WINUSERAPI BOOL WINAPI GetPointerTouchInfo(
 	IN	DWORD	dwPointerId,
 	OUT	LPVOID	lpTouchInfo)
 {
+	ODS_ENTRY();
 	return FALSE;
 }
 
@@ -303,6 +310,7 @@ WINUSERAPI BOOL WINAPI GetPointerFrameTouchInfo(
 	IN OUT	LPDWORD lpdwPointerCount,
 	OUT		LPVOID	lpTouchInfo)
 {
+	ODS_ENTRY();
 	return FALSE;
 }
 
@@ -312,6 +320,7 @@ WINUSERAPI BOOL WINAPI GetPointerFrameTouchInfoHistory(
 	IN OUT	LPDWORD lpdwPointerCount,
 	OUT		LPVOID	lpTouchInfo)
 {
+	ODS_ENTRY();
 	return FALSE;
 }
 
@@ -319,6 +328,7 @@ WINUSERAPI BOOL WINAPI GetPointerPenInfo(
 	IN	DWORD	dwPointerId,
 	OUT	LPVOID	lpPenInfo)
 {
+	ODS_ENTRY();
 	return FALSE;
 }
 
@@ -327,12 +337,14 @@ WINUSERAPI BOOL WINAPI GetPointerPenInfoHistory(
 	IN OUT	LPDWORD	lpdwEntriesCount,
 	OUT		LPVOID	lpPenInfo)
 {
+	ODS_ENTRY();
 	return FALSE;
 }
 
 WINUSERAPI BOOL WINAPI SkipPointerFrameMessages(
 	IN	DWORD	dwPointerId)
 {
+	ODS_ENTRY();
 	return TRUE;
 }
 
@@ -340,6 +352,7 @@ WINUSERAPI BOOL WINAPI LogicalToPhysicalPointForPerMonitorDPI(
 	IN		HWND	hWnd,
 	IN OUT	LPPOINT	lpPoint)
 {
+	ODS_ENTRY();
 	return LogicalToPhysicalPoint(hWnd, lpPoint);
 }
 
@@ -347,6 +360,7 @@ WINUSERAPI BOOL WINAPI PhysicalToLogicalPointForPerMonitorDPI(
 	IN		HWND	hWnd,
 	IN OUT	LPPOINT	lpPoint)
 {
+	ODS_ENTRY();
 	return PhysicalToLogicalPoint(hWnd, lpPoint);
 }
 
@@ -357,6 +371,7 @@ WINUSERAPI HHOOK WINAPI PROXY_FUNCTION(SetWindowsHookExW) (
 	IN	DWORD		dwThreadId)
 {
 	STATIC BOOL bDisableHooks = -1;
+	ODS_ENTRY();
 
 	// APPSPECIFICHACK
 	if (bDisableHooks == -1) {
@@ -371,4 +386,19 @@ WINUSERAPI HHOOK WINAPI PROXY_FUNCTION(SetWindowsHookExW) (
 	} else {
 		return SetWindowsHookExW(idHook, lpfn, hMod, dwThreadId);
 	}
+}
+
+WINUSERAPI HPOWERNOTIFY WINAPI RegisterSuspendResumeNotification(
+	IN	HANDLE	hRecipient,
+	IN	DWORD	Flags)
+{
+	ODS_ENTRY();
+	return NULL;
+}
+
+WINUSERAPI BOOL WINAPI UnregisterSuspendResumeNotification(
+	IN OUT	HPOWERNOTIFY	Handle)
+{
+	ODS_ENTRY();
+	return FALSE;
 }

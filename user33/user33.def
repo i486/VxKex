@@ -26,3 +26,5 @@ EXPORTS
 	SkipPointerFrameMessages
 	LogicalToPhysicalPointForPerMonitorDPI
 	PhysicalToLogicalPointForPerMonitorDPI
+	RegisterSuspendResumeNotification
+	UnregisterSuspendResumeNotification
