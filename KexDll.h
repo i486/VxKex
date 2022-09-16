@@ -45,15 +45,17 @@ INLINE BOOL IsExeBaseName(
 	return !wcsicmp(GetExeBaseName(), lpszExeBaseNameToCompare);
 }
 
+extern PKEX_PROCESS_DATA KexData;
+
 INLINE PKEX_PROCESS_DATA KexGetKexData(
 	VOID)
 {
-	PKEX_PROCESS_DATA KexData = (PKEX_PROCESS_DATA) NtCurrentPeb()->SubSystemData;
+	PKEX_PROCESS_DATA pKexData = (PKEX_PROCESS_DATA) NtCurrentPeb()->SubSystemData;
 
-	if (!KexData) {
+	if (!pKexData) {
 		ODS(L"ERROR: SubSystemData pointer is NULL");
 		NtTerminateProcess(GetCurrentProcess(), 0);
 	}
 	
-	return KexData;
+	return pKexData;
 }

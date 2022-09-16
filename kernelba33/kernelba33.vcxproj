@@ -18,41 +18,30 @@
       <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="File.c" />
-    <ClCompile Include="KexData.c" />
-    <ClCompile Include="Memory.c" />
-    <ClCompile Include="Msgbox.c" />
-    <ClCompile Include="Registry.c" />
-    <ClCompile Include="System.c" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="..\KexComm.h" />
-  </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{24FC500A-AA39-4886-B19F-4ADB19642DB9}</ProjectGuid>
+    <ProjectGuid>{DE196927-ADF7-492A-B5D0-8A0B6F3F0D34}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>KexComm</RootNamespace>
+    <RootNamespace>kernelba33</RootNamespace>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
-    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
-    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
-    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
-    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
@@ -73,30 +62,39 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-  <PropertyGroup />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <PrecompiledHeader>
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>WIN32;NONLS;NOSERVICE;NOSOUND;NOTEXTMETRIC;NOCOMM;NOKANJI;NOPROFILER;NOMCX;WIN32_LEAN_AND_MEAN;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <ExceptionHandling>false</ExceptionHandling>
-      <SmallerTypeCheck>false</SmallerTypeCheck>
-      <CompileAs>CompileAsC</CompileAs>
+      <PreprocessorDefinitions>WIN32;NOSERVICE;NOSOUND;NOTEXTMETRIC;NOCOMM;NOKANJI;NOPROFILER;NOMCX;WIN32_LEAN_AND_MEAN;_DEBUG;_WINDOWS;_USRDLL;KERNELBA33_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(SolutionDir)</AdditionalIncludeDirectories>
+      <ExceptionHandling>false</ExceptionHandling>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
       <BufferSecurityCheck>false</BufferSecurityCheck>
-      <ProgramDataBaseFileName>$(OutDir)$(TargetName).pdb</ProgramDataBaseFileName>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <ModuleDefinitionFile>kernelba33.def</ModuleDefinitionFile>
+      <AdditionalLibraryDirectories>$(SolutionDir);$(TargetDir)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>kernel32_x86.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;shlwapi.lib;KexComm.lib;ntd33.lib;ntdll_x86.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
+      <EntryPointSymbol>DllMain</EntryPointSymbol>
     </Link>
-    <Lib>
-      <AdditionalDependencies>psapi.lib</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(SolutionDir)</AdditionalLibraryDirectories>
-    </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -104,88 +102,102 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>WIN32;NONLS;NOSERVICE;NOSOUND;NOTEXTMETRIC;NOCOMM;NOKANJI;NOPROFILER;NOMCX;WIN32_LEAN_AND_MEAN;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <ExceptionHandling>false</ExceptionHandling>
-      <SmallerTypeCheck>false</SmallerTypeCheck>
-      <CompileAs>CompileAsC</CompileAs>
+      <PreprocessorDefinitions>WIN32;NOSERVICE;NOSOUND;NOTEXTMETRIC;NOCOMM;NOKANJI;NOPROFILER;NOMCX;WIN32_LEAN_AND_MEAN;_DEBUG;_WINDOWS;_USRDLL;KERNELBA33_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(SolutionDir)</AdditionalIncludeDirectories>
+      <ExceptionHandling>false</ExceptionHandling>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
       <BufferSecurityCheck>false</BufferSecurityCheck>
-      <ProgramDataBaseFileName>$(OutDir)$(TargetName).pdb</ProgramDataBaseFileName>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <ModuleDefinitionFile>kernelba33.def</ModuleDefinitionFile>
+      <AdditionalLibraryDirectories>$(SolutionDir);$(TargetDir)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>kernel32_x64.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;shlwapi.lib;KexComm.lib;ntd33.lib;ntdll_x64.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
+      <EntryPointSymbol>DllMain</EntryPointSymbol>
     </Link>
-    <Lib>
-      <AdditionalDependencies>psapi.lib</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(SolutionDir)</AdditionalLibraryDirectories>
-    </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <PrecompiledHeader>
       </PrecompiledHeader>
-      <Optimization>MinSpace</Optimization>
+      <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>WIN32;NONLS;NOSERVICE;NOSOUND;NOTEXTMETRIC;NOCOMM;NOKANJI;NOPROFILER;NOMCX;WIN32_LEAN_AND_MEAN;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
-      <FavorSizeOrSpeed>Size</FavorSizeOrSpeed>
-      <OmitFramePointers>true</OmitFramePointers>
-      <StringPooling>true</StringPooling>
-      <ExceptionHandling>false</ExceptionHandling>
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-      <CompileAs>CompileAsC</CompileAs>
+      <PreprocessorDefinitions>WIN32;NOSERVICE;NOSOUND;NOTEXTMETRIC;NOCOMM;NOKANJI;NOPROFILER;NOMCX;WIN32_LEAN_AND_MEAN;NDEBUG;_WINDOWS;_USRDLL;KERNELBA33_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(SolutionDir)</AdditionalIncludeDirectories>
-      <SmallerTypeCheck>false</SmallerTypeCheck>
+      <ExceptionHandling>false</ExceptionHandling>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
-      <ProgramDataBaseFileName>$(OutDir)$(TargetName).pdb</ProgramDataBaseFileName>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
+      <ModuleDefinitionFile>kernelba33.def</ModuleDefinitionFile>
+      <AdditionalLibraryDirectories>$(SolutionDir);$(TargetDir)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>kernel32_x86.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;shlwapi.lib;KexComm.lib;ntd33.lib;ntdll_x86.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
+      <EntryPointSymbol>DllMain</EntryPointSymbol>
     </Link>
-    <Lib>
-      <AdditionalDependencies>psapi.lib</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(SolutionDir)</AdditionalLibraryDirectories>
-    </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <PrecompiledHeader>
       </PrecompiledHeader>
-      <Optimization>MinSpace</Optimization>
+      <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>WIN32;NONLS;NOSERVICE;NOSOUND;NOTEXTMETRIC;NOCOMM;NOKANJI;NOPROFILER;NOMCX;WIN32_LEAN_AND_MEAN;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
-      <FavorSizeOrSpeed>Size</FavorSizeOrSpeed>
-      <OmitFramePointers>true</OmitFramePointers>
-      <StringPooling>true</StringPooling>
-      <ExceptionHandling>false</ExceptionHandling>
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-      <CompileAs>CompileAsC</CompileAs>
+      <PreprocessorDefinitions>WIN32;NOSERVICE;NOSOUND;NOTEXTMETRIC;NOCOMM;NOKANJI;NOPROFILER;NOMCX;WIN32_LEAN_AND_MEAN;NDEBUG;_WINDOWS;_USRDLL;KERNELBA33_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(SolutionDir)</AdditionalIncludeDirectories>
-      <SmallerTypeCheck>false</SmallerTypeCheck>
+      <ExceptionHandling>false</ExceptionHandling>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
-      <ProgramDataBaseFileName>$(OutDir)$(TargetName).pdb</ProgramDataBaseFileName>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
+      <ModuleDefinitionFile>kernelba33.def</ModuleDefinitionFile>
+      <AdditionalLibraryDirectories>$(SolutionDir);$(TargetDir)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>kernel32_x64.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;shlwapi.lib;KexComm.lib;ntd33.lib;ntdll_x64.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
+      <EntryPointSymbol>DllMain</EntryPointSymbol>
     </Link>
-    <Lib>
-      <AdditionalDependencies>psapi.lib</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(SolutionDir)</AdditionalLibraryDirectories>
-    </Lib>
   </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="ceip.c" />
+    <ClCompile Include="datetime.c" />
+    <ClCompile Include="error.c" />
+    <ClCompile Include="exports.c" />
+    <ClCompile Include="fileopcr.c" />
+    <ClCompile Include="gmem.c" />
+    <ClCompile Include="harderr.c" />
+    <ClCompile Include="kernelba33.c" />
+    <ClCompile Include="module.c" />
+    <ClCompile Include="monitor.c" />
+    <ClCompile Include="pathcch.c" />
+    <ClCompile Include="process.c" />
+    <ClCompile Include="synch.c" />
+    <ClCompile Include="thread.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="kernelba33.def" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="fileopcr.h" />
+    <ClInclude Include="gmem.h" />
+    <ClInclude Include="module.h" />
+    <ClInclude Include="pathcch.h" />
+    <ClInclude Include="process.h" />
+    <ClInclude Include="synch.h" />
+    <ClInclude Include="thread.h" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

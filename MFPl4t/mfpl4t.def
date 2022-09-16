@@ -1,0 +1,6 @@
+LIBRARY mfpl4t.dll
+EXPORTS
+	MFCreateDXGIDeviceManager
+	MFCreateDXGISurfaceBuffer
+	MFLockDXGIDeviceManager
+	MFUnlockDXGIDeviceManager

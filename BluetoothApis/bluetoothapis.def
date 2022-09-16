@@ -1,0 +1,15 @@
+LIBRARY BluetoothApis.dll
+EXPORTS
+	BluetoothGATTGetServices
+	BluetoothGATTGetCharacteristics
+	BluetoothGATTUnregisterEvent
+	BluetoothGATTRegisterEvent
+	BluetoothGATTGetDescriptorValue
+	BluetoothGATTSetDescriptorValue
+	BluetoothGATTGetCharacteristicValue
+	BluetoothGATTSetCharacteristicValue
+	BluetoothGATTGetDescriptors
+	BluetoothGATTGetIncludedServices
+	BluetoothGATTAbortReliableWrite
+	BluetoothGATTBeginReliableWrite
+	BluetoothGATTEndReliableWrite

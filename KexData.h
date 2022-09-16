@@ -1,13 +1,15 @@
 #pragma once
 
+#include <Windows.h>
+
 typedef struct _KEX_IFEO_PARAMETERS {
-	DWORD	dwEnableVxKex;
-	WCHAR	szWinVerSpoof[6];
-	DWORD	dwAlwaysShowDebug;
-	DWORD	dwDisableForChild;
-	DWORD	dwDisableAppSpecific;
-	DWORD	dwWaitForChild;
-	DWORD	dwDebuggerSpoof;
+	BOOLEAN	EnableVxKex;
+	BOOLEAN	AlwaysShowDebug;
+	BOOLEAN	DisableForChild;
+	BOOLEAN	DisableAppSpecific;
+	BOOLEAN	WaitForChild;
+	BOOLEAN	DebuggerSpoof;
+	WCHAR	WinVerSpoof[6];
 } KEX_IFEO_PARAMETERS, *PKEX_IFEO_PARAMETERS, *LPKEX_IFEO_PARAMETERS;
 
 // KexData is basically like a "PEB" but contains specific data related to VxKex.
@@ -19,5 +21,6 @@ typedef struct _KEX_IFEO_PARAMETERS {
 
 typedef struct _KEX_PROCESS_DATA {
 	KEX_IFEO_PARAMETERS	IfeoParameters;
-	WCHAR				szKexDir[MAX_PATH];					// full Win32 path to KexDir e.g. C:\Program Files\VxKex
+	BOOLEAN				ProcessInitializationComplete;		// set to TRUE when main image entry point reached
+	WCHAR				KexDir[MAX_PATH];					// full Win32 path to KexDir e.g. C:\Program Files\VxKex
 } KEX_PROCESS_DATA, *PKEX_PROCESS_DATA, *LPKEX_PROCESS_DATA;

@@ -24,6 +24,10 @@
 DWORD WINAPI ThreadProc(
 	IN	LPVOID	lpParameter)
 {
+#ifdef RVA_TO_VA
+#  undef RVA_TO_VA
+#endif
+
 #define RVA_TO_VA(rva) (((LPBYTE) hMod) + (rva))
 
 	HWND hWnd = (HWND) lpParameter;

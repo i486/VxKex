@@ -102,7 +102,7 @@ LPWSTR ConvertDeviceHarddiskToDosPath(
 		}
 
 		wBit--;
-	} until (wBit is 0);
+	} until (wBit == 0);
 
 	return NULL;
 }

@@ -319,17 +319,19 @@ VOID SetScene(
 				  g_lpszInstalledVersion, g_szInstalledKexDir);
 		SetDlgItemText(hWnd, IDS1CURRENTINFO, szCurrentInfo);
 
+		// If installer version is greater than installeD version, update is default action.
+		// Otherwise, repair is default action.
 		if (g_dwInstallerVersion > g_dwInstalledVersion) {
 			EnableWindow(GetDlgItem(hWnd, IDS1RBUPDATE), TRUE);
+			EnableWindow(GetDlgItem(hWnd, IDS1RBREPAIR), FALSE);
+			CheckDlgButton(hWnd, IDS1RBUPDATE, TRUE);
+		} else {
+			CheckDlgButton(hWnd, IDS1RBREPAIR, TRUE);
 		}
 
 		swprintf_s(szInstallInfo, ARRAYSIZE(szInstallInfo), L"The installer version is %s (Build: %s, %s)",
 				   g_lpszInstallerVersion, L(__DATE__), L(__TIME__));
 		EnableWindow(GetDlgItem(hWnd, IDBACK), FALSE);
-
-		if (!(IsDlgButtonChecked(hWnd, IDS1RBUNINST) || IsDlgButtonChecked(hWnd, IDS1RBREPAIR) || IsDlgButtonChecked(hWnd, IDS1RBUPDATE))) {
-			EnableWindow(GetDlgItem(hWnd, IDNEXT), FALSE);
-		}
 		SetDlgItemText(hWnd, IDS1INSTALLINFO, szInstallInfo);
 	} else if (iScene == 2) {
 		// install -> select installation directory
@@ -415,8 +417,15 @@ VOID SetScene(
 		EnableWindow(GetDlgItem(hWnd, IDBACK), FALSE);
 	} else if (iScene == 11) {
 		HRSRC hChangeLog = FindResource(NULL, L"ChangeLog.txt", (LPCWSTR) RCTEXT);
+		SIZE_T cchChangeLog = SizeofResource(NULL, hChangeLog) / 2;
 		LPWSTR lpszChangeLog = (LPWSTR) LoadResource(NULL, hChangeLog);
-		lpszChangeLog[SizeofResource(NULL, hChangeLog)] = '\0';
+
+		//
+		// If you get access violations or gibberish displayed here, make sure that
+		// ChangeLog.txt ends with two null bytes '\0'. You have probably messed them up
+		// with some text editor. Notepad, for example, converts them to spaces when you
+		// save the file. Use the Visual Studio text editor which preserves them.
+		//
 		
 		SetDlgItemText(hWnd, IDHDRTEXT, L"Update VxKex");
 		SetDlgItemText(hWnd, IDHDRSUBTEXT, L"Review the information below, and then click Update");
@@ -870,10 +879,6 @@ INT_PTR CALLBACK DlgProc(
 			SetDlgItemText(hWnd, IDS2DIRPATH, PickFolder(hWnd, szOldValue));
 		} else if (LOWORD(wParam) == IDS2DIRPATH) {
 			UpdateDiskFreeSpace(hWnd);
-		} else if (LOWORD(wParam) == IDS1RBUNINST ||
-				   LOWORD(wParam) == IDS1RBREPAIR ||
-				   LOWORD(wParam) == IDS1RBUPDATE) {
-			EnableWindow(GetDlgItem(hWnd, IDNEXT), IsDlgButtonChecked(hWnd, LOWORD(wParam)));
 		} else if (LOWORD(wParam) == IDS5UNDERSTAND) {
 			EnableWindow(GetDlgItem(hWnd, IDNEXT), IsDlgButtonChecked(hWnd, LOWORD(wParam)));
 		}

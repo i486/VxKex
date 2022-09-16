@@ -83,6 +83,23 @@ Error:
 	return FALSE;
 }
 
+BOOL RegReadBoolean(
+	IN	HKEY		Key,
+	IN	PCWSTR		SubKey OPTIONAL,
+	IN	PWSTR		Value OPTIONAL,
+	OUT	PBOOLEAN	Data)
+{
+	DWORD UnconvertedData;
+	BOOL Success = RegReadDw(Key, SubKey, Value, &UnconvertedData);
+
+	if (Success) {
+		*Data = !!UnconvertedData;
+		return TRUE;
+	} else {
+		return FALSE;
+	}
+}
+
 BOOL RegWriteDw(
 	IN	HKEY	hKey,
 	IN	LPCWSTR	lpszSubKey OPTIONAL,

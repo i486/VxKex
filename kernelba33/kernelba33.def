@@ -1,0 +1,77 @@
+LIBRARY kernelba33
+EXPORTS
+	;; ceip.c
+	CeipIsOptedIn
+
+	;; datetime.c
+	GetSystemTimePreciseAsFileTime
+
+	;; error.c
+	GetOverlappedResultEx
+
+	;; fileopcr.c
+	CreateFile2
+
+	;; gmem.c
+	PrefetchVirtualMemory
+
+	;; harderr.c
+	KexRaiseHardError
+
+	;; module.c
+	LoadLibraryA			= P_LoadLibraryA
+	LoadLibraryW			= P_LoadLibraryW
+	LoadLibraryExA			= P_LoadLibraryExA
+	LoadLibraryExW			= P_LoadLibraryExW
+	GetModuleHandleA		= P_GetModuleHandleA
+	GetModuleHandleW		= P_GetModuleHandleW
+	GetModuleHandleExA		= P_GetModuleHandleExA
+	GetModuleHandleExW		= P_GetModuleHandleExW
+	GetProcAddress			= P_GetProcAddress
+	KexNormalizeDllNameW
+	KexRewriteDllNameW
+	SetDefaultDllDirectories= P_SetDefaultDllDirectories
+
+	;; pathcch.c
+	PathAllocCanonicalize
+	PathAllocCombine
+	PathCchAddBackslash
+	PathCchAddBackslashEx
+	PathCchAddExtension
+	PathCchAppend
+	PathCchAppendEx
+	PathCchCanonicalize
+	PathCchCanonicalizeEx
+	PathCchCombine
+	PathCchCombineEx
+	PathCchFindExtension
+	PathCchIsRoot
+	PathCchRemoveBackslash
+	PathCchRemoveBackslashEx
+	PathCchRemoveExtension
+	PathCchRemoveFileSpec
+	PathCchRenameExtension
+	PathCchSkipRoot
+	PathCchStripPrefix
+	PathCchStripToRoot
+	PathIsUNCEx
+
+	;; process.c
+	GetProcessInformation
+	GetProcessMitigationPolicy
+	SetProcessInformation
+	SetProcessMitigationPolicy
+
+	;; synch.c
+	WaitOnAddress
+	WakeByAddressAll
+	WakeByAddressSingle
+
+	;; thread.c
+	GetThreadDescription
+	GetThreadInformation
+	SetThreadDescription
+	SetThreadInformation
+
+	;; forwarders (NTD33)
+	ResolveDelayLoadedAPI							= ntd33.LdrResolveDelayLoadedAPI

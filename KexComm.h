@@ -6,8 +6,9 @@
 //
 
 #include <VxKex.h>
+#include <KexData.h>
+
 #include <Windows.h>
-#include <tchar.h>
 #include <strsafe.h>
 #include <malloc.h>
 #include <stdarg.h>
@@ -24,6 +25,17 @@
 #define CHECKED(x) if (!(x)) goto Error
 #define CONCAT(a,b) a##b
 #define L(str) CONCAT(L,str)
+#define WIN32_FROM_HRESULT(x) (HRESULT_CODE(x)) // be careful when using this - not all hresult codes map to a valid win32 error
+
+#ifdef _M_X64
+#  define PROCESS_IS_64BIT (TRUE)
+#  define PROCESS_IS_32BIT (FALSE)
+#  define PROCESSBITS (64)
+#else
+#  define PROCESS_IS_64BIT (FALSE)
+#  define PROCESS_IS_32BIT (TRUE)
+#  define PROCESSBITS (32)
+#endif
 
 #define snwprintf_s _snwprintf_s
 #define vscwprintf _vscwprintf
@@ -34,17 +46,13 @@
 
 #define until(condition) while (!(condition))
 #define unless(condition) if (!(condition))
-#define otherwise else
-#define and &&
-#define or ||
-#define not !
-#define is ==
-#define is_not !=
 
-typedef LPVOID *PPVOID;
+typedef PVOID *PPVOID;
+typedef CONST VOID *PCVOID;
+typedef PCVOID *PPCVOID;
 typedef unsigned __int64 QWORD, *PQWORD, *LPQWORD, **PPQWORD;
-typedef LONG KPRIORITY;
 typedef LONG NTSTATUS;
+typedef LONG KPRIORITY;
 
 EXTERN_C VOID SetFriendlyAppName(
 	IN	LPCWSTR	lpszFriendlyName);
@@ -94,6 +102,12 @@ EXTERN_C BOOL RegReadDw(
 	IN	LPCWSTR	lpszValueName OPTIONAL,
 	OUT	LPDWORD	lpdwData);
 
+EXTERN_C BOOL RegReadBoolean(
+	IN	HKEY		Key,
+	IN	PCWSTR		SubKey OPTIONAL,
+	IN	PWSTR		Value OPTIONAL,
+	OUT	PBOOLEAN	Data);
+
 EXTERN_C BOOL RegWriteDw(
 	IN	HKEY	hKey,
 	IN	LPCWSTR	lpszSubKey,
@@ -136,6 +150,49 @@ VOID __AutoFreeHelper(
 LPWSTR GetCommandLineWithoutImageName(
 	VOID);
 
+NORETURN VOID KexRaiseHardError(
+	IN	PCWSTR	WindowTitle OPTIONAL,
+	IN	PCWSTR	BugLink OPTIONAL,
+	IN	PCWSTR	Format OPTIONAL, ...);
+
+BOOL KexOpenIfeoKeyForExe(
+	IN	PCWSTR	ExeFullPath OPTIONAL,
+	IN	REGSAM	DesiredSam,
+	OUT	PHKEY	Key);
+
+BOOL KexReadIfeoParameters(
+	IN	PCWSTR					ExeFullPath,
+	OUT	PKEX_IFEO_PARAMETERS	KexIfeoParameters);
+
+DWORD GetEnvironmentVariableExW(
+	IN	PCWSTR	Name,
+	OUT	PWSTR	Buffer OPTIONAL,
+	IN	ULONG	BufferSize,
+	IN	PVOID	Environment OPTIONAL);
+
+BOOL SetEnvironmentVariableExW(
+	IN	PCWSTR	Name,
+	IN	PCWSTR	Value OPTIONAL,
+	IN	PVOID	*Environment OPTIONAL);
+
+BOOLEAN CloneEnvironmentBlock(
+	IN	PVOID	Source OPTIONAL,
+	OUT	PVOID	*Destination);
+
+BOOLEAN CloneEnvironmentBlockConvertAnsiToUnicode(
+	IN	PVOID	Source OPTIONAL,
+	OUT	PVOID	*Destination);
+
+ULONG SizeOfEnvironmentBlockW(
+	IN	PVOID	Environment OPTIONAL);
+
+BOOLEAN IsOperatingSystem64Bit(
+	VOID);
+
+BOOLEAN IsProcess64Bit(
+	IN	HANDLE		ProcessHandle,
+	OUT	PBOOLEAN	Is64Bit);
+
 FORCEINLINE LPVOID DefHeapAlloc(
 	IN	SIZE_T	cb)
 {
@@ -159,6 +216,8 @@ FORCEINLINE LPVOID DefHeapReAlloc(
 #ifndef __MAX_STACK_ALLOC_SIZE
 #  define __MAX_STACK_ALLOC_SIZE 1024
 #endif
+
+#define RVA_TO_VA(base, rva) ((LPVOID) (((LPBYTE) (base)) + (rva)))
 
 #define AutoAlloc(cb) (((cb) < __MAX_STACK_ALLOC_SIZE) ? __AutoStackAllocHelper(StackAlloc((cb) + 1)) : __AutoHeapAllocHelper((cb) + 1))
 #define AutoFree(lpv) do { __AutoFreeHelper(lpv); lpv = NULL; } while(0)

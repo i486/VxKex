@@ -1,13 +1,16 @@
 #pragma once
-#include <Windows.h>
+
 #include <KexComm.h>
 
-typedef LONG NTSTATUS;
 #define STATUS_SUCCESS						((NTSTATUS) 0)
 #define STATUS_IMAGE_MP_UP_MISMATCH			((NTSTATUS) 0xC0000249L)
 #define STATUS_INVALID_IMAGE_FORMAT			((NTSTATUS) 0xC000007BL)
 #define STATUS_IMAGE_MACHINE_TYPE_MISMATCH	((NTSTATUS) 0x4000000EL)
+#define STATUS_WX86_BREAKPOINT				((NTSTATUS) 0x4000001FL)
+#define STATUS_BUFFER_TOO_SMALL				((NTSTATUS) 0xC0000023L)
 #define NT_SUCCESS(st) (((NTSTATUS) (st)) >= 0)
+
+#define EXCEPTION_WX86_BREAKPOINT			STATUS_WX86_BREAKPOINT
 
 #define RTL_MAX_DRIVE_LETTERS 32
 #define PROCESSOR_FEATURE_MAX 64
@@ -171,6 +174,95 @@ typedef enum _THREADINFOCLASS {
 	MaxThreadInfoClass
 } THREADINFOCLASS;
 
+typedef enum _SYSINFOCLASS {
+	SystemBasicInformation,
+	SystemProcessorInformation,
+	SystemPerformanceInformation,
+	SystemTimeOfDayInformation,
+	SystemPathInformation,
+	SystemProcessInformation,
+	SystemCallCountInformation,
+	SystemDeviceInformation,
+	SystemProcessorPerformanceInformation,
+	SystemFlagsInformation,
+	SystemCallTimeInformation,
+	SystemModuleInformation,
+	SystemLocksInformation,
+	SystemStackTraceInformation,
+	SystemPagedPoolInformation,
+	SystemNonPagedPoolInformation,
+	SystemHandleInformation,
+	SystemObjectInformation,
+	SystemPageFileInformation,
+	SystemVdmInstemulInformation,
+	SystemVdmBopInformation,
+	SystemFileCacheInformation,
+	SystemPoolTagInformation,
+	SystemInterruptInformation,
+	SystemDpcBehaviorInformation,
+	SystemFullMemoryInformation,
+	SystemLoadGdiDriverInformation,
+	SystemUnloadGdiDriverInformation,
+	SystemTimeAdjustmentInformation,
+	SystemSummaryMemoryInformation,
+	SystemMirrorMemoryInformation,
+	SystemPerformanceTraceInformation,
+	SystemObsolete0,
+	SystemExceptionInformation,
+	SystemCrashDumpStateInformation,
+	SystemKernelDebuggerInformation,
+	SystemContextSwitchInformation,
+	SystemRegistryQuotaInformation,
+	SystemExtendServiceTableInformation,
+	SystemPrioritySeperation,
+	SystemVerifierAddDriverInformation,
+	SystemVerifierRemoveDriverInformation,
+	SystemProcessorIdleInformation,
+	SystemLegacyDriverInformation,
+	SystemCurrentTimeZoneInformation,
+	SystemLookasideInformation,
+	SystemTimeSlipNotification,
+	SystemSessionCreate,
+	SystemSessionDetach,
+	SystemSessionInformation,
+	SystemRangeStartInformation,
+	SystemVerifierInformation,
+	SystemVerifierThunkExtend,
+	SystemSessionProcessInformation,
+	SystemLoadGdiDriverInSystemSpace,
+	SystemNumaProcessorMap,
+	SystemPrefetcherInformation,
+	SystemExtendedProcessInformation,
+	SystemRecommendedSharedDataAlignment,
+	SystemComPlusPackage,
+	SystemNumaAvailableMemory,
+	SystemProcessorPowerInformation,
+	SystemEmulationBasicInformation,
+	SystemEmulationProcessorInformation,
+	SystemExtendedHandleInformation,
+	SystemLostDelayedWriteInformation,
+	SystemBigPoolInformation,
+	SystemSessionPoolTagInformation,
+	SystemSessionMappedViewInformation,
+	SystemHotpatchInformation,
+	SystemObjectSecurityMode,
+	SystemWatchdogTimerHandler,
+	SystemWatchdogTimerInformation,
+	SystemLogicalProcessorInformation
+} SYSINFOCLASS;
+
+// I don't know how many of these are actually valid in Win7.
+// All I know is that the first one is the only one which is used often
+// and the first three are present in XP, the remainder are present
+// in build 8175 (i.e. Win8)
+typedef enum _MEMINFOCLASS {
+	MemoryBasicInformation,
+	MemoryWorkingSetInformation,
+	MemoryMappedFilenameInformation,
+	MemoryRegionInformation,
+	MemoryWorkingSetExInformation
+} MEMINFOCLASS;
+
 typedef enum _NT_PRODUCT_TYPE {
 	NtProductWinNt = 1,
 	NtProductLanManNt,
@@ -188,17 +280,23 @@ typedef struct _STRING {
 	PCHAR								Buffer;
 } STRING, ANSI_STRING, *PSTRING, *PANSI_STRING;
 
+typedef CONST ANSI_STRING *PCANSI_STRING;
+
 typedef struct _UNICODE_STRING {
 	USHORT								Length;
 	USHORT								MaximumLength;
 	PWCHAR								Buffer;
 } UNICODE_STRING, *PUNICODE_STRING;
 
+typedef CONST UNICODE_STRING *PCUNICODE_STRING;
+
 typedef struct _UNICODE_STRING32 {
 	USHORT								Length;
 	USHORT								MaximumLength;
 	DWORD								Buffer;
 } UNICODE_STRING32, *PUNICODE_STRING32;
+
+typedef CONST UNICODE_STRING32 *PCUNICODE_STRING32;
 
 typedef struct _PEB_LDR_DATA {															// 3.51+
 	ULONG								Length;
@@ -544,11 +642,46 @@ typedef struct _KUSER_SHARED_DATA {														// 3.50+
 	};
 } KUSER_SHARED_DATA, *PKUSER_SHARED_DATA;
 
+typedef struct _OBJECT_ATTRIBUTES {
+	ULONG				Length;
+	HANDLE				RootDirectory;
+	PUNICODE_STRING		ObjectName;
+	ULONG				Attributes;
+	PVOID				SecurityDescriptor;
+	PVOID				SecurityQualityOfService;
+} OBJECT_ATTRIBUTES, *POBJECT_ATTRIBUTES;
+
+typedef struct _LDR_DLL_NOTIFICATION_DATA {
+	ULONG				Flags;
+	PCUNICODE_STRING	FullDllName;
+	PCUNICODE_STRING	BaseDllName;
+	PVOID				DllBase;
+	ULONG				SizeOfImage;
+} LDR_DLL_NOTIFICATION_DATA, *PLDR_DLL_NOTIFICATION_DATA;
+
+typedef CONST LDR_DLL_NOTIFICATION_DATA *PCLDR_DLL_NOTIFICATION_DATA;
+
+typedef enum _LDR_DLL_NOTIFICATION_REASON {
+	LDR_DLL_NOTIFICATION_REASON_LOADED		= 1,
+	LDR_DLL_NOTIFICATION_REASON_UNLOADED	= 2
+} LDR_DLL_NOTIFICATION_REASON;
+
+typedef VOID (NTAPI *PLDR_DLL_NOTIFICATION_FUNCTION)(
+	IN	LDR_DLL_NOTIFICATION_REASON	NotificationReason,
+	IN	PCLDR_DLL_NOTIFICATION_DATA	NotificationData,
+	IN	PVOID						Context);
+
 STATIC CONST PKUSER_SHARED_DATA SharedUserData = (PKUSER_SHARED_DATA) 0x7FFE0000;
 
 //
 // NTDLL function declarations
 //
+
+NTSYSAPI NTSTATUS NTAPI NtQuerySystemInformation(
+	IN	SYSINFOCLASS	SystemInformationClass,
+	OUT	PVOID			SystemInformation,
+	IN	ULONG			SystemInformationLength,
+	OUT	PULONG			ReturnLength OPTIONAL);
 
 NTSYSAPI NTSTATUS NTAPI NtQueryInformationProcess(
 	IN	HANDLE				ProcessHandle,
@@ -610,6 +743,74 @@ NTSYSAPI NTSTATUS NTAPI NtRaiseHardError(
 	IN	ULONG		ValidResponseOptions,
 	OUT	PULONG		Response);
 
+NTSYSAPI NTSTATUS NTAPI NtCreateUserProcess(
+	OUT		PHANDLE							ProcessHandle,
+	OUT		PHANDLE							ThreadHandle,
+	IN		ACCESS_MASK						ProcessDesiredAccess,
+	IN		ACCESS_MASK						ThreadDesiredAccess,
+	IN		POBJECT_ATTRIBUTES				ProcessObjectAttributes,
+	IN		POBJECT_ATTRIBUTES				ThreadObjectAttributes,
+	IN		ULONG							ProcessFlags,
+	IN		ULONG							ThreadFlags,
+	IN		PRTL_USER_PROCESS_PARAMETERS	ProcessParameters,
+	IN OUT	PVOID							CreateInfo,
+	IN		PVOID							AttributeList);
+
+NTSYSAPI NTSTATUS NTAPI NtAllocateVirtualMemory(
+	IN		HANDLE		ProcessHandle,
+	IN OUT	PVOID		*BaseAddress,
+	IN		ULONG_PTR	ZeroBits,
+	IN OUT	PSIZE_T		RegionSize,
+	IN		ULONG		AllocationType,
+	IN		ULONG		Protect);
+
+NTSYSAPI NTSTATUS NTAPI NtFreeVirtualMemory(
+	IN		HANDLE		ProcessHandle,
+	IN OUT	PVOID		*BaseAddress,
+	IN OUT	PSIZE_T		RegionSize,
+	IN		ULONG		FreeType);
+
+NTSYSAPI NTSTATUS NTAPI NtQueryVirtualMemory(
+	IN		HANDLE			ProcessHandle,
+	IN		PVOID			BaseAddress OPTIONAL,
+	IN		MEMINFOCLASS	MemoryInformationClass,
+	OUT		PVOID			MemoryInformation,
+	IN		SIZE_T			MemoryInformationLength,
+	OUT		PSIZE_T			ReturnLength OPTIONAL);
+
+NTSYSAPI NTSTATUS NTAPI NtProtectVirtualMemory(
+	IN		HANDLE		ProcessHandle,
+	IN OUT	PVOID		*BaseAddress,
+	IN OUT	PSIZE_T		RegionSize,
+	IN		ULONG		NewProtect,
+	OUT		PULONG		OldProtect);
+
+NTSYSAPI NTSTATUS NTAPI NtReadVirtualMemory(
+	IN		HANDLE		ProcessHandle,
+	IN		PVOID		BaseAddress,
+	OUT		PVOID		Buffer,
+	IN		SIZE_T		BufferSize,
+	OUT		PSIZE_T		NumberOfBytesRead OPTIONAL);
+
+NTSYSAPI NTSTATUS NTAPI NtWriteVirtualMemory(
+	IN		HANDLE		ProcessHandle,
+	IN		PVOID		BaseAddress,
+	IN		PCVOID		Buffer,
+	IN		SIZE_T		BufferSize,
+	OUT		PSIZE_T		NumberOfBytesWritten OPTIONAL);
+
+NTSTATUS NTAPI RtlEnterCriticalSection(
+	IN	PRTL_CRITICAL_SECTION	CriticalSection);
+
+NTSTATUS NTAPI RtlLeaveCriticalSection(
+	IN	PRTL_CRITICAL_SECTION	CriticalSection);
+
+VOID NTAPI RtlAcquirePebLock(
+	VOID);
+
+VOID NTAPI RtlReleasePebLock(
+	VOID);
+
 ULONG NTAPI RtlNtStatusToDosError(
 	IN	NTSTATUS	Status);
 
@@ -619,9 +820,75 @@ LONG NTAPI RtlGetLastWin32Error(
 VOID NTAPI RtlSetLastWin32Error(
 	IN	LONG	Win32Error);
 
+VOID NTAPI RtlInitAnsiString(
+	OUT	PANSI_STRING	DestinationString,
+	IN	PCSTR			SourceString OPTIONAL);
+
 VOID NTAPI RtlInitUnicodeString(
+	OUT	PUNICODE_STRING	DestinationString,
+	IN	PCWSTR			SourceString OPTIONAL);
+
+NTSTATUS NTAPI RtlInitAnsiStringEx(
+	OUT	PANSI_STRING	DestinationString,
+	IN	PCSTR			SourceString OPTIONAL);
+
+NTSTATUS NTAPI RtlInitUnicodeStringEx(
+	OUT	PUNICODE_STRING	DestinationString,
+	IN	PCWSTR			SourceString OPTIONAL);
+
+NTSTATUS NTAPI RtlAnsiStringToUnicodeString(
+	OUT	PUNICODE_STRING	DestinationString,
+	IN	PCANSI_STRING	SourceString,
+	IN	BOOLEAN			AllocateDestinationString);
+
+BOOLEAN NTAPI RtlCreateUnicodeStringFromAsciiz(
+	OUT	PUNICODE_STRING	DestinationString,
+	IN	PCSTR			SourceString OPTIONAL);
+
+BOOLEAN NTAPI RtlCreateUnicodeString(
+	OUT	PUNICODE_STRING	DestinationString,
+	IN	PCWSTR			SourceString);
+
+NTSTATUS NTAPI RtlUpcaseUnicodeString(
 	OUT	PUNICODE_STRING		DestinationString,
+	IN	PCUNICODE_STRING	SourceString,
+	IN	BOOLEAN				AllocateDestinationString);
+
+NTSTATUS NTAPI RtlDowncaseUnicodeString(
+	OUT	PUNICODE_STRING		DestinationString,
+	IN	PCUNICODE_STRING	SourceString,
+	IN	BOOLEAN				AllocateDestinationString);
+
+VOID NTAPI RtlFreeUnicodeString(
+	IN OUT	PUNICODE_STRING	UnicodeString);
+
+BOOLEAN NTAPI RtlEqualUnicodeString(
+	IN	PCUNICODE_STRING	String1,
+	IN	PCUNICODE_STRING	String2,
+	IN	BOOLEAN				CaseInsensitive);
+
+BOOLEAN NTAPI RtlPrefixUnicodeString(
+	IN	PCUNICODE_STRING	String1,
+	IN	PCUNICODE_STRING	String2,
+	IN	BOOLEAN				CaseInsensitive);
+
+VOID NTAPI RtlCopyUnicodeString(
+	OUT	PUNICODE_STRING		DestinationString,
+	IN	PCUNICODE_STRING	SourceString OPTIONAL);
+
+NTSTATUS NTAPI RtlAppendUnicodeToString(
+	IN	PUNICODE_STRING		DestinationString,
 	IN	PCWSTR				SourceString OPTIONAL);
+
+NTSTATUS NTAPI RtlAppendUnicodeStringToString(
+	IN OUT	PUNICODE_STRING		DestinationString,
+	IN		PCUNICODE_STRING	SourceString);
+
+NTSTATUS NTAPI RtlHashUnicodeString(
+	IN	PCUNICODE_STRING	String,
+	IN	BOOLEAN				CaseInsensitive,
+	IN	ULONG				HashAlgorithm,
+	OUT	PULONG				HashValue);
 
 PVOID NTAPI RtlAllocateHeap(
 	IN	PVOID	HeapHandle,
@@ -633,6 +900,62 @@ BOOLEAN NTAPI RtlFreeHeap(
 	IN	ULONG	Flags OPTIONAL,
 	IN	PVOID	BaseAddress OPTIONAL);
 
+NTSTATUS NTAPI RtlCreateEnvironment(
+	IN	BOOLEAN	CloneCurrentEnvironment,
+	OUT	PVOID	*Environment);
+
+NTSTATUS NTAPI RtlDestroyEnvironment(
+	IN	PVOID	Environment);
+
+NTSTATUS NTAPI RtlSetCurrentEnvironment(
+	IN	PVOID	Environment,
+	OUT	PVOID	*PreviousEnvironment OPTIONAL);
+
+NTSTATUS NTAPI RtlQueryEnvironmentVariable_U(
+	IN		PVOID				Environment OPTIONAL,
+	IN		PCUNICODE_STRING	Name,
+	IN OUT	PUNICODE_STRING		Value);
+
+NTSTATUS NTAPI RtlSetEnvironmentVariable(
+	IN OUT	PVOID				*Environment OPTIONAL,
+	IN		PCUNICODE_STRING	Name,
+	IN		PCUNICODE_STRING	Value OPTIONAL);
+
+NTSTATUS NTAPI RtlSetEnvironmentStrings(
+	IN	PWCHAR	NewEnvironment,
+	IN	SIZE_T	NewEnvironmentSize);
+
+NTSTATUS NTAPI LdrRegisterDllNotification(
+	IN	ULONG							Flags,					// Unused. Must be zero.
+	IN	PLDR_DLL_NOTIFICATION_FUNCTION	NotificationFunction,	// function called when any DLL is loaded/unloaded
+	IN	PVOID							Context OPTIONAL,		// opaque data passed to the notification function
+	OUT	PVOID							*Cookie);				// Store a opaque cookie which you can pass to unregister
+
+NTSTATUS NTAPI LdrUnregisterDllNotification(
+	IN	PVOID	Cookie);
+
+NTSTATUS NTAPI DbgUiConnectToDbg(
+	VOID);
+
+NTSTATUS NTAPI DbgUiDebugActiveProcess(
+	IN	HANDLE	ProcessHandle);
+
+#define LDR_LOCK_LOADER_LOCK_FLAG_RAISE_ON_ERRORS	(0x00000001)
+#define LDR_LOCK_LOADER_LOCK_FLAG_TRY_ONLY			(0x00000002) // Required to pass Disposition ptr with this flag
+
+#define LDR_LOCK_LOADER_LOCK_DISPOSITION_INVALID			(0)
+#define LDR_LOCK_LOADER_LOCK_DISPOSITION_LOCK_ACQUIRED		(1)
+#define LDR_LOCK_LOADER_LOCK_DISPOSITION_LOCK_NOT_ACQUIRED	(2)
+
+NTSTATUS NTAPI LdrLockLoaderLock(
+	IN	ULONG	Flags,
+	OUT	PULONG	Disposition OPTIONAL,
+	OUT	PPVOID	Cookie);
+
+NTSTATUS NTAPI LdrUnlockLoaderLock(
+	IN	ULONG	Flags,
+	IN	PVOID	Cookie);
+
 //
 // Miscellaneous macros and inline functions
 //
@@ -640,7 +963,8 @@ BOOLEAN NTAPI RtlFreeHeap(
 #define GetProcessHeap() (NtCurrentPeb()->ProcessHeap)
 #define HeapAlloc(hHeap, dwFlags, cbSize) RtlAllocateHeap((hHeap), (dwFlags), (cbSize))
 #define HeapFree(hHeap, dwFlags, lpBase) RtlFreeHeap((hHeap), (dwFlags), (lpBase))
-#define GetCurrentProcess() ((HANDLE) -1)
+#define NtCurrentProcess() ((HANDLE) -1)
+#define GetCurrentProcess NtCurrentProcess
 
 FORCEINLINE PPEB NtCurrentPeb(
 	VOID)
@@ -650,6 +974,21 @@ FORCEINLINE PPEB NtCurrentPeb(
 #else
 	return (PPEB) __readfsdword(0x30);
 #endif
+}
+
+FORCEINLINE VOID InitializeObjectAttributes(
+	OUT	POBJECT_ATTRIBUTES		p,
+	IN	PUNICODE_STRING			n,
+	IN	ULONG					a,
+	IN	HANDLE					r,
+	IN	PSECURITY_DESCRIPTOR	s)
+{
+	p->Length = sizeof(OBJECT_ATTRIBUTES);
+	p->RootDirectory = r;
+	p->Attributes = a;
+	p->ObjectName = n;
+	p->SecurityDescriptor = s;
+	p->SecurityQualityOfService = NULL;
 }
 
 // doubly linked list functions

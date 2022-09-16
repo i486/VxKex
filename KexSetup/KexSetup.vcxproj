@@ -172,6 +172,9 @@
   <ItemGroup>
     <ResourceCompile Include="KexSetup.rc" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="components.inc" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

@@ -77,3 +77,5 @@ ADD_DLL_REWRITE_ENTRY(L"ole32.dll",												L"ole33.dll");
 ADD_DLL_REWRITE_ENTRY(L"user32.dll",											L"user33.dll");
 ADD_DLL_REWRITE_ENTRY(L"ntdll.dll",												L"ntd33.dll");
 ADD_DLL_REWRITE_ENTRY(L"xinput1_4.dll",											L"xinput1_3.dll");
+ADD_DLL_REWRITE_ENTRY(L"powrprof.dll",											L"powrpr0f.dll");
+ADD_DLL_REWRITE_ENTRY(L"mfplat.dll",											L"mfpl4t.dll");
