@@ -1,5 +1,0 @@
-#pragma once
-
-typedef LPVOID PACKAGE_INFO_REFERENCE;
-
-#define APPMODEL_ERROR_NO_PACKAGE 15700L
