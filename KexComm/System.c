@@ -3,6 +3,24 @@
 #include <NtDll.h>
 #include <BaseDll.h>
 
+//
+// The return value is in milliseconds.
+// The return value is positive if FileTime2 is later than FileTime1.
+// The return value is negative if FileTime2 is earlier than FileTime1.
+//
+LONGLONG CompareFileTimes(
+	IN	FILETIME	FileTime1,
+	IN	FILETIME	FileTime2)
+{
+	ULONGLONG FileTime1AsInt64;
+	ULONGLONG FileTime2AsInt64;
+
+	FileTime1AsInt64 = *((PULONGLONG) &FileTime1);
+	FileTime2AsInt64 = *((PULONGLONG) &FileTime2);
+
+	return (FileTime2AsInt64 - FileTime1AsInt64) / 10000;
+}
+
 LPWSTR GetCommandLineWithoutImageName(
 	VOID)
 {

@@ -15,34 +15,51 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Registry.c">
+    <ClCompile Include="vxlview.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Msgbox.c">
+    <ClCompile Include="config.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="File.c">
+    <ClCompile Include="listview.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Memory.c">
+    <ClCompile Include="statusbar.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="System.c">
+    <ClCompile Include="filters.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="KexData.c">
+    <ClCompile Include="details.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Window.c">
+    <ClCompile Include="backend.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="String.c">
+    <ClCompile Include="backendp.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="globals.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="helpabout.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\KexComm.h">
+    <ClInclude Include="vxlview.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="backendp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="VxlView.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
   </ItemGroup>
 </Project>

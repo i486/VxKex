@@ -3,6 +3,8 @@
 
 //
 // VxKex Common Components
+// KexComm is a library of utility functions that are widely used across multiple
+// components of VxKex.
 //
 
 #include <VxKex.h>
@@ -13,10 +15,40 @@
 #include <malloc.h>
 #include <stdarg.h>
 
+#define StatusBar_SetParts(StatusBarWindow, NumberOfParts, SizeArray) (SendMessage((StatusBarWindow), SB_SETPARTS, (NumberOfParts), (LPARAM) (SizeArray)))
+#define StatusBar_SetText(StatusBarWindow, Index, Text) (SendMessage((StatusBarWindow), SB_SETTEXT, (Index), (LPARAM) (Text)))
+
 #undef MAX_PATH
 #define MAX_PATH ((SIZE_T) 260)
 
-#define ASSUME __assume
+#ifndef __L
+#  define __L(s) L ## s
+#endif
+
+#ifndef _L
+#  define _L(s) __L(s)
+#endif
+
+#if defined(_DEBUG) || defined(RELEASE_ASSERTS_ENABLED)
+#  define ASSERT(Condition) do { \
+								if (!(Condition)) { \
+									ErrorBoxF(L"Assertion failed in %s:%lu (function %s):\r\n" \
+											  L"Condition: %s\r\n" \
+											  L"A breakpoint exception will be raised in response to this event after you click OK.", \
+											  _L(__FILE__), __LINE__, _L(__FUNCTION__), L#Condition); \
+									__debugbreak(); \
+								} \
+							} while (0)
+#else
+#  define ASSERT(Condition) do { if (!(Condition)); } while (0)
+#endif
+
+#ifndef _DEBUG
+#  define ASSUME __assume
+#else
+#  define ASSUME(...)
+#endif
+
 #define NORETURN __declspec(noreturn)
 #define STATIC static
 #define INLINE _inline
@@ -37,6 +69,7 @@
 #  define PROCESSBITS (32)
 #endif
 
+#define scwprintf __scwprintf
 #define snwprintf_s _snwprintf_s
 #define vscwprintf _vscwprintf
 #define wcsicmp _wcsicmp
@@ -56,6 +89,9 @@ typedef LONG KPRIORITY;
 
 EXTERN_C VOID SetFriendlyAppName(
 	IN	LPCWSTR	lpszFriendlyName);
+
+EXTERN_C VOID SetApplicationWindow(
+	IN	HWND	Window);
 
 EXTERN_C LPCWSTR Win32ErrorAsString(
 	IN	DWORD	dw);
@@ -82,6 +118,9 @@ EXTERN_C VOID WarningBoxF(
 
 EXTERN_C VOID InfoBoxF(
 	IN	LPCWSTR	lpszFmt, ...);
+
+EXTERN_C VOID MessageBoxF(
+	IN	PCWSTR Format, ...);
 
 EXTERN_C BOOL RegReadSz(
 	IN	HKEY	hKey,
@@ -119,79 +158,131 @@ EXTERN_C BOOL RegDelValue(
 	IN	LPCWSTR	lpszSubKey,
 	IN	LPCWSTR	lpszValueName);
 
-VOID PrintF(
+EXTERN_C LONGLONG CompareFileTimes(
+	IN	FILETIME	FileTime1,
+	IN	FILETIME	FileTime2);
+
+EXTERN_C VOID PrintF(
 	IN	LPCWSTR lpszFmt, ...);
 
-HANDLE CreateTempFile(
+EXTERN_C BOOLEAN PathReplaceIllegalCharacters(
+	IN	PWSTR	Path,
+	IN	WCHAR	ReplacementCharacter,
+	IN	BOOLEAN	AllowPathSeparators);
+
+EXTERN_C HANDLE CreateTempFile(
 	IN	LPCWSTR					lpszPrefix,
 	IN	DWORD					dwDesiredAccess,
 	IN	DWORD					dwShareMode,
 	IN	LPSECURITY_ATTRIBUTES	lpSecurityAttributes);
 
-BOOL WriteFileWF(
+EXTERN_C BOOL WriteFileWF(
 	IN	HANDLE	hFile,
 	IN	LPCWSTR	lpszFmt, ...);
 
-LPWSTR ConvertDeviceHarddiskToDosPath(
+EXTERN_C LPWSTR ConvertDeviceHarddiskToDosPath(
 	IN	LPWSTR lpszPath);
 
-LPWSTR GetFilePathFromHandle(
+EXTERN_C LPWSTR GetFilePathFromHandle(
 	IN	HANDLE	hFile);
 
-LPVOID __AutoHeapAllocHelper(
+EXTERN_C LPVOID __AutoHeapAllocHelper(
 	IN	SIZE_T	cb);
 
-LPVOID __AutoStackAllocHelper(
+EXTERN_C LPVOID __AutoStackAllocHelper(
 	IN	LPVOID	lpv);
 
-VOID __AutoFreeHelper(
+EXTERN_C VOID __AutoFreeHelper(
 	IN	LPVOID	lpv);
 
-LPWSTR GetCommandLineWithoutImageName(
+EXTERN_C LPWSTR GetCommandLineWithoutImageName(
 	VOID);
 
-NORETURN VOID KexRaiseHardError(
+EXTERN_C NORETURN VOID KexRaiseHardError(
 	IN	PCWSTR	WindowTitle OPTIONAL,
 	IN	PCWSTR	BugLink OPTIONAL,
 	IN	PCWSTR	Format OPTIONAL, ...);
 
-BOOL KexOpenIfeoKeyForExe(
+EXTERN_C BOOL KexOpenIfeoKeyForExe(
 	IN	PCWSTR	ExeFullPath OPTIONAL,
 	IN	REGSAM	DesiredSam,
 	OUT	PHKEY	Key);
 
-BOOL KexReadIfeoParameters(
+EXTERN_C BOOL KexReadIfeoParameters(
 	IN	PCWSTR					ExeFullPath,
 	OUT	PKEX_IFEO_PARAMETERS	KexIfeoParameters);
 
-DWORD GetEnvironmentVariableExW(
+EXTERN_C DWORD GetEnvironmentVariableExW(
 	IN	PCWSTR	Name,
 	OUT	PWSTR	Buffer OPTIONAL,
 	IN	ULONG	BufferSize,
 	IN	PVOID	Environment OPTIONAL);
 
-BOOL SetEnvironmentVariableExW(
+EXTERN_C BOOL SetEnvironmentVariableExW(
 	IN	PCWSTR	Name,
 	IN	PCWSTR	Value OPTIONAL,
 	IN	PVOID	*Environment OPTIONAL);
 
-BOOLEAN CloneEnvironmentBlock(
+EXTERN_C BOOLEAN CloneEnvironmentBlock(
 	IN	PVOID	Source OPTIONAL,
 	OUT	PVOID	*Destination);
 
-BOOLEAN CloneEnvironmentBlockConvertAnsiToUnicode(
+EXTERN_C BOOLEAN CloneEnvironmentBlockConvertAnsiToUnicode(
 	IN	PVOID	Source OPTIONAL,
 	OUT	PVOID	*Destination);
 
-ULONG SizeOfEnvironmentBlockW(
+EXTERN_C ULONG SizeOfEnvironmentBlockW(
 	IN	PVOID	Environment OPTIONAL);
 
-BOOLEAN IsOperatingSystem64Bit(
+EXTERN_C BOOLEAN IsOperatingSystem64Bit(
 	VOID);
 
-BOOLEAN IsProcess64Bit(
+EXTERN_C BOOLEAN IsProcess64Bit(
 	IN	HANDLE		ProcessHandle,
 	OUT	PBOOLEAN	Is64Bit);
+
+EXTERN_C HWND CreateToolTip(
+	IN	HWND	hDlg,
+	IN	INT		iToolID,
+	IN	LPWSTR	lpszText);
+
+EXTERN_C BOOLEAN SetWindowTextF(
+	IN	HWND	Window,
+	IN	PCWSTR	Format,
+	IN	...);
+
+EXTERN_C VOID ListView_SetCheckedStateAll(
+	IN	HWND	Window,
+	IN	BOOLEAN	Checked);
+
+EXTERN_C BOOLEAN SetDlgItemTextF(
+	IN	HWND	Window,
+	IN	INT		ItemId,
+	IN	PCWSTR	Format,
+	IN	...);
+
+EXTERN_C VOID StatusBar_SetTextF(
+	IN	HWND	Window,
+	IN	INT		Index,
+	IN	PCWSTR	Format,
+	IN	...);
+
+EXTERN_C VOID CenterWindow(
+	IN	HWND	Window,
+	IN	HWND	ParentWindow OPTIONAL);
+
+EXTERN_C ULONG ContextMenu(
+	IN	HWND	Window,
+	IN	USHORT	MenuId,
+	IN	PPOINT	ClickPoint);
+
+EXTERN_C VOID SetWindowIcon(
+	IN	HWND	Window,
+	IN	USHORT	IconId);
+
+EXTERN_C INT __scwprintf(
+	IN	PCWSTR Format,
+	IN	...);
 
 FORCEINLINE LPVOID DefHeapAlloc(
 	IN	SIZE_T	cb)
@@ -210,6 +301,12 @@ FORCEINLINE LPVOID DefHeapReAlloc(
 	IN	SIZE_T	cbNew)
 {
 	return HeapReAlloc(GetProcessHeap(), 0, lpBase, cbNew);
+}
+
+FORCEINLINE SIZE_T DefHeapSize(
+	IN	LPCVOID	BaseAddress)
+{
+	return HeapSize(GetProcessHeap(), 0, BaseAddress);
 }
 
 // application can override this

@@ -8,10 +8,18 @@ WCHAR szFriendlyAppName[64] = L"YOU MUST CALL SetFriendlyAppName()";
 WCHAR szFriendlyAppName[64];
 #endif
 
+HWND ApplicationWindow = NULL;
+
 VOID SetFriendlyAppName(
 	IN	LPCWSTR	lpszFriendlyName)
 {
 	wcscpy_s(szFriendlyAppName, ARRAYSIZE(szFriendlyAppName), lpszFriendlyName);
+}
+
+VOID SetApplicationWindow(
+	IN	HWND	Window)
+{
+	ApplicationWindow = Window;
 }
 
 LPCWSTR Win32ErrorAsString(
@@ -45,7 +53,7 @@ VOID MessageBoxV(
 	SIZE_T cch = vscwprintf(lpszFmt, ap) + 1;
 	LPWSTR lpText = (LPWSTR) StackAlloc(cch * sizeof(WCHAR));
 	vswprintf_s(lpText, cch, lpszFmt, ap);
-	MessageBox(NULL, lpText, szFriendlyAppName, uType);
+	MessageBox(ApplicationWindow, lpText, szFriendlyAppName, uType);
 }
 
 VOID ErrorBoxF(
@@ -83,4 +91,13 @@ VOID InfoBoxF(
 	va_start(ap, lpszFmt);
 	MessageBoxV(MB_ICONINFORMATION | MB_OK, lpszFmt, ap);
 	va_end(ap);
+}
+
+VOID MessageBoxF(
+	IN	PCWSTR Format, ...)
+{
+	va_list ArgList;
+	va_start(ArgList, Format);
+	MessageBoxV(MB_OK, Format, ArgList);
+	va_end(ArgList);
 }

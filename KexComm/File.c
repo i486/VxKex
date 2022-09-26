@@ -4,6 +4,46 @@
 #include <NtDll.h>
 #include <BaseDll.h>
 
+BOOLEAN PathReplaceIllegalCharacters(
+	IN	PWSTR	Path,
+	IN	WCHAR	ReplacementCharacter,
+	IN	BOOLEAN	AllowPathSeparators)
+{
+	BOOLEAN AtLeastOneCharacterWasReplaced;
+
+	if (!Path) {
+		return FALSE;
+	}
+
+	AtLeastOneCharacterWasReplaced = FALSE;
+
+	while (*Path != '\0') {
+		switch (*Path) {
+		case '<':
+		case '>':
+		case ':':
+		case '"':
+		case '|':
+		case '?':
+		case '*':
+			*Path = ReplacementCharacter;
+			AtLeastOneCharacterWasReplaced = TRUE;
+			break;
+		case '/':
+		case '\\':
+			unless (AllowPathSeparators) {
+				*Path = ReplacementCharacter;
+				AtLeastOneCharacterWasReplaced = TRUE;
+			}
+			break;
+		}
+
+		Path++;
+	}
+
+	return AtLeastOneCharacterWasReplaced;
+}
+
 VOID PrintF(
 	IN	LPCWSTR lpszFmt, ...)
 {

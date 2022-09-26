@@ -15,34 +15,40 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Registry.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Msgbox.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="File.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Memory.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="System.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="KexData.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Window.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="String.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="..\KexComm.h">
+    <ClInclude Include="VXLL.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="VXLP.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="error.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="severity.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="opnclose.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="vxlp.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="query.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="export.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="readlog.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="writelog.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="index.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

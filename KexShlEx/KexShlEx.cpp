@@ -281,48 +281,6 @@ public:
 // DIALOG FUNCTIONS
 //
 
-HWND CreateToolTip(
-	IN	HWND	hDlg,
-	IN	INT		iToolID,
-	IN	LPWSTR	lpszText)
-{
-	TOOLINFO ToolInfo;
-	HWND hWndTool;
-	HWND hWndTip;
-
-	if (!iToolID || !hDlg || !lpszText) {
-		return NULL;
-	}
-
-	// Get the window of the tool.
-	hWndTool = GetDlgItem(hDlg, iToolID);
-
-	// Create the tooltip.
-	hWndTip = CreateWindowEx(
-		0, TOOLTIPS_CLASS, NULL,
-		WS_POPUP | TTS_ALWAYSTIP,
-		CW_USEDEFAULT, CW_USEDEFAULT,
-		CW_USEDEFAULT, CW_USEDEFAULT,
-		hDlg, NULL, 
-		NULL, NULL);
-
-	if (!hWndTool || !hWndTip) {
-		return NULL;
-	}
-
-	// Associate the tooltip with the tool.
-	ZeroMemory(&ToolInfo, sizeof(ToolInfo));
-	ToolInfo.cbSize = sizeof(ToolInfo);
-	ToolInfo.hwnd = hDlg;
-	ToolInfo.uFlags = TTF_IDISHWND | TTF_SUBCLASS;
-	ToolInfo.uId = (UINT_PTR) hWndTool;
-	ToolInfo.lpszText = lpszText;
-	SendMessage(hWndTip, TTM_ADDTOOL, 0, (LPARAM) &ToolInfo);
-	SendMessage(hWndTip, TTM_SETMAXTIPWIDTH, 0, (LPARAM) 300);
-
-	return hWndTip;
-}
-
 UINT WINAPI CallbackProc(
 	IN		HWND				hWnd,
 	IN		UINT				uMsg,
