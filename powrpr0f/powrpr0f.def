@@ -1,3 +1,0 @@
-LIBRARY powrpr0f.dll
-EXPORTS
-	PowerDeterminePlatformRoleEx
