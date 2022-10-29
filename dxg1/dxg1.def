@@ -1,3 +1,0 @@
-LIBRARY dxg1
-EXPORTS
-	CreateDXGIFactory2
