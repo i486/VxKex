@@ -1,0 +1,7 @@
+If you find an application works with VxKex that is not on this list, please open
+an issue and it will be tested and added. If you find an application that does not
+work, you may also open an issue to request support.
+
+The following applications have been tested to work with the latest version of VxKex:
+(devs: keep this list in alphabetical order)
+

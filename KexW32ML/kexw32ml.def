@@ -1,0 +1,8 @@
+LIBRARY KexW32ML.dll
+EXPORTS
+	CompareFileTimes
+	GetCommandLineWithoutImageName
+	PathReplaceIllegalCharacters
+	Win32ErrorAsString
+	RegReadI32
+	RegWriteI32

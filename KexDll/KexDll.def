@@ -1,0 +1,25 @@
+LIBRARY "KexDll.dll"
+EXPORTS
+	_KexData
+	KexDataInitialize
+
+	KexRtlPathFindFileName
+	KexRtlGetProcessImageBaseName
+	KexRtlQueryKeyValueData
+	KexRtlQueryKeyMultipleValueData
+	KexRtlUnicodeStringEndsWith
+
+	KexRtlCreateStringMapper
+	KexRtlDeleteStringMapper
+	KexRtlInsertEntryStringMapper
+	KexRtlLookupEntryStringMapper
+	KexRtlRemoveEntryStringMapper
+	KexRtlApplyStringMapper
+	KexRtlInsertMultipleEntriesStringMapper
+	KexRtlLookupMultipleEntriesStringMapper
+	KexRtlBatchApplyStringMapper
+
+	KexSrvOpenChannel
+	KexSrvSendMessage
+	KexSrvNotifyProcessStart
+	KexSrvLogEventEx
