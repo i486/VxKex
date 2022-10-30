@@ -7,6 +7,7 @@ VOID InitializeDetailsWindow(
 	HWND EditControlWindow;
 	HDC EditControlDeviceContext;
 	HFONT EditControlFont;
+	UINT TabStops;
 
 	CreateDialog(NULL, MAKEINTRESOURCE(IDD_DETAILS), MainWindow, DetailsWndProc);
 	
@@ -21,7 +22,9 @@ VOID InitializeDetailsWindow(
 		CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE,
 		L"Lucida Console");
 
+	TabStops = 16; // 4-space tabs
 	SendMessage(EditControlWindow, WM_SETFONT, (WPARAM) EditControlFont, MAKELPARAM(TRUE, 0));
+	Edit_SetTabStops(EditControlWindow, 1, &TabStops);
 	Edit_SetReadOnly(EditControlWindow, TRUE);
 	
 	ResetDetailsWindow();

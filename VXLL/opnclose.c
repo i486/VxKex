@@ -122,7 +122,7 @@ VXLSTATUS VXLAPI VxlOpenLogFileEx(
 	Vxlh->FileHandle = CreateFile(
 		FileName,
 		DesiredAccess,
-		FILE_SHARE_READ,
+		Flags & VXL_OPEN_READ_ONLY ? FILE_SHARE_READ | FILE_SHARE_WRITE : FILE_SHARE_READ,
 		NULL,
 		CreationDisposition,
 		FlagsAndAttributes,

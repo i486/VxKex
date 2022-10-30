@@ -37,7 +37,7 @@ INT_PTR CALLBACK MainWndProc(
 {
 	if (Message == WM_INITDIALOG) {
 		BOOLEAN Success;
-		PCWSTR CommandLine;
+		PWSTR CommandLine;
 
 		UNCONST (HWND) MainWindow = _MainWindow;
 		UNCONST (HWND) StatusBarWindow = GetDlgItem(MainWindow, IDC_STATUSBAR);
@@ -62,6 +62,12 @@ INT_PTR CALLBACK MainWndProc(
 				Success = TRUE;
 			}
 		} else {
+			if (CommandLine[0] == '"') {
+				// remove quotes at start and end
+				++CommandLine;
+				CommandLine[wcslen(CommandLine) - 1] = '\0';
+			}
+
 			Success = OpenLogFile(CommandLine);
 		}
 
