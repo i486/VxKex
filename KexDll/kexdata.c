@@ -70,7 +70,7 @@ PKEX_PROCESS_DATA KexData = NULL;
 	}
 
 STATIC NTSTATUS KexpInitializeGlobalConfig(
-	VOID)
+	VOID) PROTECTED_FUNCTION
 {
 	NTSTATUS Status;
 	HANDLE KeyHandle;
@@ -118,20 +118,20 @@ STATIC NTSTATUS KexpInitializeGlobalConfig(
 
 	NtClose(KeyHandle);
 	return Status;
-}
+} PROTECTED_FUNCTION_END
 
 STATIC NTSTATUS KexpInitializeIfeoParameters(
-	VOID)
+	VOID) PROTECTED_FUNCTION
 {
 	//
 	// TODO
 	//
 
 	return STATUS_SUCCESS;
-}
+} PROTECTED_FUNCTION_END
 
 KEXAPI NTSTATUS NTAPI KexDataInitialize(
-	OUT	PPKEX_PROCESS_DATA	KexDataOut OPTIONAL)
+	OUT	PPKEX_PROCESS_DATA	KexDataOut OPTIONAL) PROTECTED_FUNCTION
 {
 	if (KexData) {
 		// Already initialized - fail
@@ -160,7 +160,7 @@ KEXAPI NTSTATUS NTAPI KexDataInitialize(
 	}
 
 	return STATUS_SUCCESS;
-}
+} PROTECTED_FUNCTION_END
 
 #undef GENERATE_QKMV_TABLE_ENTRY
 #undef GENERATE_QKMV_TABLE_ENTRY_UNICODE_STRING

@@ -15,6 +15,7 @@
 // Revision History:
 //
 //     vxiiduu              17-Oct-2022  Initial creation.
+//     vxiiduu              29-Oct-2022  Fix bug in KexRtlPathFindFileName
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -30,7 +31,7 @@
 // the output path is unchanged.)
 KEXAPI NTSTATUS NTAPI KexRtlPathFindFileName(
 	IN	PCUNICODE_STRING Path,
-	OUT	PUNICODE_STRING FileName)
+	OUT	PUNICODE_STRING FileName) PROTECTED_FUNCTION
 {
 	ULONG LengthWithoutLastElement;
 
@@ -50,17 +51,17 @@ KEXAPI NTSTATUS NTAPI KexRtlPathFindFileName(
 	RtlGetLengthWithoutLastFullDosOrNtPathElement(0, Path, &LengthWithoutLastElement);
 
 	FileName->Buffer = Path->Buffer + LengthWithoutLastElement;
-	FileName->Length = Path->Length - (USHORT) LengthWithoutLastElement;
-	FileName->MaximumLength = Path->MaximumLength - (USHORT) LengthWithoutLastElement;
+	FileName->Length = Path->Length - (USHORT) (LengthWithoutLastElement * sizeof(WCHAR));
+	FileName->MaximumLength = Path->MaximumLength - (USHORT) (LengthWithoutLastElement * sizeof(WCHAR));
 
 	return STATUS_SUCCESS;
-}
+} PROTECTED_FUNCTION_END
 
 KEXAPI NTSTATUS NTAPI KexRtlGetProcessImageBaseName(
-	OUT	PUNICODE_STRING	FileName)
+	OUT	PUNICODE_STRING	FileName) PROTECTED_FUNCTION
 {
 	return KexRtlPathFindFileName(&NtCurrentPeb()->ProcessParameters->ImagePathName, FileName);
-}
+} PROTECTED_FUNCTION_END
 
 //
 // NtQueryKeyValue is too annoying to use in everyday code, RtlQueryRegistryValues
@@ -101,7 +102,7 @@ KEXAPI NTSTATUS NTAPI KexRtlQueryKeyValueData(
 	IN OUT	PULONG				ValueDataCb,
 	OUT		PVOID				ValueData OPTIONAL,
 	IN		ULONG				ValueDataTypeRestrict,
-	OUT		PULONG				ValueDataType OPTIONAL)
+	OUT		PULONG				ValueDataType OPTIONAL) PROTECTED_FUNCTION
 {
 	NTSTATUS Status;
 	PVOID KeyValueBuffer;
@@ -208,7 +209,7 @@ Exit:
 
 	SafeFree(KeyValueBuffer);
 	return Status;
-}
+} PROTECTED_FUNCTION_END
 
 //
 // Query multiple values of a key.
@@ -240,7 +241,7 @@ KEXAPI NTSTATUS NTAPI KexRtlQueryKeyMultipleValueData(
 	IN		HANDLE												KeyHandle,
 	IN		PKEX_RTL_QUERY_KEY_MULTIPLE_VARIABLE_TABLE_ENTRY	QueryTable,
 	IN OUT	PULONG												NumberOfQueryTableElements,
-	IN		ULONG												Flags)
+	IN		ULONG												Flags) PROTECTED_FUNCTION
 {
 	ULONG Counter;
 
@@ -279,7 +280,7 @@ KEXAPI NTSTATUS NTAPI KexRtlQueryKeyMultipleValueData(
 	} while (--Counter);
 
 	return STATUS_SUCCESS;
-}
+} PROTECTED_FUNCTION_END
 
 //
 // Check whether a string ends with another string.
@@ -289,7 +290,7 @@ KEXAPI NTSTATUS NTAPI KexRtlQueryKeyMultipleValueData(
 KEXAPI BOOLEAN NTAPI KexRtlUnicodeStringEndsWith(
 	IN	PCUNICODE_STRING	String,
 	IN	PCUNICODE_STRING	EndsWith,
-	IN	BOOLEAN				CaseInsensitive)
+	IN	BOOLEAN				CaseInsensitive) PROTECTED_FUNCTION
 {
 	UNICODE_STRING EndOfString;
 
@@ -313,4 +314,91 @@ KEXAPI BOOLEAN NTAPI KexRtlUnicodeStringEndsWith(
 	//
 
 	return RtlEqualUnicodeString(&EndOfString, EndsWith, CaseInsensitive);
-}
+} PROTECTED_FUNCTION_END_BOOLEAN
+
+	//
+// Similar to RtlFindUnicodeSubstring in Win10 NTDLL (but does not
+// respect NLS).
+// Returns the address of the character in Haystack where Needle starts,
+// or NULL if Needle could not be found.
+//
+
+PWCHAR NTAPI KexRtlFindUnicodeSubstring(
+	PCUNICODE_STRING	Haystack,
+	PCUNICODE_STRING	Needle,
+	BOOLEAN				CaseInsensitive) PROTECTED_FUNCTION
+{
+	ULONG LengthOfNeedle;
+	ULONG LengthOfHaystack;
+	PWCHAR NeedleBuffer;
+	PWCHAR NeedleBufferEnd;
+	PWCHAR HaystackBuffer;
+	PWCHAR HaystackBufferEnd;
+	PWCHAR HaystackBufferRealEnd;
+	PWCHAR StartOfNeedleInHaystack;
+	WCHAR NeedleFirst;
+
+	LengthOfNeedle = Needle->Length & ~1;
+	LengthOfHaystack = Haystack->Length & ~1;
+
+	if (LengthOfNeedle > LengthOfHaystack || !LengthOfHaystack) {
+		return NULL;
+	}
+
+	NeedleBuffer = Needle->Buffer;
+	NeedleBufferEnd = (PWCHAR) (((PBYTE) NeedleBuffer) + LengthOfNeedle);
+	HaystackBuffer = Haystack->Buffer;
+	HaystackBufferEnd = (PWCHAR) (((PBYTE) HaystackBuffer) + LengthOfHaystack - LengthOfNeedle);
+	HaystackBufferRealEnd = (PWCHAR) (((PBYTE) HaystackBufferEnd) + LengthOfNeedle);
+
+	if (CaseInsensitive) {
+		NeedleFirst = ToUpper(*NeedleBuffer);
+
+		while (TRUE) {
+			NeedleBuffer = Needle->Buffer + 1;
+
+			while (ToUpper(*HaystackBuffer) != NeedleFirst) {
+				++HaystackBuffer; // Multiple evaluation. Can't increment inside macro
+
+				if (HaystackBuffer > HaystackBufferEnd) {
+					return NULL;
+				}
+			}
+
+			StartOfNeedleInHaystack = HaystackBuffer++;
+
+			while (ToUpper(*HaystackBuffer) == ToUpper(*NeedleBuffer)) {
+				++HaystackBuffer;
+				++NeedleBuffer;
+
+				if (HaystackBuffer > HaystackBufferRealEnd) {
+					break;
+				} else if (NeedleBuffer >= NeedleBufferEnd) {
+					return StartOfNeedleInHaystack;
+				}
+			}
+		}
+	} else {
+		NeedleFirst = *NeedleBuffer;
+
+		while (TRUE) {
+			NeedleBuffer = Needle->Buffer + 1;
+
+			while (*HaystackBuffer++ != NeedleFirst) {
+				if (HaystackBuffer > HaystackBufferEnd) {
+					return NULL;
+				}
+			}
+
+			StartOfNeedleInHaystack = HaystackBuffer - 1;
+
+			while (*HaystackBuffer++ == *NeedleBuffer++) {
+				if (HaystackBuffer > HaystackBufferRealEnd) {
+					break;
+				} else if (NeedleBuffer >= NeedleBufferEnd) {
+					return StartOfNeedleInHaystack;
+				}
+			}
+		}
+	}
+} PROTECTED_FUNCTION_END_BOOLEAN

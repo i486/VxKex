@@ -27,94 +27,11 @@
 STATIC PKEX_RTL_STRING_MAPPER DllRewriteStringMapper = NULL;
 
 //
-// Add the Kex DLLs directory to the Path environment variable so that DLLs will
-// get loaded from there when NTDLL processes imports.
-//
-STATIC NTSTATUS KexpAddKex3264ToPath(
-	VOID)
-{
-	NTSTATUS Status;
-	UNICODE_STRING PathName;
-	UNICODE_STRING PathValue;
-	WCHAR PathAppendBuffer[MAX_PATH];
-	UNICODE_STRING PathAppend;
-
-	RtlInitUnicodeString(&PathName, L"Path");
-	RtlInitEmptyUnicodeString(&PathValue, NULL, 0);
-
-	//
-	// form the string we need to append onto Path
-	//
-
-	RtlInitEmptyUnicodeString(&PathAppend, PathAppendBuffer, sizeof(PathAppendBuffer));
-	RtlAppendUnicodeToString(&PathAppend, L";");
-	RtlAppendUnicodeStringToString(&PathAppend, &KexData->KexDir);
-
-	if (KexIs64BitBuild) {
-		RtlAppendUnicodeToString(&PathAppend, L"\\Kex64");
-	} else {
-		RtlAppendUnicodeToString(&PathAppend, L"\\Kex32");
-	}
-
-	//
-	// First find the length of the current %Path% - RtlQueryEnvironmentVariable_U
-	// is expected to return STATUS_BUFFER_TOO_SMALL, setting PathValue.Length to
-	// the correct buffer size.
-	//
-	Status = RtlQueryEnvironmentVariable_U(
-		NULL,
-		&PathName,
-		&PathValue);
-
-	if (Status == STATUS_BUFFER_TOO_SMALL) {
-		// Allocate correct sized buffer and retry
-		PathValue.MaximumLength = PathValue.Length + PathAppend.Length;
-		PathValue.Buffer = (PWCHAR) StackAlloc(BYTE, PathValue.MaximumLength);
-		
-		Status = RtlQueryEnvironmentVariable_U(
-			NULL,
-			&PathName,
-			&PathValue);
-	} else if (Status == STATUS_VARIABLE_NOT_FOUND) {
-		//
-		// When a process is created with CreateProcess, the parent could
-		// theoretically supply an empty environment block. If this happens,
-		// skip past the ';' at the beginning, and just set the whole %Path%
-		// env var to KexDir.
-		//
-
-		++PathAppend.Buffer;
-		PathAppend.Length -= sizeof(WCHAR);
-		PathAppend.MaximumLength -= sizeof(WCHAR);
-		return RtlSetEnvironmentVariable(NULL, &PathName, &PathAppend);
-	}
-	
-	if (NT_SUCCESS(Status)) {
-		//
-		// Successfully queried %Path% env var to PathValue - now append our
-		// entry and write back to %Path%
-		//
-
-		Status = RtlAppendUnicodeStringToString(&PathValue, &PathAppend);
-		if (!NT_SUCCESS(Status)) {
-			return Status;
-		}
-
-		return RtlSetEnvironmentVariable(NULL, &PathName, &PathValue);
-	}
-
-	return Status;
-}
-
-//
 // Read DLL rewrite information from a registry key and place it in a
 // string mapper for efficient querying.
 //
-// This function also adds a PATH entry which contains Kex DLLs. (e.g.
-// C:\Program Files\VxKex\Kex64 or Kex32).
-//
 NTSTATUS KexInitializeDllRewrite(
-	VOID)
+	VOID) PROTECTED_FUNCTION
 {
 	NTSTATUS Status;
 	HANDLE DllRewriteKeyHandle;
@@ -233,7 +150,7 @@ NTSTATUS KexInitializeDllRewrite(
 		//
 
 		KeyInformationBufferCb = sizeof(KEY_VALUE_FULL_INFORMATION) +
-								 KeyInformationBuffer->NameLength +
+								 KeyInformationBuffer->DataOffset +
 								 KeyInformationBuffer->DataLength;
 		KeyInformationBuffer = (PKEY_VALUE_FULL_INFORMATION) SafeReAlloc(
 			KeyInformationBuffer,
@@ -250,8 +167,8 @@ NTSTATUS KexInitializeDllRewrite(
 		StringMapperKey.Buffer = KeyInformationBuffer->NameAndData;
 
 		StringMapperValue.Length = (USHORT) KeyInformationBuffer->DataLength;
-		StringMapperValue.MaximumLength = StringMapperKey.Length;
-		StringMapperValue.Buffer = &KeyInformationBuffer->NameAndData[KeyInformationBuffer->NameLength / sizeof(WCHAR)];
+		StringMapperValue.MaximumLength = StringMapperValue.Length;
+		StringMapperValue.Buffer = (PWCHAR) (((PBYTE) KeyInformationBuffer) + KeyInformationBuffer->DataOffset);
 
 		KexSrvLogDebugEvent(
 			L"Processed a DLL rewrite registry entry: %wZ -> %wZ",
@@ -270,22 +187,26 @@ NTSTATUS KexInitializeDllRewrite(
 
 	NtClose(DllRewriteKeyHandle);
 	
-	Status = KexpAddKex3264ToPath();
+	Status = KexpAddKex3264ToDllPath();
 	if (!NT_SUCCESS(Status)) {
 		KexSrvLogErrorEvent(
-			L"Failed to append Kex32/64 to %%Path%%\r\n\r\n"
+			L"Failed to append Kex32/64 to the DLL search path.\r\n\r\n"
 			L"NTSTATUS error code: 0x%08lx",
 			Status);
 	}
 
+	if (NT_SUCCESS(Status)) {
+		KexSrvLogInformationEvent(L"Successfully initialized DLL rewrite subsystem.");
+	}
+
 	return Status;
-}
+} PROTECTED_FUNCTION_END
 
 //
 // Rewrite a DLL name based on the string mapper entries.
 //
 STATIC NTSTATUS KexpRewriteDllName(
-	IN OUT	PANSI_STRING	AnsiDllName)
+	IN OUT	PANSI_STRING	AnsiDllName) PROTECTED_FUNCTION
 {
 	NTSTATUS Status;
 	UNICODE_STRING DllName;
@@ -314,15 +235,13 @@ STATIC NTSTATUS KexpRewriteDllName(
 		&DllName,
 		&RewrittenDllName);
 
-	RtlFreeUnicodeString(&DllName);
-
 	//
 	// If no entry was found in the string mapper, or another error occurred,
 	// just return and leave the original DLL name un-modified.
 	//
 
 	if (!NT_SUCCESS(Status)) {
-		return Status;
+		goto Exit;
 	}
 
 	//
@@ -332,7 +251,8 @@ STATIC NTSTATUS KexpRewriteDllName(
 	//
 
 	if (KexRtlUnicodeStringCch(&RewrittenDllName) > KexRtlAnsiStringCch(AnsiDllName)) {
-		return STATUS_BUFFER_TOO_SMALL;
+		Status = STATUS_BUFFER_TOO_SMALL;
+		goto Exit;
 	}
 
 	Status = RtlUnicodeStringToAnsiString(
@@ -340,8 +260,14 @@ STATIC NTSTATUS KexpRewriteDllName(
 		&RewrittenDllName,
 		FALSE);
 
+Exit:
+	if (NT_SUCCESS(Status)) {
+		KexSrvLogDetailEvent(L"Rewrote DLL import: %wZ -> %wZ", &DllName, &RewrittenDllName);
+	}
+
+	RtlFreeUnicodeString(&DllName);
 	return Status;
-}
+} PROTECTED_FUNCTION_END
 
 //
 // Determine whether the imports of a particular DLL (identified by name and
@@ -349,7 +275,7 @@ STATIC NTSTATUS KexpRewriteDllName(
 //
 BOOLEAN KexShouldRewriteImportsOfDll(
 	IN	PCUNICODE_STRING	BaseDllName,
-	IN	PCUNICODE_STRING	FullDllName)
+	IN	PCUNICODE_STRING	FullDllName) PROTECTED_FUNCTION
 {
 	//
 	// If this DLL is inside the Windows directory or is a part of VxKex, do
@@ -362,12 +288,12 @@ BOOLEAN KexShouldRewriteImportsOfDll(
 	}
 
 	return TRUE;
-}
+} PROTECTED_FUNCTION_END_BOOLEAN
 
 NTSTATUS KexRewriteImageImportDirectory(
 	IN	PVOID				ImageBase,
 	IN	PCUNICODE_STRING	BaseImageName,
-	IN	PCUNICODE_STRING	FullImageName)
+	IN	PCUNICODE_STRING	FullImageName) PROTECTED_FUNCTION
 {
 	NTSTATUS Status;
 	PIMAGE_NT_HEADERS NtHeaders;
@@ -376,7 +302,6 @@ NTSTATUS KexRewriteImageImportDirectory(
 	PIMAGE_DATA_DIRECTORY ImportDirectory;
 	PIMAGE_IMPORT_DESCRIPTOR ImportDescriptor;
 	BOOLEAN AtLeastOneImportWasRewritten;
-
 	AtLeastOneImportWasRewritten = FALSE;
 
 	Status = RtlImageNtHeaderEx(RTL_IMAGE_NT_HEADER_EX_FLAG_NO_RANGE_CHECK, ImageBase, 0, &NtHeaders);
@@ -443,28 +368,19 @@ NTSTATUS KexRewriteImageImportDirectory(
 
 	do {
 		ULONG OldProtect;
-#ifdef _DEBUG
-		CHAR OriginalDllNameBuffer[MAX_PATH];
-		ANSI_STRING ImportedDllNameOriginal;
-#endif
 		PSTR DllNameBuffer;
 		SIZE_T DllNameBufferCb;
 		ANSI_STRING ImportedDllNameAnsi;
 
 		DllNameBuffer = (PSTR) RVA_TO_VA(ImageBase, ImportDescriptor->Name);
 		RtlInitAnsiString(&ImportedDllNameAnsi, DllNameBuffer);
-		ImportedDllNameAnsi.MaximumLength;
 		DllNameBufferCb = ImportedDllNameAnsi.MaximumLength;
-
-#ifdef _DEBUG
-		ImportedDllNameOriginal.MaximumLength = sizeof(OriginalDllNameBuffer);
-		ImportedDllNameOriginal.Buffer = OriginalDllNameBuffer;
-		RtlCopyAnsiString(&ImportedDllNameOriginal, &ImportedDllNameAnsi);
-#endif
 
 		//
 		// Before we actually modify and write the DLL name, we will
 		// change memory protections to make sure we can do this.
+		//
+		//     TODO TODO TODO: We CAN in fact change porortections on the whole table.
 		//
 		// 1. We can't change memory protections on the entire import
 		//    directory because there is no guarantee that the DLL names
@@ -496,6 +412,10 @@ NTSTATUS KexRewriteImageImportDirectory(
 		}
 
 		Status = KexpRewriteDllName(&ImportedDllNameAnsi);
+		
+		if (NT_SUCCESS(Status)) {
+			AtLeastOneImportWasRewritten = TRUE;
+		}
 
 		// restore old permissions
 		NtProtectVirtualMemory(
@@ -504,21 +424,6 @@ NTSTATUS KexRewriteImageImportDirectory(
 			&DllNameBufferCb,
 			OldProtect,
 			&OldProtect);
-
-		if (NT_SUCCESS(Status)) {
-			AtLeastOneImportWasRewritten = TRUE;
-
-			KexSrvLogDebugEvent(
-				L"Rewrote DLL import (%hZ -> %hZ)",
-				&ImportedDllNameOriginal,
-				&ImportedDllNameAnsi);
-		} else {
-			KexSrvLogDebugEvent(
-				L"Did not rewrite DLL import %hZ\r\n\r\n"
-				L"NTSTATUS result code: 0x%08lx",
-				&ImportedDllNameOriginal,
-				Status);
-		}
 	} while ((++ImportDescriptor)->Name != 0);
 
 	if (AtLeastOneImportWasRewritten) {
@@ -569,4 +474,4 @@ NTSTATUS KexRewriteImageImportDirectory(
 	}
 
 	return STATUS_SUCCESS;
-}
+} PROTECTED_FUNCTION_END

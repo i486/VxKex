@@ -1,0 +1,90 @@
+Information in this file is based on analysis of Windows 7 SP1 and also
+Windows 7 with all latest ESU updates. May not be 100% compatible with all
+Win7 builds; if widespread usage is intended, further study is up to the
+reader.
+
+
+The following values are meaningful to Windows 7 when under the IFEO root:
+
+DevOverrideEnabled
+  Allows .local redirection for all .exes.
+
+The following values are meaningful to Windows 7 when under an IFEO exe key:
+
+== kernel32!CreateProcessInternalW ==
+
+Debugger
+
+== kernel32!BaseDllInitialize ==
+
+SearchPathMode - passed directly to SetSearchPathMode() on dll init
+
+== ntdll!RtlpProcessIFEOKeyFilter ==
+
+FilterFullPath
+UseFilter
+
+== ntdll!LdrpInitializeExecutionOptions ==
+
+GlobalFlag(*)
+  This value ends up in Peb->NtGlobalFlag.
+  See FLG_* in NtDll.h
+
+CWDIllegalInDllSearch
+DisableHeapLookaside
+
+ShutdownFlags
+  This value is checked by ntdll!RtlDetectHeapLeaks upon proper process
+  shutdown (i.e. not terminated forcibly).
+  Possible values are a combination of INSPECT_LEAKS and BREAK_ON_LEAKS
+  defined in NtDll.h.
+
+UseImpersonatedDeviceMap (NOT in SP1)
+MinimumStackCommitInBytes
+MaxDeadActivationContexts
+UnloadEventTraceDepth
+TracingFlags
+
+ShowRecursiveDllLoads
+BreakOnRecursiveDllLoads
+BreakOnInitializeProcessFailure
+KeepActivationContextsAlive
+TrackActivationContextReleases
+
+== ntdll!LdrpInitializeProcess ==
+
+DisableUserModeCallbackFilter
+StackTraceDatabaseSizeInMb
+DebugProcessHeapOnly
+
+== ntdll!LdrpInitializeApplicationVerifierPackage ==
+
+PageHeapFlags(*)
+
+== ntdll!AVrfInitializeVerifier ==
+
+VerifierFlags(*)
+HandleTraces(*)
+
+VerifierDebug(*)
+  Various flags which control debug printing.
+  See AVRF_DBG_* in NtDll.h
+
+VerifierDlls(*)
+
+
+(*) - Any value thus marked is able to be read from HKCU ifeo key
+(HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options)
+in addition to the normal one in HKLM, but ONLY if SharedUserData->ImageFileExecutionOptions
+has the low-order bit set to 1.
+
+The Microsoft documentation for the verifier.dll function "VerifierIsPerUserSettingsEnabled"
+says that we should set a DWORD registry value "ImageExecutionOptions" in the registry key
+HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager to 1, and then the kernel
+will set the appropriate value in SharedUserData.
+
+Usually this would be a good thing for VxKex because we wouldn't have to ask for admin
+permissions to change configs, but unfortunately the AVrfOpenCurrentUserImageFileOptionsKey
+routine in ntdll doesn't respect the "IFEO key filter" mechanism implemented in
+RtlpProcessIFEOKeyFilter. Therefore all of our configuration must be stored in the HKLM
+ifeo key.

@@ -54,6 +54,7 @@
 #define STATUS_BUFFER_TOO_SMALL				((NTSTATUS) 0xC0000023L)
 #define STATUS_OBJECT_TYPE_MISMATCH			((NTSTATUS) 0xC0000024L)
 #define STATUS_INVALID_PARAMETER_MIX		((NTSTATUS) 0xC0000030L)
+#define STATUS_PORT_DISCONNECTED			((NTSTATUS) 0xC0000037L)
 #define STATUS_INVALID_IMAGE_FORMAT			((NTSTATUS) 0xC000007BL)
 #define STATUS_INSUFFICIENT_RESOURCES		((NTSTATUS) 0xC000009AL)
 #define STATUS_INTERNAL_ERROR				((NTSTATUS) 0xC00000E5L)
@@ -690,6 +691,27 @@ typedef enum _MEMINFOCLASS {
 	MemoryWorkingSetExInformation
 } MEMINFOCLASS;
 
+typedef struct _MEMORY_REGION_INFORMATION {
+	PVOID								AllocationBase;
+	PVOID								AllocationProtect;
+
+	union {
+		ULONG							RegionType;
+
+		struct {
+			UCHAR						Private:1;
+			UCHAR						MappedDataFile:1;
+			UCHAR						MappedImage:1;
+			UCHAR						MappedPageFile:1;
+			UCHAR						MappedPhysical:1;
+			UCHAR						DirectMapped:1;
+			ULONG						Reserved:26;
+		};
+	};
+
+	SIZE_T								RegionSize; 
+} TYPEDEF_TYPE_NAME(MEMORY_REGION_INFORMATION);
+
 typedef enum _NT_PRODUCT_TYPE {
 	NtProductWinNt = 1,
 	NtProductLanManNt,
@@ -787,6 +809,12 @@ typedef struct _RTL_DRIVE_LETTER_CURDIR {
 	ULONG								TimeStamp;
 	STRING								DosPath;
 } TYPEDEF_TYPE_NAME(RTL_DRIVE_LETTER_CURDIR);
+
+typedef struct _RTL_RELATIVE_NAME_U {
+	UNICODE_STRING						RelativeName;
+	HANDLE								ContainingDirectory;
+	PVOID								CurDirRef;
+} TYPEDEF_TYPE_NAME(RTL_RELATIVE_NAME_U);
 
 typedef struct _PEB_FREE_BLOCK {
 	struct _PEB_FREE_BLOCK				*Next;
@@ -2849,6 +2877,12 @@ NTSYSAPI RTL_PATH_TYPE NTAPI RtlDetermineDosPathNameType_Ustr(
 
 #define RtlDetermineDosPathNameType RtlDetermineDosPathNameType_Ustr
 
+NTSYSAPI BOOLEAN NTAPI RtlDosPathNameToRelativeNtPathName_U(
+	IN	PCWSTR					DosFileName,
+	OUT	PUNICODE_STRING			NtFileName,
+	OUT	PPWSTR					FilePart OPTIONAL,
+	OUT	PRTL_RELATIVE_NAME_U	RelativeName OPTIONAL);
+
 NTSYSAPI BOOLEAN NTAPI RtlCreateHashTable(
 	IN OUT	PRTL_DYNAMIC_HASH_TABLE	*HashTable,
 	IN		ULONG					Shift OPTIONAL,
@@ -2985,6 +3019,12 @@ NTSYSAPI NTSTATUS NTAPI LdrFindEntryForAddress(
 	IN	PVOID					Address,
 	OUT	PPLDR_DATA_TABLE_ENTRY	TableEntry);
 
+NTSYSAPI VOID NTAPI LdrShutdownThread(
+	VOID);
+
+NTSYSAPI VOID NTAPI LdrShutdownProcess(
+	VOID);
+
 #pragma endregion
 
 #pragma region Dbg* function declarations
@@ -3038,6 +3078,7 @@ NTSYSAPI ULONG NTAPI DbgPrintEx(
     ((UnicodeString)->Buffer = (InitBuffer), \
      (UnicodeString)->Length = 0, \
      (UnicodeString)->MaximumLength = (USHORT)(BufferCb))
+#define RtlInitEmptyAnsiString(AnsiString, InitBuffer, BufferCb) RtlInitEmptyUnicodeString(AnsiString, InitBuffer, BufferCb)
 
 #define HASH_ENTRY_KEY(x) ((x)->Signature)
 

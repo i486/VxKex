@@ -41,7 +41,7 @@
 VOID NTAPI KexDllNotificationCallback(
 	IN	LDR_DLL_NOTIFICATION_REASON	Reason,
 	IN	PCLDR_DLL_NOTIFICATION_DATA	NotificationData,
-	IN	PVOID						Context OPTIONAL)
+	IN	PVOID						Context OPTIONAL) PROTECTED_FUNCTION
 {
 	NTSTATUS Status;
 	STATIC CONST PCWSTR ReasonToStringLookup[] = {
@@ -75,4 +75,4 @@ VOID NTAPI KexDllNotificationCallback(
 				NotificationData->FullDllName);
 		}
 	}
-}
+} PROTECTED_FUNCTION_END_VOID

@@ -67,7 +67,7 @@ STATIC BYTE BasicHookTemplate[BASIC_HOOK_LENGTH] = {
 NTSTATUS NTAPI KexHkInstallBasicHook(
 	IN		PVOID					ApiAddress,
 	IN		PVOID					RedirectedAddress,
-	OUT		PKEX_BASIC_HOOK_CONTEXT	HookContext OPTIONAL)
+	OUT		PKEX_BASIC_HOOK_CONTEXT	HookContext OPTIONAL) PROTECTED_FUNCTION
 {
 	NTSTATUS Status;
 	PVOID ApiPageAddress;
@@ -135,10 +135,10 @@ NTSTATUS NTAPI KexHkInstallBasicHook(
 		&OldProtect);
 
 	return STATUS_SUCCESS;
-}
+} PROTECTED_FUNCTION_END
 
 NTSTATUS NTAPI KexHkRemoveBasicHook(
-	IN		PKEX_BASIC_HOOK_CONTEXT	HookContext)
+	IN		PKEX_BASIC_HOOK_CONTEXT	HookContext) PROTECTED_FUNCTION
 {
 	NTSTATUS Status;
 	PVOID ApiPageAddress;
@@ -176,4 +176,4 @@ NTSTATUS NTAPI KexHkRemoveBasicHook(
 		&OldProtect);
 
 	return STATUS_SUCCESS;
-}
+} PROTECTED_FUNCTION_END

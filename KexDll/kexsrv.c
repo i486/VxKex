@@ -24,8 +24,9 @@
 #include <KexLog.h>
 
 KEXAPI NTSTATUS NTAPI KexSrvOpenChannel(
-	OUT	PHANDLE	ChannelHandle)
+	OUT	PHANDLE	ChannelHandle) PROTECTED_FUNCTION
 {
+	NTSTATUS Status;
 	UNICODE_STRING PipeName;
 	OBJECT_ATTRIBUTES ObjectAttributes;
 	IO_STATUS_BLOCK IoStatusBlock;
@@ -33,20 +34,30 @@ KEXAPI NTSTATUS NTAPI KexSrvOpenChannel(
 	RtlInitUnicodeString(&PipeName, KEXSRV_IPC_CHANNEL_NAME);
 	InitializeObjectAttributes(&ObjectAttributes, &PipeName, 0, NULL, NULL);
 
-	return NtOpenFile(
+	Status = NtOpenFile(
 		ChannelHandle,
 		GENERIC_WRITE | SYNCHRONIZE,
 		&ObjectAttributes,
 		&IoStatusBlock,
 		FILE_SHARE_WRITE,
 		FILE_SYNCHRONOUS_IO_NONALERT);
-}
+
+	if (!NT_SUCCESS(Status)) {
+		*ChannelHandle = NULL;
+	}
+
+	return Status;
+} PROTECTED_FUNCTION_END_NOLOG
 
 KEXAPI NTSTATUS NTAPI KexSrvSendMessage(
 	IN	HANDLE				ChannelHandle,
-	IN	PKEX_IPC_MESSAGE	Message)
+	IN	PKEX_IPC_MESSAGE	Message) PROTECTED_FUNCTION
 {
 	IO_STATUS_BLOCK IoStatusBlock;
+
+	if (!ChannelHandle) {
+		return STATUS_PORT_DISCONNECTED;
+	}
 
 	return NtWriteFile(
 		ChannelHandle,
@@ -58,17 +69,21 @@ KEXAPI NTSTATUS NTAPI KexSrvSendMessage(
 		sizeof(KEX_IPC_MESSAGE) + Message->AuxiliaryDataBlockSize,
 		NULL,
 		NULL);
-}
+} PROTECTED_FUNCTION_END_NOLOG
 
 KEXAPI NTSTATUS NTAPI KexSrvNotifyProcessStart(
 	IN	HANDLE				ChannelHandle,
-	IN	PCUNICODE_STRING	ApplicationName)
+	IN	PCUNICODE_STRING	ApplicationName) PROTECTED_FUNCTION
 {
 	PKEX_IPC_MESSAGE Message;
 	UNICODE_STRING DestinationString;
 
+	if (!ChannelHandle) {
+		return STATUS_PORT_DISCONNECTED;
+	}
+
 	if (!ApplicationName->Buffer) {
-		return STATUS_UNSUCCESSFUL;
+		return STATUS_INVALID_PARAMETER;
 	}
 
 	Message = (PKEX_IPC_MESSAGE) StackAlloc(BYTE, sizeof(KEX_IPC_MESSAGE) + ApplicationName->Length);
@@ -84,7 +99,7 @@ KEXAPI NTSTATUS NTAPI KexSrvNotifyProcessStart(
 	RtlCopyUnicodeString(&DestinationString, ApplicationName);
 
 	return KexSrvSendMessage(ChannelHandle, Message);
-}
+} PROTECTED_FUNCTION_END
 
 KEXAPI NTSTATUS CDECL KexSrvLogEventEx(
 	IN	HANDLE		ChannelHandle,
@@ -94,7 +109,7 @@ KEXAPI NTSTATUS CDECL KexSrvLogEventEx(
 	IN	PCWSTR		SourceFile,
 	IN	PCWSTR		SourceFunction,
 	IN	PCWSTR		Format,
-	IN	...)
+	IN	...) PROTECTED_FUNCTION
 {
 	PKEX_IPC_MESSAGE Message;
 
@@ -111,6 +126,10 @@ KEXAPI NTSTATUS CDECL KexSrvLogEventEx(
 	PWSTR SourceFileOut;
 	PWSTR SourceFunctionOut;
 	PWSTR TextOut;
+
+	if (!ChannelHandle) {
+		return STATUS_PORT_DISCONNECTED;
+	}
 
 	//
 	// Validate pointer parameters
@@ -203,4 +222,4 @@ KEXAPI NTSTATUS CDECL KexSrvLogEventEx(
 	//
 
 	return KexSrvSendMessage(ChannelHandle, Message);
-}
+} PROTECTED_FUNCTION_END_NOLOG

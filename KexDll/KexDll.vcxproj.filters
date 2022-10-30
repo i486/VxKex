@@ -53,6 +53,15 @@
     <ClCompile Include="kexhk.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="kexhe.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="except.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="dllpath.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="KexDll.def">

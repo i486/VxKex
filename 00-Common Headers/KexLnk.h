@@ -50,6 +50,12 @@
 #    if defined(KEX_TARGET_TYPE_EXE) || defined(KEX_TARGET_TYPE_DLL)
 #      pragma comment(lib, "kernel32.lib")
 #      pragma comment(lib, "advapi32.lib")
+
+#      ifdef KEX_ARCH_X86
+         // 32 bit ntdll does not export _except_handler3.
+         // Unfortunately this means we need to import from msvcrt.
+#        pragma comment(lib, "msvcrt_eh3.lib")
+#      endif
 #    endif
 #  endif
 #pragma endregion

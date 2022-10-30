@@ -93,6 +93,8 @@
       <AdditionalDependencies>
       </AdditionalDependencies>
       <ModuleDefinitionFile>KexDll.def</ModuleDefinitionFile>
+      <ImageHasSafeExceptionHandlers>
+      </ImageHasSafeExceptionHandlers>
     </Link>
     <ResourceCompile>
       <AdditionalIncludeDirectories>$(SolutionDir)\00-Common Headers</AdditionalIncludeDirectories>
@@ -121,6 +123,8 @@
       <AdditionalDependencies>
       </AdditionalDependencies>
       <ModuleDefinitionFile>KexDll.def</ModuleDefinitionFile>
+      <ImageHasSafeExceptionHandlers>
+      </ImageHasSafeExceptionHandlers>
     </Link>
     <ResourceCompile>
       <AdditionalIncludeDirectories>$(SolutionDir)\00-Common Headers</AdditionalIncludeDirectories>
@@ -153,6 +157,8 @@
       <AdditionalDependencies>
       </AdditionalDependencies>
       <ModuleDefinitionFile>KexDll.def</ModuleDefinitionFile>
+      <ImageHasSafeExceptionHandlers>
+      </ImageHasSafeExceptionHandlers>
     </Link>
     <ResourceCompile>
       <AdditionalIncludeDirectories>$(SolutionDir)\00-Common Headers</AdditionalIncludeDirectories>
@@ -185,6 +191,8 @@
       <AdditionalDependencies>
       </AdditionalDependencies>
       <ModuleDefinitionFile>KexDll.def</ModuleDefinitionFile>
+      <ImageHasSafeExceptionHandlers>
+      </ImageHasSafeExceptionHandlers>
     </Link>
     <ResourceCompile>
       <AdditionalIncludeDirectories>$(SolutionDir)\00-Common Headers</AdditionalIncludeDirectories>
@@ -203,8 +211,11 @@
   <ItemGroup>
     <ClCompile Include="dllmain.c" />
     <ClCompile Include="dllnotif.c" />
+    <ClCompile Include="dllpath.c" />
     <ClCompile Include="dllrewrt.c" />
+    <ClCompile Include="except.c" />
     <ClCompile Include="kexdata.c" />
+    <ClCompile Include="kexhe.c" />
     <ClCompile Include="kexhk.c" />
     <ClCompile Include="kexrtl.c" />
     <ClCompile Include="kexsrv.c" />

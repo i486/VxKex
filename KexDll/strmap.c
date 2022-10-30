@@ -43,7 +43,7 @@
 //
 KEXAPI NTSTATUS NTAPI KexRtlCreateStringMapper(
 	OUT		PPKEX_RTL_STRING_MAPPER		StringMapper,
-	IN		ULONG						Flags OPTIONAL)
+	IN		ULONG						Flags OPTIONAL) PROTECTED_FUNCTION
 {
 	PKEX_RTL_STRING_MAPPER Mapper;
 	PRTL_DYNAMIC_HASH_TABLE HashTable;
@@ -76,7 +76,7 @@ KEXAPI NTSTATUS NTAPI KexRtlCreateStringMapper(
 	*StringMapper = Mapper;
 
 	return STATUS_SUCCESS;
-}
+} PROTECTED_FUNCTION_END
 
 //
 // Delete a string mapper and free its resources.
@@ -85,7 +85,7 @@ KEXAPI NTSTATUS NTAPI KexRtlCreateStringMapper(
 //     Pointer to the opaque string mapper object.
 //
 KEXAPI NTSTATUS NTAPI KexRtlDeleteStringMapper(
-	IN		PPKEX_RTL_STRING_MAPPER		StringMapper)
+	IN		PPKEX_RTL_STRING_MAPPER		StringMapper) PROTECTED_FUNCTION
 {
 	PKEX_RTL_STRING_MAPPER Mapper;
 	RTL_DYNAMIC_HASH_TABLE_ENUMERATOR Enumerator;
@@ -118,7 +118,7 @@ KEXAPI NTSTATUS NTAPI KexRtlDeleteStringMapper(
 	SafeFree(*StringMapper);
 
 	return STATUS_SUCCESS;
-}
+} PROTECTED_FUNCTION_END
 
 //
 // Insert a new key-value pair into the string mapper.
@@ -144,7 +144,7 @@ KEXAPI NTSTATUS NTAPI KexRtlDeleteStringMapper(
 KEXAPI NTSTATUS NTAPI KexRtlInsertEntryStringMapper(
 	IN		PKEX_RTL_STRING_MAPPER		StringMapper,
 	IN		PCUNICODE_STRING			Key,
-	IN		PCUNICODE_STRING			Value OPTIONAL)
+	IN		PCUNICODE_STRING			Value OPTIONAL) PROTECTED_FUNCTION
 {
 	BOOLEAN Success;
 	PKEX_RTL_STRING_MAPPER_HASH_TABLE_ENTRY Entry;
@@ -188,12 +188,12 @@ KEXAPI NTSTATUS NTAPI KexRtlInsertEntryStringMapper(
 		NULL);
 
 	return STATUS_SUCCESS;
-}
+} PROTECTED_FUNCTION_END
 
 STATIC NTSTATUS NTAPI KexRtlpLookupRawEntryStringMapper(
 	IN		PKEX_RTL_STRING_MAPPER						StringMapper,
 	IN		PCUNICODE_STRING							Key,
-	OUT		PPKEX_RTL_STRING_MAPPER_HASH_TABLE_ENTRY	EntryOut)
+	OUT		PPKEX_RTL_STRING_MAPPER_HASH_TABLE_ENTRY	EntryOut) PROTECTED_FUNCTION
 {
 	BOOLEAN Success;
 	BOOLEAN CaseInsensitive;
@@ -257,7 +257,7 @@ STATIC NTSTATUS NTAPI KexRtlpLookupRawEntryStringMapper(
 	*EntryOut = Entry;
 
 	return STATUS_SUCCESS;
-}
+} PROTECTED_FUNCTION_END
 
 //
 // Look up a single value by key.
@@ -276,7 +276,7 @@ STATIC NTSTATUS NTAPI KexRtlpLookupRawEntryStringMapper(
 KEXAPI NTSTATUS NTAPI KexRtlLookupEntryStringMapper(
 	IN		PKEX_RTL_STRING_MAPPER			StringMapper,
 	IN		PCUNICODE_STRING				Key,
-	OUT		PUNICODE_STRING					Value OPTIONAL)
+	OUT		PUNICODE_STRING					Value OPTIONAL) PROTECTED_FUNCTION
 {
 	NTSTATUS Status;
 	PKEX_RTL_STRING_MAPPER_HASH_TABLE_ENTRY Entry;
@@ -295,7 +295,7 @@ KEXAPI NTSTATUS NTAPI KexRtlLookupEntryStringMapper(
 	}
 
 	return Status;
-}
+} PROTECTED_FUNCTION_END
 
 //
 // Remove a single value by key.
@@ -310,7 +310,7 @@ KEXAPI NTSTATUS NTAPI KexRtlLookupEntryStringMapper(
 //
 KEXAPI NTSTATUS NTAPI KexRtlRemoveEntryStringMapper(
 	IN		PKEX_RTL_STRING_MAPPER			StringMapper,
-	IN		PCUNICODE_STRING				Key)
+	IN		PCUNICODE_STRING				Key) PROTECTED_FUNCTION
 {
 	NTSTATUS Status;
 	BOOLEAN Success;
@@ -337,7 +337,7 @@ KEXAPI NTSTATUS NTAPI KexRtlRemoveEntryStringMapper(
 	}
 
 	return STATUS_SUCCESS;
-}
+} PROTECTED_FUNCTION_END
 
 //
 // This is a convenience function which takes input and returns output
@@ -359,7 +359,7 @@ KEXAPI NTSTATUS NTAPI KexRtlApplyStringMapper(
 KEXAPI NTSTATUS NTAPI KexRtlInsertMultipleEntriesStringMapper(
 	IN		PKEX_RTL_STRING_MAPPER			StringMapper,
 	IN		KEX_RTL_STRING_MAPPER_ENTRY		Entries[],
-	IN		ULONG							EntryCount)
+	IN		ULONG							EntryCount) PROTECTED_FUNCTION
 {
 	NTSTATUS FailureStatus;
 
@@ -391,12 +391,12 @@ KEXAPI NTSTATUS NTAPI KexRtlInsertMultipleEntriesStringMapper(
 	} while (--EntryCount);
 
 	return FailureStatus;
-}
+} PROTECTED_FUNCTION_END
 
 KEXAPI NTSTATUS NTAPI KexRtlLookupMultipleEntriesStringMapper(
 	IN		PKEX_RTL_STRING_MAPPER			StringMapper,
 	IN OUT	KEX_RTL_STRING_MAPPER_ENTRY		Entries[],
-	IN		ULONG							EntryCount)
+	IN		ULONG							EntryCount) PROTECTED_FUNCTION
 {
 	NTSTATUS FailureStatus;
 
@@ -428,12 +428,12 @@ KEXAPI NTSTATUS NTAPI KexRtlLookupMultipleEntriesStringMapper(
 	} while (--EntryCount);
 
 	return FailureStatus;
-}
+} PROTECTED_FUNCTION_END
 
 KEXAPI NTSTATUS NTAPI KexRtlBatchApplyStringMapper(
 	IN		PKEX_RTL_STRING_MAPPER			StringMapper,
 	IN OUT	UNICODE_STRING					KeyToValue[],
-	IN		ULONG							KeyToValueCount)
+	IN		ULONG							KeyToValueCount) PROTECTED_FUNCTION
 {
 	NTSTATUS FailureStatus;
 
@@ -464,4 +464,4 @@ KEXAPI NTSTATUS NTAPI KexRtlBatchApplyStringMapper(
 	} while (--KeyToValueCount);
 
 	return FailureStatus;
-}
+} PROTECTED_FUNCTION_END

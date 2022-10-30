@@ -1,0 +1,12 @@
+KexDll is not 100% straightforward to debug, since it executes prior to most
+other DllMain's and prior to the main exe's entry point.
+
+However, WinDbg (part of Debugging Tools for Windows, found in the SDK) can
+easily debug its code by following these steps:
+
+  1. Start an application in WinDbg by File->Open Executable.
+  2. Type in the command window: "bu KexDll!DllMain" (or any other function)
+  3. Re-start the application by Debug->Restart.
+
+Then, WinDbg will break at any specified function in KexDll and can display
+source code, variables, call stack, etc.

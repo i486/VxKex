@@ -21,11 +21,61 @@
 
 #include "buildcfg.h"
 #include "kexsrvp.h"
+#include <KexDll.h>
 #include <ShellAPI.h>
 
-#define TDBTN_REPORT 1
-#define TDBTN_VIEWLOG 2
-#define TDBTN_EXIT 3
+// Can't start at 1 or it will conflict with other system defined buttons
+// e.g. the window close button
+#define TDBTN_REPORT 10
+#define TDBTN_VIEWLOG 11
+#define TDBTN_EXIT 12
+
+STATIC HRESULT CALLBACK KexSrvpHardErrorTaskDialogCallback(
+	IN	HWND		TaskDialogWindow,
+	IN	UINT		Notification,
+	IN	WPARAM		WParam,
+	IN	LPARAM		LParam,
+	IN	LONG_PTR	Context)
+{
+	PKEXSRV_PER_CLIENT_INFO ClientInfo;
+
+	ClientInfo = (PKEXSRV_PER_CLIENT_INFO) Context;
+
+	if (Notification == TDN_CREATED) {
+		//
+		// Sometimes, the task dialog can display behind other
+		// windows. We want the user to know about the failure.
+		//
+		// If the user wants to temporarily get rid of the task
+		// dialog, he can press the Minimize button.
+		//
+
+		SetWindowPos(TaskDialogWindow, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+	} else if (Notification == TDN_BUTTON_CLICKED) {
+		//
+		// We don't want to still be on top of other windows once
+		// the user decides what to do.
+		//
+		SetWindowPos(TaskDialogWindow, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+
+		//
+		// Returning S_FALSE when a button is clicked will not close
+		// the task dialog. But returning S_OK will close it.
+		//
+		switch (WParam) {
+		case TDBTN_REPORT:
+			ShellExecute(NULL, NULL, _L(KEX_BUGREPORT_STR), NULL, NULL, SW_SHOWNORMAL);
+			return S_FALSE;
+		case TDBTN_VIEWLOG:
+			ShellExecute(NULL, NULL, ClientInfo->LogFilePath, NULL, NULL, SW_SHOWNORMAL);
+			return S_FALSE;
+		default:
+			return S_OK;
+		}
+	}
+
+	return S_OK;
+}
 
 VOID KexSrvpHardError(
 	IN	PKEXSRV_PER_CLIENT_INFO	ClientInfo,
@@ -38,7 +88,6 @@ VOID KexSrvpHardError(
 	WCHAR MainBodyText[384];
 	WCHAR ExpandText[256];
 	HRESULT Result;
-	INT ButtonResponse;
 	TASKDIALOGCONFIG TaskDialogConfig;
 	TASKDIALOG_BUTTON TaskDialogButtons[] = {
 		{ TDBTN_REPORT, L"Report bug" },
@@ -68,6 +117,10 @@ VOID KexSrvpHardError(
 	// NTSTATUS (UlongParameter) can be anything. We just handle the
 	// most common ones and then display the system-provided error
 	// string if it's not one we handle.
+	//
+	// VxKex also defines some custom NTSTATUS values:
+	//
+	//   STATUS_KEXDLL_INITIALIZATION_FAILURE
 	//
 	switch (Status) {
 	case STATUS_DLL_NOT_FOUND:
@@ -128,6 +181,11 @@ VOID KexSrvpHardError(
 			TaskDialogConfig.pszContent = NtStatusAsString((NTSTATUS) UlongParameter);
 			break;
 		}
+
+		break;
+	case STATUS_KEXDLL_INITIALIZATION_FAILURE:
+		TaskDialogConfig.pszWindowTitle = L"VxKex Initialization Failure";
+		TaskDialogConfig.pszContent = StringParameter1;
 		break;
 	default:
 		TaskDialogConfig.pszWindowTitle = L"Unknown Error";
@@ -165,22 +223,17 @@ VOID KexSrvpHardError(
 	TaskDialogConfig.cButtons				= ARRAYSIZE(TaskDialogButtons);
 	TaskDialogConfig.pButtons				= TaskDialogButtons;
 	TaskDialogConfig.nDefaultButton			= TDBTN_EXIT;
+	TaskDialogConfig.pfCallback				= KexSrvpHardErrorTaskDialogCallback;
+	TaskDialogConfig.lpCallbackData			= (LONG_PTR) ClientInfo;
 
 	Result = TaskDialogIndirect(
 		&TaskDialogConfig,
-		&ButtonResponse,
+		NULL,
 		NULL,
 		NULL);
 
 	ASSERT (SUCCEEDED(Result));
 	if (FAILED(Result)) {
 		return;
-	}
-
-	// use the user's default file associations to open these items
-	if (ButtonResponse == TDBTN_REPORT) {
-		ShellExecute(NULL, NULL, _L(KEX_BUGREPORT_STR), NULL, NULL, SW_SHOWNORMAL);
-	} else if (ButtonResponse == TDBTN_VIEWLOG) {
-		ShellExecute(NULL, NULL, ClientInfo->LogFilePath, NULL, NULL, SW_SHOWNORMAL);
 	}
 }

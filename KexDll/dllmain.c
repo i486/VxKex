@@ -77,10 +77,9 @@ STATIC PCWSTR DllMainReasonToStringLookup[] = {
 BOOL WINAPI DllMain(
 	IN	PVOID								DllBase,
 	IN	ULONG								Reason,
-	IN	PRTL_VERIFIER_PROVIDER_DESCRIPTOR	*Descriptor)
+	IN	PRTL_VERIFIER_PROVIDER_DESCRIPTOR	*Descriptor) PROTECTED_FUNCTION
 {
 	NTSTATUS Status;
-	STATIC BOOLEAN DllNotificationRegistered = FALSE;
 	PVOID DllNotificationCookie;
 	
 	if (Reason == DLL_PROCESS_VERIFIER) {
@@ -99,6 +98,14 @@ BOOL WINAPI DllMain(
 		KexSrvNotifyProcessStart(KexData->SrvChannel, &KexData->ImageBaseName);
 
 		//
+		// Install VxKex hard error handler.
+		// This is responsible for displaying the custom error messages e.g.
+		// when a DLL is not found.
+		//
+
+		KexHeInstallHandler();
+
+		//
 		// Initialize DLL rewrite subsystem.
 		//
 
@@ -110,8 +117,12 @@ BOOL WINAPI DllMain(
 				Status);
 
 			// Abort initialization of VxKex.
-			// If debug build, fail the DLL load.
-			return (KexIsDebugBuild ? TRUE : FALSE);
+			KexHeErrorBox(
+				L"VxKex could not start because the DLL rewrite subsystem "
+				L"could not be initialized. Try to reinstall VxKex, since "
+				L"this problem may be caused by missing registry keys.\r\n"
+				L"If the problem persists, please disable VxKex for this "
+				L"program.");
 		}
 
 		//
@@ -125,15 +136,17 @@ BOOL WINAPI DllMain(
 			&DllNotificationCookie);
 
 		if (NT_SUCCESS(Status)) {
-			DllNotificationRegistered = TRUE;
-			KexSrvLogInformationEvent(L"Successfully registered DLL notification callback");
+			KexSrvLogInformationEvent(L"Successfully registered DLL notification callback.");
 		} else {
 			KexSrvLogCriticalEvent(
 				L"Failed to register DLL notification callback\r\n\r\n"
 				L"NTSTATUS error code: 0x%08lx",
 				Status);
 
-			return (KexIsDebugBuild ? TRUE : FALSE);
+			KexHeErrorBox(
+				L"VxKex could not start because the DLL notification callback "
+				L"could not be installed. If the problem persists, please disable "
+				L"VxKex for this program.");
 		}
 
 		//
@@ -145,13 +158,18 @@ BOOL WINAPI DllMain(
 			&KexData->ImageBaseName,
 			&NtCurrentPeb()->ProcessParameters->ImagePathName);
 
-		if (!NT_SUCCESS(Status)) {
+		if (!NT_SUCCESS(Status) && Status != STATUS_IMAGE_NO_IMPORT_DIRECTORY) {
 			KexSrvLogCriticalEvent(
 				L"Failed to rewrite DLL imports of the main process image.\r\n\r\n"
+				L"NTSTATUS error code: 0x%08lx\r\n"
 				L"Image base address: 0x%p\r\n",
+				Status,
 				NtCurrentPeb()->ImageBaseAddress);
 
-			return (KexIsDebugBuild ? TRUE : FALSE);
+			KexHeErrorBox(
+				L"VxKex could not start because the DLL imports of the main "
+				L"process image could not be rewritten. If the problem persists, "
+				L"please disable VxKex for this program.");
 		}
 
 		//
@@ -174,4 +192,4 @@ BOOL WINAPI DllMain(
 		Descriptor);
 	
 	return TRUE;
-}
+} PROTECTED_FUNCTION_END_BOOLEAN
