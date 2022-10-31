@@ -97,7 +97,7 @@
       <MinimumRequiredVersion>
       </MinimumRequiredVersion>
       <ModuleDefinitionFile>VXLL.def</ModuleDefinitionFile>
-      <AdditionalLibraryDirectories>$(SolutionDir)\00-Import Libraries</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)\00-Import Libraries;$(TargetDir)</AdditionalLibraryDirectories>
       <Profile>false</Profile>
     </Link>
     <ResourceCompile>
@@ -123,7 +123,7 @@
       <MinimumRequiredVersion>
       </MinimumRequiredVersion>
       <ModuleDefinitionFile>VXLL.def</ModuleDefinitionFile>
-      <AdditionalLibraryDirectories>$(SolutionDir)\00-Import Libraries</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)\00-Import Libraries;$(TargetDir)</AdditionalLibraryDirectories>
       <Profile>false</Profile>
     </Link>
     <ResourceCompile>
@@ -153,7 +153,7 @@
       <MinimumRequiredVersion>
       </MinimumRequiredVersion>
       <ModuleDefinitionFile>VXLL.def</ModuleDefinitionFile>
-      <AdditionalLibraryDirectories>$(SolutionDir)\00-Import Libraries</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)\00-Import Libraries;$(TargetDir)</AdditionalLibraryDirectories>
       <Profile>false</Profile>
     </Link>
     <ResourceCompile>
@@ -183,7 +183,7 @@
       <MinimumRequiredVersion>
       </MinimumRequiredVersion>
       <ModuleDefinitionFile>VXLL.def</ModuleDefinitionFile>
-      <AdditionalLibraryDirectories>$(SolutionDir)\00-Import Libraries</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)\00-Import Libraries;$(TargetDir)</AdditionalLibraryDirectories>
       <Profile>false</Profile>
     </Link>
     <ResourceCompile>
