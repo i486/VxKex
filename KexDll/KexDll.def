@@ -9,6 +9,8 @@ EXPORTS
 	KexRtlQueryKeyMultipleValueData
 	KexRtlUnicodeStringEndsWith
 	KexRtlFindUnicodeSubstring
+	KexRtlAdvanceUnicodeString
+	KexRtlRetreatUnicodeString
 
 	KexRtlCreateStringMapper
 	KexRtlDeleteStringMapper

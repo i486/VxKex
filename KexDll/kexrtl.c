@@ -341,7 +341,7 @@ PWCHAR NTAPI KexRtlFindUnicodeSubstring(
 	LengthOfNeedle = Needle->Length & ~1;
 	LengthOfHaystack = Haystack->Length & ~1;
 
-	if (LengthOfNeedle > LengthOfHaystack || !LengthOfHaystack) {
+	if (LengthOfNeedle > LengthOfHaystack || !LengthOfHaystack || !LengthOfNeedle) {
 		return NULL;
 	}
 
@@ -402,3 +402,21 @@ PWCHAR NTAPI KexRtlFindUnicodeSubstring(
 		}
 	}
 } PROTECTED_FUNCTION_END_BOOLEAN
+
+VOID NTAPI KexRtlAdvanceUnicodeString(
+	OUT	PUNICODE_STRING	String,
+	IN	USHORT			AdvanceCb) PROTECTED_FUNCTION
+{
+	String->Buffer += (AdvanceCb / sizeof(WCHAR));
+	String->Length -= AdvanceCb;
+	String->MaximumLength -= AdvanceCb;
+} PROTECTED_FUNCTION_END_VOID
+
+VOID NTAPI KexRtlRetreatUnicodeString(
+	OUT	PUNICODE_STRING	String,
+	IN	USHORT			RetreatCb) PROTECTED_FUNCTION
+{
+	String->Buffer -= (RetreatCb / sizeof(WCHAR));
+	String->Length += RetreatCb;
+	String->MaximumLength += RetreatCb;
+} PROTECTED_FUNCTION_END_VOID

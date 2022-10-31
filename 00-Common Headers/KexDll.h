@@ -169,10 +169,18 @@ KEXAPI BOOLEAN NTAPI KexRtlUnicodeStringEndsWith(
 	IN	PCUNICODE_STRING	EndsWith,
 	IN	BOOLEAN				CaseInsensitive);
 
-PWCHAR NTAPI KexRtlFindUnicodeSubstring(
+KEXAPI PWCHAR NTAPI KexRtlFindUnicodeSubstring(
 	PCUNICODE_STRING	Haystack,
 	PCUNICODE_STRING	Needle,
 	BOOLEAN				CaseInsensitive);
+
+KEXAPI VOID NTAPI KexRtlAdvanceUnicodeString(
+	OUT	PUNICODE_STRING	String,
+	IN	USHORT			AdvanceCb);
+
+KEXAPI VOID NTAPI KexRtlRetreatUnicodeString(
+	OUT	PUNICODE_STRING	String,
+	IN	USHORT			RetreatCb);
 
 KEXAPI NTSTATUS NTAPI KexRtlCreateStringMapper(
 	OUT		PPKEX_RTL_STRING_MAPPER		StringMapper,
@@ -226,6 +234,7 @@ KEXAPI NTSTATUS NTAPI KexRtlBatchApplyStringMapper(
 #define KexRtlUnicodeStringBufferCch(UnicodeString) ((UnicodeString)->MaximumLength / sizeof(WCHAR))
 #define KexRtlAnsiStringCch(AnsiString) ((AnsiString)->Length)
 #define KexRtlAnsiStringBufferCch(AnsiString) ((AnsiString)->MaximumLength)
+#define KexRtlEndOfUnicodeString(UnicodeString) ((UnicodeString)->Buffer + KexRtlUnicodeStringCch(UnicodeString))
 
 KEXAPI NTSTATUS NTAPI KexSrvOpenChannel(
 	OUT	PHANDLE	ChannelHandle);

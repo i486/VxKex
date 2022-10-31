@@ -52,6 +52,7 @@
 // Revision History:
 //
 //     vxiiduu              30-Oct-2022  Initial creation.
+//     vxiiduu              31-Oct-2022  Fix bugs and finalize implementation.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -60,11 +61,11 @@
 
 STATIC NTSTATUS KexpShrinkDllPathLength(
 	IN	PUNICODE_STRING	DllPath,
-	IN	ULONG			Length);
+	IN	USHORT			TargetLength);
 
 STATIC NTSTATUS KexpPadDllPathToOriginalLength(
 	IN	PUNICODE_STRING	DllPath,
-	IN	ULONG			OriginalLength);
+	IN	USHORT			OriginalLength);
 
 NTSTATUS KexpAddKex3264ToDllPath(
 	VOID) PROTECTED_FUNCTION
@@ -73,7 +74,7 @@ NTSTATUS KexpAddKex3264ToDllPath(
 	PUNICODE_STRING DllPath;
 	UNICODE_STRING NewDllPath;
 	UNICODE_STRING Prepend;
-	ULONG DllPathOriginalLength;
+	USHORT DllPathOriginalLength;
 
 	DllPath = &NtCurrentPeb()->ProcessParameters->DllPath;
 	DllPathOriginalLength = DllPath->Length;
@@ -111,7 +112,7 @@ NTSTATUS KexpAddKex3264ToDllPath(
 	// of our prepend string.
 	//
 
-	Status = KexpShrinkDllPathLength(DllPath, Prepend.Length);
+	Status = KexpShrinkDllPathLength(DllPath, DllPath->Length - Prepend.Length);
 	if (!NT_SUCCESS(Status)) {
 		return Status;
 	}
@@ -122,7 +123,7 @@ NTSTATUS KexpAddKex3264ToDllPath(
 
 	NewDllPath.Length = 0;
 	NewDllPath.MaximumLength = DllPath->Length + Prepend.Length;
-	NewDllPath.Buffer = StackAlloc(WCHAR, KexRtlUnicodeStringCch(&NewDllPath));
+	NewDllPath.Buffer = StackAlloc(WCHAR, KexRtlUnicodeStringBufferCch(&NewDllPath));
 
 	//
 	// Build the new DllPath.
@@ -147,16 +148,116 @@ NTSTATUS KexpAddKex3264ToDllPath(
 	return KexpPadDllPathToOriginalLength(DllPath, DllPathOriginalLength);
 } PROTECTED_FUNCTION_END
 
+//
+// Try to shrink the DllPath length to equal or less than "Length" by
+// removing duplicate entries.
+//
 STATIC NTSTATUS KexpShrinkDllPathLength(
 	IN	PUNICODE_STRING	DllPath,
-	IN	ULONG			Length) PROTECTED_FUNCTION
+	IN	USHORT			TargetLength) PROTECTED_FUNCTION
 {
+	NTSTATUS Status;
+	UNICODE_STRING DllPathAfterCurrentEntry;
+	UNICODE_STRING CurrentPathEntry;
+	UNICODE_STRING DuplicatePathEntry;
+	UNICODE_STRING Semicolon;
+
+	RtlInitUnicodeString(&Semicolon, L";");
+	DllPathAfterCurrentEntry = *DllPath;
+
+	until (DllPath->Length <= TargetLength) {
+		//
+		// Fetch a path entry
+		//
+		Status = RtlFindCharInUnicodeString(
+			0,
+			&DllPathAfterCurrentEntry,
+			&Semicolon,
+			&CurrentPathEntry.Length);
+
+		if (!NT_SUCCESS(Status)) {
+			KexSrvLogErrorEvent(
+				L"RtlFindCharInUnicodeString returned an error\r\n\r\n"
+				L"NTSTATUS error code: 0x%08lx",
+				Status);
+			return Status;
+		}
+
+		CurrentPathEntry.Length -= sizeof(WCHAR); // it includes the semicolon - get rid of it
+		CurrentPathEntry.Buffer = DllPathAfterCurrentEntry.Buffer;
+		CurrentPathEntry.MaximumLength = CurrentPathEntry.Length;
+		KexRtlAdvanceUnicodeString(&DllPathAfterCurrentEntry, CurrentPathEntry.Length + sizeof(WCHAR));
+
+		//
+		// Look for a duplicate entry later in the path.
+		//
+
+		DuplicatePathEntry.Buffer = KexRtlFindUnicodeSubstring(
+			&DllPathAfterCurrentEntry,
+			&CurrentPathEntry,
+			TRUE);
+
+		if (DuplicatePathEntry.Buffer) {
+			UNICODE_STRING AfterDuplicate;
+
+			DuplicatePathEntry.Length = CurrentPathEntry.Length;
+			DuplicatePathEntry.MaximumLength = (USHORT) ((KexRtlEndOfUnicodeString(DllPath) - DuplicatePathEntry.Buffer) * sizeof(WCHAR));
+
+			//
+			// We want only full path entries, i.e. surrounded by semicolons, or at
+			// the end of the string.
+			//
+
+			// the -1 is safe because we know DuplicatePathEntry is always ahead of DllPath
+			if (DuplicatePathEntry.Buffer[-1] != ';') {
+				continue;
+			}
+
+			if (KexRtlEndOfUnicodeString(&DuplicatePathEntry) != KexRtlEndOfUnicodeString(DllPath)) {
+				if (*(KexRtlEndOfUnicodeString(&DuplicatePathEntry)) != L';') {
+					continue;
+				}
+			}
+
+			//
+			// We need to cut this path entry out of the original DllPath and update the
+			// length field accordingly. To do this, we will copy all characters from
+			// the end of the duplicate path entry over top of the beginning of the
+			// duplicate entry.
+			//
+
+			AfterDuplicate.Buffer = KexRtlEndOfUnicodeString(&DuplicatePathEntry);
+			AfterDuplicate.Length = (USHORT) ((KexRtlEndOfUnicodeString(DllPath) - AfterDuplicate.Buffer) * sizeof(WCHAR));
+			AfterDuplicate.MaximumLength = AfterDuplicate.Length;
+
+			DllPath->Length -= DuplicatePathEntry.Length;
+			RtlCopyUnicodeString(&DuplicatePathEntry, &AfterDuplicate);
+		}
+	}
+
 	return STATUS_SUCCESS;
 } PROTECTED_FUNCTION_END
 
 STATIC NTSTATUS KexpPadDllPathToOriginalLength(
 	IN	PUNICODE_STRING	DllPath,
-	IN	ULONG			OriginalLength) PROTECTED_FUNCTION
+	IN	USHORT			OriginalLength) PROTECTED_FUNCTION
 {
+	PWCHAR Pointer;
+
+	if (DllPath->Length > OriginalLength) {
+		return STATUS_INTERNAL_ERROR;
+	}
+
+	//
+	// Add semicolons to the end until DllPath reaches the correct length.
+	//
+
+	Pointer = KexRtlEndOfUnicodeString(DllPath);
+	DllPath->Length = OriginalLength;
+
+	while (Pointer < KexRtlEndOfUnicodeString(DllPath)) {
+		*Pointer++ = L';';
+	}
+
 	return STATUS_SUCCESS;
 } PROTECTED_FUNCTION_END

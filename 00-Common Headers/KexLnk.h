@@ -15,6 +15,7 @@
 // Revision History:
 //
 //     vxiiduu               30-Sep-2022  Initial creation.
+//     vxiiduu               31-Oct-2022  Fix 32-bit SEH.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -46,16 +47,17 @@
 #endif
 
 #pragma region Library Inputs
+#if defined(KEX_TARGET_TYPE_EXE) || defined(KEX_TARGET_TYPE_DLL)
 #  ifdef KEX_ENV_WIN32
 #    if defined(KEX_TARGET_TYPE_EXE) || defined(KEX_TARGET_TYPE_DLL)
 #      pragma comment(lib, "kernel32.lib")
 #      pragma comment(lib, "advapi32.lib")
-
-#      ifdef KEX_ARCH_X86
-         // 32 bit ntdll does not export _except_handler3.
-         // Unfortunately this means we need to import from msvcrt.
-#        pragma comment(lib, "msvcrt_eh3.lib")
-#      endif
 #    endif
 #  endif
+
+#  ifdef KEX_ARCH_X86
+     // seh32.lib contains minimal SEH functions from WinXP CRTs.
+#    pragma comment(lib, "seh32.lib")
+#  endif
+#endif
 #pragma endregion

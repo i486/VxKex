@@ -88,7 +88,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)\00-Import Libraries</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)\00-Import Libraries;$(TargetDir)</AdditionalLibraryDirectories>
       <AdditionalDependencies>
       </AdditionalDependencies>
       <ModuleDefinitionFile>kexw32ml.def</ModuleDefinitionFile>
@@ -109,7 +109,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)\00-Import Libraries</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)\00-Import Libraries;$(TargetDir)</AdditionalLibraryDirectories>
       <AdditionalDependencies>
       </AdditionalDependencies>
       <ModuleDefinitionFile>kexw32ml.def</ModuleDefinitionFile>
@@ -134,7 +134,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>$(SolutionDir)\00-Import Libraries</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)\00-Import Libraries;$(TargetDir)</AdditionalLibraryDirectories>
       <AdditionalDependencies>
       </AdditionalDependencies>
       <ModuleDefinitionFile>kexw32ml.def</ModuleDefinitionFile>
@@ -159,7 +159,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>$(SolutionDir)\00-Import Libraries</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)\00-Import Libraries;$(TargetDir)</AdditionalLibraryDirectories>
       <AdditionalDependencies>
       </AdditionalDependencies>
       <ModuleDefinitionFile>kexw32ml.def</ModuleDefinitionFile>

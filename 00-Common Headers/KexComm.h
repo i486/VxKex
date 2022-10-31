@@ -171,25 +171,11 @@
 #pragma endregion
 
 #pragma region Extended Language Constructs
-//
-// SEH in native mode is possible without the CRT only on x64.
-// This is because NTDLL exports __C_specific_handler (required for SEH on x64),
-// but doesn't export _except_handler3 (required for SEH on x86) on either
-// native x86 or WOW64 variants.
-//
-// Importing from MSVCRT is done in KexLnk.h.
-//
-#  if defined(KEX_ARCH_X64) || defined(KEX_ENV_WIN32)
-#    define try __try
-#    define except __except
-#    define finally __finally
-#    define leave __leave
-#  else
-#    define try do
-#    define except(x) while (0); if (0)
-#    define finally while (0);
-#    define leave break
-#  endif
+#  define try __try
+#  define except __except
+#  define finally __finally
+#  define leave __leave
+#  define asm __asm
 
 #  define until(Condition) while (!(Condition))
 #  define unless(Condition) if (!(Condition))
