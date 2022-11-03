@@ -31,7 +31,7 @@ KEXAPI NTSTATUS NTAPI KexSrvOpenChannel(
 	OBJECT_ATTRIBUTES ObjectAttributes;
 	IO_STATUS_BLOCK IoStatusBlock;
 
-	RtlInitUnicodeString(&PipeName, KEXSRV_IPC_CHANNEL_NAME);
+	RtlInitConstantUnicodeString(&PipeName, KEXSRV_IPC_CHANNEL_NAME);
 	InitializeObjectAttributes(&ObjectAttributes, &PipeName, 0, NULL, NULL);
 
 	Status = NtOpenFile(

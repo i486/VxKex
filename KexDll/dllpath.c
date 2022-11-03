@@ -162,7 +162,7 @@ STATIC NTSTATUS KexpShrinkDllPathLength(
 	UNICODE_STRING DuplicatePathEntry;
 	UNICODE_STRING Semicolon;
 
-	RtlInitUnicodeString(&Semicolon, L";");
+	RtlInitConstantUnicodeString(&Semicolon, L";");
 	DllPathAfterCurrentEntry = *DllPath;
 
 	until (DllPath->Length <= TargetLength) {

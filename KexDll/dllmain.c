@@ -89,6 +89,7 @@ BOOL WINAPI DllMain(
 		//
 
 		KexDataInitialize(&KexData);
+		KexData->KexDllBase = DllBase;
 
 		//
 		// Connect to KexSrv and tell him that we exist now.
@@ -96,6 +97,13 @@ BOOL WINAPI DllMain(
 
 		KexSrvOpenChannel(&KexData->SrvChannel);
 		KexSrvNotifyProcessStart(KexData->SrvChannel, &KexData->ImageBaseName);
+
+		//
+		// Disable Application Verifier stops.
+		// We don't want that interfering with behavior of the application.
+		//
+
+		KexDisableAVrf();
 
 		//
 		// Install VxKex hard error handler.
@@ -171,6 +179,12 @@ BOOL WINAPI DllMain(
 				L"process image could not be rewritten. If the problem persists, "
 				L"please disable VxKex for this program.");
 		}
+
+		//
+		// Initialize Propagation subsystem.
+		//
+
+		KexInitializePropagation();
 
 		//
 		// Register a useless descriptor with app verifier system.

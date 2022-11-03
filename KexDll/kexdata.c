@@ -44,7 +44,9 @@ KEX_PROCESS_DATA _KexData = {
 	RTL_CONSTANT_STRING(L"C:\\Program Files\\VxKex                                                                                                                                                                                                                                            "),
 	RTL_CONSTANT_STRING(L"UNKNOWN.EXE                                                                                                                                                                                                                                                         "),
 	
-	NULL														// SrvChannel
+	NULL,														// SrvChannel
+	NULL,														// KexDllBase
+	NULL														// SystemDllBase
 };
 
 PKEX_PROCESS_DATA KexData = NULL;
@@ -87,7 +89,7 @@ STATIC NTSTATUS KexpInitializeGlobalConfig(
 	// Open the vxkex HKLM key.
 	//
 
-	RtlInitUnicodeString(&KeyName, L"\\Registry\\Machine\\Software\\VXsoft\\VxKex");
+	RtlInitConstantUnicodeString(&KeyName, L"\\Registry\\Machine\\Software\\VXsoft\\VxKex");
 	InitializeObjectAttributes(&ObjectAttributes, &KeyName, OBJ_CASE_INSENSITIVE, NULL, NULL);
 
 	Status = NtOpenKey(
@@ -133,6 +135,9 @@ STATIC NTSTATUS KexpInitializeIfeoParameters(
 KEXAPI NTSTATUS NTAPI KexDataInitialize(
 	OUT	PPKEX_PROCESS_DATA	KexDataOut OPTIONAL) PROTECTED_FUNCTION
 {
+	NTSTATUS Status;
+	UNICODE_STRING NtdllName;
+
 	if (KexData) {
 		// Already initialized - fail
 		return STATUS_ACCESS_DENIED;
@@ -148,6 +153,16 @@ KEXAPI NTSTATUS NTAPI KexDataInitialize(
 	KexRtlGetProcessImageBaseName(&_KexData.ImageBaseName);
 	KexpInitializeIfeoParameters();
 	KexpInitializeGlobalConfig();
+
+	//
+	// Get NTDLL base address.
+	//
+	
+	RtlInitConstantUnicodeString(&NtdllName, L"ntdll.dll");
+	Status = LdrGetDllHandleByName(&NtdllName, NULL, &_KexData.SystemDllBase);
+	if (!NT_SUCCESS(Status)) {
+		_KexData.SystemDllBase = NULL;
+	}
 
 	//
 	// All done

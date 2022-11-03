@@ -213,18 +213,22 @@
     <ClInclude Include="kexdllp.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="avrf.c" />
     <ClCompile Include="dllmain.c" />
     <ClCompile Include="dllnotif.c" />
     <ClCompile Include="dllpath.c" />
     <ClCompile Include="dllrewrt.c" />
     <ClCompile Include="except.c" />
+    <ClCompile Include="inithunk.c" />
     <ClCompile Include="kexdata.c" />
     <ClCompile Include="kexhe.c" />
     <ClCompile Include="kexhk.c" />
     <ClCompile Include="kexrtl.c" />
     <ClCompile Include="kexsrv.c" />
     <ClCompile Include="ntpriv.c" />
+    <ClCompile Include="propagte.c" />
     <ClCompile Include="strmap.c" />
+    <ClCompile Include="syscal32.c" />
   </ItemGroup>
   <ItemGroup>
     <None Include="KexDll.def" />
@@ -233,7 +237,7 @@
     <ResourceCompile Include="KexDll.rc" />
   </ItemGroup>
   <ItemGroup>
-    <MASM Include="systime.asm" />
+    <MASM Include="syscal64.asm" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

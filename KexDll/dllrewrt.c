@@ -52,7 +52,7 @@ NTSTATUS KexInitializeDllRewrite(
 	// DLLs to rewrite to what.
 	//
 
-	RtlInitUnicodeString(&DllRewriteKeyName, L"\\Registry\\Machine\\Software\\VXsoft\\VxKex\\DllRewrite");
+	RtlInitConstantUnicodeString(&DllRewriteKeyName, L"\\Registry\\Machine\\Software\\VXsoft\\VxKex\\DllRewrite");
 	InitializeObjectAttributes(&ObjectAttributes, &DllRewriteKeyName, OBJ_CASE_INSENSITIVE, NULL, NULL);
 
 	Status = NtOpenKey(
@@ -224,7 +224,7 @@ STATIC NTSTATUS KexpRewriteDllName(
 	// choking up the dll rewrite.
 	//
 
-	RtlInitUnicodeString(&DotDll, L".dll");
+	RtlInitConstantUnicodeString(&DotDll, L".dll");
 
 	if (KexRtlUnicodeStringEndsWith(&DllName, &DotDll, TRUE)) {
 		DllName.Length -= DotDll.Length;
@@ -301,7 +301,11 @@ NTSTATUS KexRewriteImageImportDirectory(
 	PIMAGE_OPTIONAL_HEADER OptionalHeader;
 	PIMAGE_DATA_DIRECTORY ImportDirectory;
 	PIMAGE_IMPORT_DESCRIPTOR ImportDescriptor;
+	PVOID ImportTablePtr;
+	SIZE_T ImportTableSize;
 	BOOLEAN AtLeastOneImportWasRewritten;
+	ULONG OldProtect;
+
 	AtLeastOneImportWasRewritten = FALSE;
 
 	Status = RtlImageNtHeaderEx(RTL_IMAGE_NT_HEADER_EX_FLAG_NO_RANGE_CHECK, ImageBase, 0, &NtHeaders);
@@ -363,74 +367,61 @@ NTSTATUS KexRewriteImageImportDirectory(
 	}
 
 	//
+	// Set entire import directory to read-write.
+	//
+	
+	ImportTablePtr = ImportDescriptor;
+	ImportTableSize = ImportDirectory->Size;
+	Status = NtProtectVirtualMemory(
+		NtCurrentProcess(),
+		&ImportTablePtr,
+		&ImportTableSize,
+		PAGE_READWRITE,
+		&OldProtect);
+
+	if (!NT_SUCCESS(Status)) {
+		KexSrvLogErrorEvent(
+			L"Failed to change page protection\r\n\r\n"
+			L"on memory at base 0x%p (region size %hu)\r\n"
+			L"NTSTATUS error code: 0x%08lx",
+			ImportTablePtr,
+			ImportTableSize,
+			Status);
+
+		// Don't bother returning here. If we AV, the
+		// exception handler will deal with it.
+	}
+
+	//
 	// Walk through imports and rewrite each one if necessary.
 	//
 
 	do {
-		ULONG OldProtect;
 		PSTR DllNameBuffer;
-		SIZE_T DllNameBufferCb;
 		ANSI_STRING ImportedDllNameAnsi;
 
 		DllNameBuffer = (PSTR) RVA_TO_VA(ImageBase, ImportDescriptor->Name);
 		RtlInitAnsiString(&ImportedDllNameAnsi, DllNameBuffer);
-		DllNameBufferCb = ImportedDllNameAnsi.MaximumLength;
-
-		//
-		// Before we actually modify and write the DLL name, we will
-		// change memory protections to make sure we can do this.
-		//
-		//     TODO TODO TODO: We CAN in fact change porortections on the whole table.
-		//
-		// 1. We can't change memory protections on the entire import
-		//    directory because there is no guarantee that the DLL names
-		//    themselves actually reside here. So there is no potential
-		//    for optimization.
-		//
-		// 2. If changing memory protections here fails, we will not
-		//    rewrite the import, because it may lead to an access violation
-		//    and crash the process.
-		//
-
-		Status = NtProtectVirtualMemory(
-			NtCurrentProcess(),
-			(PPVOID) &DllNameBuffer,
-			&DllNameBufferCb,
-			PAGE_READWRITE,
-			&OldProtect);
-
-		if (!NT_SUCCESS(Status)) {
-			KexSrvLogErrorEvent(
-				L"Failed to change page protection\r\n\r\n"
-				L"on memory at base 0x%p (region size %hu)\r\n"
-				L"NTSTATUS error code: 0x%08lx",
-				ImportedDllNameAnsi.Buffer,
-				ImportedDllNameAnsi.MaximumLength,
-				Status);
-
-			continue;
-		}
 
 		Status = KexpRewriteDllName(&ImportedDllNameAnsi);
 		
 		if (NT_SUCCESS(Status)) {
 			AtLeastOneImportWasRewritten = TRUE;
 		}
-
-		// restore old permissions
-		NtProtectVirtualMemory(
-			NtCurrentProcess(),
-			(PPVOID) &DllNameBuffer,
-			&DllNameBufferCb,
-			OldProtect,
-			&OldProtect);
 	} while ((++ImportDescriptor)->Name != 0);
+
+	// restore old permissions
+	NtProtectVirtualMemory(
+		NtCurrentProcess(),
+		&ImportTablePtr,
+		&ImportTableSize,
+		OldProtect,
+		&OldProtect);
 
 	if (AtLeastOneImportWasRewritten) {
 		PIMAGE_DATA_DIRECTORY BoundImportDirectory;
 		PVOID DataDirectoryPtr;
 		SIZE_T DataDirectorySize;
-		ULONG OldProtect;
 
 		//
 		// A Bound Import Directory will cause process initialization to fail if we have rewritten

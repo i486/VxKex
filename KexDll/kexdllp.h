@@ -98,3 +98,14 @@ NORETURN VOID KexHeErrorBox(
 
 NTSTATUS KexpAddKex3264ToDllPath(
 	VOID);
+
+NTSTATUS KexInitializePropagation(
+	VOID);
+
+NTSTATUS KexDisableAVrf(
+	VOID);
+
+VOID NTAPI KexDllInitializeThunk(
+	IN	PVOID	NormalContext,
+	IN	PVOID	SystemArgument1,
+	IN	PVOID	SystemArgument2);

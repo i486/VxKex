@@ -2031,6 +2031,11 @@ typedef enum _SECTION_INFORMATION_CLASS {
 	MaxSectionInfoClass
 } SECTION_INFORMATION_CLASS;
 
+typedef VOID (*PKNORMAL_ROUTINE) (
+	IN PVOID NormalContext,
+	IN PVOID SystemArgument1,
+	IN PVOID SystemArgument2);
+
 #pragma endregion
 
 STATIC CONST PKUSER_SHARED_DATA SharedUserData = (PKUSER_SHARED_DATA) 0x7FFE0000;
@@ -2381,17 +2386,17 @@ NTSYSCALLAPI NTSTATUS NTAPI NtWriteRequestData(
 	OUT		PSIZE_T				NumberOfBytesWritten OPTIONAL);
 
 NTSYSCALLAPI NTSTATUS NTAPI NtCreateUserProcess(
-    OUT		PHANDLE							ProcessHandle,
-    OUT		PHANDLE							ThreadHandle,
-    IN		ACCESS_MASK						ProcessDesiredAccess,
-    IN		ACCESS_MASK						ThreadDesiredAccess,
-    IN		POBJECT_ATTRIBUTES				ProcessObjectAttributes OPTIONAL,
-    IN		POBJECT_ATTRIBUTES				ThreadObjectAttributes OPTIONAL,
-    IN		ULONG							ProcessFlags,
-    IN		ULONG							ThreadFlags,
-    IN		PRTL_USER_PROCESS_PARAMETERS	ProcessParameters,
-    IN OUT	PPS_CREATE_INFO					CreateInfo,
-    IN		PPS_ATTRIBUTE_LIST				AttributeList OPTIONAL);
+	OUT		PHANDLE							ProcessHandle,
+	OUT		PHANDLE							ThreadHandle,
+	IN		ACCESS_MASK						ProcessDesiredAccess,
+	IN		ACCESS_MASK						ThreadDesiredAccess,
+	IN		POBJECT_ATTRIBUTES				ProcessObjectAttributes OPTIONAL,
+	IN		POBJECT_ATTRIBUTES				ThreadObjectAttributes OPTIONAL,
+	IN		ULONG							ProcessFlags,
+	IN		ULONG							ThreadFlags,
+	IN		PRTL_USER_PROCESS_PARAMETERS	ProcessParameters,
+	IN OUT	PPS_CREATE_INFO					CreateInfo,
+	IN		PPS_ATTRIBUTE_LIST				AttributeList OPTIONAL);
 
 NTSYSCALLAPI NTSTATUS NTAPI NtDelayExecution(
 	IN		BOOLEAN						Alertable,
@@ -2611,6 +2616,13 @@ NTSYSCALLAPI NTSTATUS NTAPI NtMapViewOfSection(
 NTSYSCALLAPI NTSTATUS NTAPI NtUnmapViewOfSection(
 	IN		HANDLE						ProcessHandle,
 	IN		PVOID						BaseAddress);
+
+NTSYSCALLAPI NTSTATUS NTAPI NtQueueApcThread(
+	IN		HANDLE						ThreadHandle,
+	IN		PKNORMAL_ROUTINE			ApcRoutine,
+	IN		PVOID						NormalContext,
+	IN		PVOID						SystemArgument1,
+	IN		PVOID						SystemArgument2);
 
 #pragma endregion
 
@@ -2952,6 +2964,18 @@ NTSYSAPI BOOLEAN NTAPI RtlExpandHashTable(
 NTSYSAPI BOOLEAN NTAPI RtlContractHashTable(
 	IN		PRTL_DYNAMIC_HASH_TABLE				HashTable);
 
+NTSYSAPI VOID NTAPI RtlApplicationVerifierStop(
+    IN	ULONG_PTR		Code,
+    IN	PCHAR			Message,
+    IN	ULONG_PTR		Param1,
+	IN	PCHAR			Description1,
+	IN	ULONG_PTR		Param2,
+	IN	PCHAR			Description2,
+    IN	ULONG_PTR		Param3,
+	IN	PCHAR			Description3,
+    IN	ULONG_PTR		Param4,
+	IN	PCHAR			Description4);
+
 #pragma endregion
 
 #pragma region Ldr* function declarations
@@ -3060,6 +3084,17 @@ NTSYSAPI ULONG NTAPI DbgPrintEx(
 
 // example: UNICODE_STRING Name = RTL_CONSTANT_STRING(L"\\??\\pipe\\Something");
 #define RTL_CONSTANT_STRING(s) { sizeof( s ) - sizeof( (s)[0] ), sizeof( s ), s }
+
+// This macro is compatible with RtlInitUnicodeString when you are initializing
+// a UNICODE_STRING using a string literal.
+// Initializing local variables at declaration is forbidden by VxKex coding style,
+// so use this macro instead of RTL_CONSTANT_STRING whenever possible.
+#define RtlInitConstantUnicodeString(UnicodeString, StringLiteral) do { \
+	(UnicodeString)->Length = sizeof(StringLiteral) - sizeof((StringLiteral)[0]); \
+	(UnicodeString)->MaximumLength = sizeof(StringLiteral); \
+	(UnicodeString)->Buffer = StringLiteral; \
+} while(0)
+#define RtlInitConstantAnsiString RtlInitConstantUnicodeString
 
 #define DECLARE_CONST_UNICODE_STRING(_variablename, _string) \
 	const WCHAR _variablename ## _buffer[] = _string; \

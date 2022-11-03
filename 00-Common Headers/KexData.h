@@ -62,4 +62,6 @@ typedef struct _KEX_PROCESS_DATA {
 	UNICODE_STRING			KexDir;						// e.g. C:\Program Files\VxKex
 	UNICODE_STRING			ImageBaseName;				// e.g. program.exe
 	HANDLE					SrvChannel;
+	PVOID					KexDllBase;
+	PVOID					SystemDllBase;				// NTDLL base
 } TYPEDEF_TYPE_NAME(KEX_PROCESS_DATA);

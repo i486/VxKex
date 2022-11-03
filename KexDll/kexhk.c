@@ -17,10 +17,6 @@
 //     else. In other terms, only if you have a complete re-implementation of
 //     the function you are hooking (which is easy for Nt* syscall stubs).
 //
-//     In the future, a simple disassembler should be added so that these
-//     hooks can remain active throughout the entire life of the process, once
-//     initialized.
-//
 // Author:
 //
 //     vxiiduu (23-Oct-2022)
@@ -67,7 +63,7 @@ STATIC BYTE BasicHookTemplate[BASIC_HOOK_LENGTH] = {
 NTSTATUS NTAPI KexHkInstallBasicHook(
 	IN		PVOID					ApiAddress,
 	IN		PVOID					RedirectedAddress,
-	OUT		PKEX_BASIC_HOOK_CONTEXT	HookContext OPTIONAL) PROTECTED_FUNCTION
+	OUT		PKEX_BASIC_HOOK_CONTEXT	HookContext OPTIONAL)
 {
 	NTSTATUS Status;
 	PVOID ApiPageAddress;
@@ -82,10 +78,6 @@ NTSTATUS NTAPI KexHkInstallBasicHook(
 		return STATUS_INVALID_PARAMETER_2;
 	}
 
-	if (!HookContext) {
-		return STATUS_INVALID_PARAMETER_3;
-	}
-
 	ApiPageAddress = ApiAddress;
 	HookLength = sizeof(BasicHookTemplate);
 	
@@ -98,19 +90,27 @@ NTSTATUS NTAPI KexHkInstallBasicHook(
 	if (HookContext) {
 		HookContext->OriginalApiAddress = ApiAddress;
 		
-		RtlCopyMemory(
+		KexRtlCopyMemory(
 			HookContext->OriginalInstructions,
 			ApiAddress,
 			sizeof(BasicHookTemplate));
 	}
 
-	*(PPVOID) &BasicHookTemplate[BASIC_HOOK_DESTINATION_OFFSET] = RedirectedAddress;
+	*(PPVOID) (&BasicHookTemplate[BASIC_HOOK_DESTINATION_OFFSET]) = RedirectedAddress;
 	
 	//
 	// Let us write to the address of the hooked API.
+	// We use the KexNt* private syscall stub because otherwise we risk changing
+	// memory protection on the NtProtectVirtualMemory stub itself, and therefore
+	// causing recursive access violation exceptions upon return from the system
+	// call. (This actually happened, not just theoretical.)
+	//
+	// A second reason for using the KexNt* stub is because KexHkInstallBasicHook
+	// can be called within KexDllInitializeThunk, and we can't call any NTDLL
+	// exports.
 	//
 
-	Status = NtProtectVirtualMemory(
+	Status = KexNtProtectVirtualMemory(
 		NtCurrentProcess(),
 		&ApiPageAddress,
 		&HookLength,
@@ -125,9 +125,9 @@ NTSTATUS NTAPI KexHkInstallBasicHook(
 	// Hook the function and restore old page protections.
 	//
 
-	RtlCopyMemory(ApiAddress, BasicHookTemplate, sizeof(BasicHookTemplate));
+	KexRtlCopyMemory(ApiAddress, BasicHookTemplate, sizeof(BasicHookTemplate));
 
-	NtProtectVirtualMemory(
+	KexNtProtectVirtualMemory(
 		NtCurrentProcess(),
 		&ApiPageAddress,
 		&HookLength,
@@ -135,7 +135,7 @@ NTSTATUS NTAPI KexHkInstallBasicHook(
 		&OldProtect);
 
 	return STATUS_SUCCESS;
-} PROTECTED_FUNCTION_END
+}
 
 NTSTATUS NTAPI KexHkRemoveBasicHook(
 	IN		PKEX_BASIC_HOOK_CONTEXT	HookContext) PROTECTED_FUNCTION

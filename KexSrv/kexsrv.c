@@ -51,7 +51,7 @@ NORETURN VOID EntryPoint(
 
 	KexgApplicationFriendlyName = FRIENDLYAPPNAME;
 
-	RtlInitUnicodeString(&PipeName, KEXSRV_IPC_CHANNEL_NAME);
+	RtlInitConstantUnicodeString(&PipeName, KEXSRV_IPC_CHANNEL_NAME);
 	InitializeObjectAttributes(&ObjectAttributes, &PipeName, 0, NULL, NULL);
 
 	FailureDelay.QuadPart = -(10 * 1000 * 10000); // 10 s

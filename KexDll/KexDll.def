@@ -26,3 +26,6 @@ EXPORTS
 	KexSrvSendMessage
 	KexSrvNotifyProcessStart
 	KexSrvLogEventEx
+
+	KexNtQuerySystemTime
+	KexNtCreateUserProcess

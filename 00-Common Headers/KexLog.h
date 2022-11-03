@@ -29,4 +29,6 @@
 #include <KexComm.h>
 #include <VXLL.h>
 
-#pragma comment(lib, "VXLL.lib")
+#ifdef KEX_ENV_WIN32
+#  pragma comment(lib, "VXLL.lib")
+#endif

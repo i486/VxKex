@@ -62,6 +62,18 @@
     <ClCompile Include="dllpath.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="propagte.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="syscal32.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="avrf.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="inithunk.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="KexDll.def">
@@ -74,7 +86,7 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <MASM Include="systime.asm">
+    <MASM Include="syscal64.asm">
       <Filter>Source Files</Filter>
     </MASM>
   </ItemGroup>

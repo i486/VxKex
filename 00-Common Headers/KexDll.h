@@ -24,14 +24,11 @@
 
 #ifndef KEXAPI
 #  pragma comment(lib, "KexDll.lib")
+#  define KEXAPI DECLSPEC_IMPORT
 #endif
 
 #ifndef KEX_COMPONENT
 #  error You must define a Unicode component name as the KEX_COMPONENT macro.
-#endif
-
-#ifndef KEXAPI
-#  define KEXAPI DECLSPEC_IMPORT
 #endif
 
 //
@@ -86,6 +83,8 @@
 #define NTSTATUS_ERROR				(0xC0000000L)
 #define NTSTATUS_CUSTOMER			(0x20000000L)
 #define DEFINE_KEX_NTSTATUS(Severity, Number) (NTSTATUS_CUSTOMER | Severity | Number)
+
+#define STATUS_USER_DISABLED					DEFINE_KEX_NTSTATUS(NTSTATUS_INFORMATIONAL, 0)
 
 #define STATUS_IMAGE_NO_IMPORT_DIRECTORY		DEFINE_KEX_NTSTATUS(NTSTATUS_ERROR, 0)
 #define STATUS_STRING_MAPPER_ENTRY_NOT_FOUND	DEFINE_KEX_NTSTATUS(NTSTATUS_ERROR, 1)
@@ -228,6 +227,8 @@ KEXAPI NTSTATUS NTAPI KexRtlBatchApplyStringMapper(
 #  define KexRtlCurrentProcessBitness() (32)
 #endif
 
+#define KexRtlOperatingSystemBitness() (SharedUserData->SystemCall != 0 ? 32 : 64)
+
 #define KexRtlUpdateNullTerminatedUnicodeStringLength(UnicodeString) ((UnicodeString)->Length = (USHORT) (wcslen((UnicodeString)->Buffer) << 1))
 #define KexRtlUpdateNullTerminatedAnsiStringLength(AnsiString) ((AnsiString)->Length = (USHORT) wcslen((AnsiString)->Buffer))
 #define KexRtlUnicodeStringCch(UnicodeString) ((UnicodeString)->Length / sizeof(WCHAR))
@@ -235,6 +236,7 @@ KEXAPI NTSTATUS NTAPI KexRtlBatchApplyStringMapper(
 #define KexRtlAnsiStringCch(AnsiString) ((AnsiString)->Length)
 #define KexRtlAnsiStringBufferCch(AnsiString) ((AnsiString)->MaximumLength)
 #define KexRtlEndOfUnicodeString(UnicodeString) ((UnicodeString)->Buffer + KexRtlUnicodeStringCch(UnicodeString))
+#define KexRtlCopyMemory(Destination, Source, Cb) __movsb((PUCHAR) (Destination), (PUCHAR) (Source), (Cb))
 
 KEXAPI NTSTATUS NTAPI KexSrvOpenChannel(
 	OUT	PHANDLE	ChannelHandle);
@@ -285,10 +287,37 @@ typedef struct _KEX_BASIC_HOOK_CONTEXT {
 	BYTE OriginalInstructions[BASIC_HOOK_LENGTH];
 } TYPEDEF_TYPE_NAME(KEX_BASIC_HOOK_CONTEXT);
 
-NTSTATUS NTAPI KexHkInstallBasicHook(
+KEXAPI NTSTATUS NTAPI KexHkInstallBasicHook(
 	IN		PVOID					ApiAddress,
 	IN		PVOID					RedirectedAddress,
 	OUT		PKEX_BASIC_HOOK_CONTEXT	HookContext OPTIONAL);
 
-NTSTATUS NTAPI KexHkRemoveBasicHook(
+KEXAPI NTSTATUS NTAPI KexHkRemoveBasicHook(
 	IN		PKEX_BASIC_HOOK_CONTEXT	HookContext);
+
+//
+// KexNt* syscall stubs (see syscal32.c and syscal64.asm)
+//
+
+KEXAPI NTSTATUS NTAPI KexNtQuerySystemTime(
+	OUT		PULONGLONG	CurrentTime);
+
+KEXAPI NTSTATUS NTAPI KexNtCreateUserProcess(
+	OUT		PHANDLE							ProcessHandle,
+	OUT		PHANDLE							ThreadHandle,
+	IN		ACCESS_MASK						ProcessDesiredAccess,
+	IN		ACCESS_MASK						ThreadDesiredAccess,
+	IN		POBJECT_ATTRIBUTES				ProcessObjectAttributes OPTIONAL,
+	IN		POBJECT_ATTRIBUTES				ThreadObjectAttributes OPTIONAL,
+	IN		ULONG							ProcessFlags,
+	IN		ULONG							ThreadFlags,
+	IN		PRTL_USER_PROCESS_PARAMETERS	ProcessParameters,
+	IN OUT	PPS_CREATE_INFO					CreateInfo,
+	IN		PPS_ATTRIBUTE_LIST				AttributeList OPTIONAL);
+
+KEXAPI NTSTATUS NTAPI KexNtProtectVirtualMemory(
+	IN		HANDLE		ProcessHandle,
+	IN OUT	PPVOID		BaseAddress,
+	IN OUT	PSIZE_T		RegionSize,
+	IN		ULONG		NewProtect,
+	OUT		PULONG		OldProtect);

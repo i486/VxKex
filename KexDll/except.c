@@ -39,10 +39,13 @@ ULONG KexDllProtectedFunctionExceptionFilter(
 		switch (ExceptionRecord->ExceptionInformation[0]) {
 		case 0:
 			AccessType = L"read";
+			break;
 		case 1:
 			AccessType = L"write";
+			break;
 		case 8:
 			AccessType = L"execute";
+			break;
 		default:
 			NOT_REACHED;
 		}

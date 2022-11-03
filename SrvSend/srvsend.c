@@ -116,7 +116,7 @@ BOOLEAN ConnectToKexSrv(
 
 	ASSERT (ChannelHandle == NULL);
 
-	RtlInitUnicodeString(&ChannelName, KEXSRV_IPC_CHANNEL_NAME);
+	RtlInitConstantUnicodeString(&ChannelName, KEXSRV_IPC_CHANNEL_NAME);
 	InitializeObjectAttributes(&ObjectAttributes, &ChannelName, 0, NULL, NULL);
 
 	Status = NtOpenFile(
