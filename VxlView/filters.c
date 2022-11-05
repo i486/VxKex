@@ -155,8 +155,10 @@ VOID BuildBackendFilters(
 	ComponentListWindow = GetDlgItem(FilterWindow, IDC_COMPONENTLIST);
 	NumberOfComponents = ListView_GetItemCount(ComponentListWindow);
 
-	for (Index = 0; Index < NumberOfComponents; Index++) {
-		Filters->ComponentFilters[Index] = ListView_GetCheckState(ComponentListWindow, Index);
+	for (Index = 0; Index < NumberOfComponents; ++Index) {
+		Filters->ComponentFilters[Index] = ListView_GetCheckState(
+			ComponentListWindow, 
+			NumberOfComponents - Index - 1);
 	}
 }
 

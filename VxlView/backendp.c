@@ -166,10 +166,10 @@ PLOGENTRYCACHEENTRY GetLogEntryRaw(
 //
 // This method is way faster than doing anything else.
 //
-USHORT GetSourceComponentIndex(
+FORCEINLINE USHORT GetSourceComponentIndex(
 	IN	PCWSTR	SourceComponentString)
 {
-	return (USHORT) ((ULONG_PTR) SourceComponentString - (ULONG_PTR) State->LogHandle->Header.SourceComponents[0]) >> 4;
+	return (USHORT) (((ULONG_PTR) SourceComponentString - (ULONG_PTR) State->LogHandle->Header.SourceComponents[0]) >> 5);
 }
 
 BOOLEAN LogEntryMatchesFilters(
