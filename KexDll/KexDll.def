@@ -11,6 +11,9 @@ EXPORTS
 	KexRtlFindUnicodeSubstring
 	KexRtlAdvanceUnicodeString
 	KexRtlRetreatUnicodeString
+	KexRtlGetNativeSystemDllBase
+	KexRtlMiniGetProcedureAddress
+	KexRtlWriteProcessMemory
 
 	KexRtlCreateStringMapper
 	KexRtlDeleteStringMapper
@@ -29,3 +32,12 @@ EXPORTS
 
 	KexNtQuerySystemTime
 	KexNtCreateUserProcess
+	KexNtProtectVirtualMemory
+	KexNtAllocateVirtualMemory
+	KexNtQueryVirtualMemory
+	KexNtFreeVirtualMemory
+	KexNtQueryObject
+	KexNtRaiseHardError
+
+	KexpNtOpenKeyHook
+	KexpNtOpenKeyExHook

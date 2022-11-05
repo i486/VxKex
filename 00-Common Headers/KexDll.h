@@ -181,6 +181,23 @@ KEXAPI VOID NTAPI KexRtlRetreatUnicodeString(
 	OUT	PUNICODE_STRING	String,
 	IN	USHORT			RetreatCb);
 
+KEXAPI PVOID NTAPI KexRtlGetNativeSystemDllBase(
+	VOID);
+
+KEXAPI NTSTATUS NTAPI KexRtlMiniGetProcedureAddress(
+	IN	PVOID	DllBase,
+	IN	PCSTR	ProcedureName,
+	OUT	PPVOID	ProcedureAddress);
+
+KEXAPI ULONG NTAPI KexRtlRemoteProcessBitness(
+	IN	HANDLE	ProcessHandle);
+
+NTSTATUS NTAPI KexRtlWriteProcessMemory(
+	IN	HANDLE		ProcessHandle,
+	IN	ULONG_PTR	Destination,
+	IN	PVOID		Source,
+	IN	SIZE_T		Cb);
+
 KEXAPI NTSTATUS NTAPI KexRtlCreateStringMapper(
 	OUT		PPKEX_RTL_STRING_MAPPER		StringMapper,
 	IN		ULONG						Flags OPTIONAL);
@@ -227,7 +244,11 @@ KEXAPI NTSTATUS NTAPI KexRtlBatchApplyStringMapper(
 #  define KexRtlCurrentProcessBitness() (32)
 #endif
 
-#define KexRtlOperatingSystemBitness() (SharedUserData->SystemCall != 0 ? 32 : 64)
+#ifdef KEX_ARCH_X64
+#  define KexRtlOperatingSystemBitness() (64)
+#else
+#  define KexRtlOperatingSystemBitness() (SharedUserData->SystemCall != 0 ? 32 : 64)
+#endif
 
 #define KexRtlUpdateNullTerminatedUnicodeStringLength(UnicodeString) ((UnicodeString)->Length = (USHORT) (wcslen((UnicodeString)->Buffer) << 1))
 #define KexRtlUpdateNullTerminatedAnsiStringLength(AnsiString) ((AnsiString)->Length = (USHORT) wcslen((AnsiString)->Buffer))
@@ -321,3 +342,65 @@ KEXAPI NTSTATUS NTAPI KexNtProtectVirtualMemory(
 	IN OUT	PSIZE_T		RegionSize,
 	IN		ULONG		NewProtect,
 	OUT		PULONG		OldProtect);
+
+KEXAPI NTSTATUS NTAPI KexNtAllocateVirtualMemory(
+	IN		HANDLE		ProcessHandle,
+	IN OUT	PVOID		*BaseAddress,
+	IN		ULONG_PTR	ZeroBits,
+	IN OUT	PSIZE_T		RegionSize,
+	IN		ULONG		AllocationType,
+	IN		ULONG		Protect);
+
+KEXAPI NTSTATUS NTAPI KexNtQueryVirtualMemory(
+	IN		HANDLE			ProcessHandle,
+	IN		PVOID			BaseAddress OPTIONAL,
+	IN		MEMINFOCLASS	MemoryInformationClass,
+	OUT		PVOID			MemoryInformation,
+	IN		SIZE_T			MemoryInformationLength,
+	OUT		PSIZE_T			ReturnLength OPTIONAL);
+
+KEXAPI NTSTATUS NTAPI KexNtFreeVirtualMemory(
+	IN		HANDLE		ProcessHandle,
+	IN OUT	PVOID		*BaseAddress,
+	IN OUT	PSIZE_T		RegionSize,
+	IN		ULONG		FreeType);
+
+KEXAPI NTSTATUS NTAPI KexNtOpenKeyEx(
+	OUT		PHANDLE						KeyHandle,
+	IN		ACCESS_MASK					DesiredAccess,
+	IN		POBJECT_ATTRIBUTES			ObjectAttributes,
+	IN		ULONG						OpenOptions);
+
+KEXAPI NTSTATUS NTAPI KexNtQueryObject(
+	IN		HANDLE						ObjectHandle,
+	IN		OBJECT_INFORMATION_CLASS	ObjectInformationClass,
+	OUT		PVOID						ObjectInformation,
+	IN		ULONG						Length,
+	OUT		PULONG						ReturnLength OPTIONAL);
+
+KEXAPI NTSTATUS NTAPI KexNtOpenFile(
+	OUT		PHANDLE				FileHandle,
+	IN		ACCESS_MASK			DesiredAccess,
+	IN		POBJECT_ATTRIBUTES	ObjectAttributes,
+	OUT		PIO_STATUS_BLOCK	IoStatusBlock,
+	IN		ULONG				ShareAccess,
+	IN		ULONG				OpenOptions);
+
+KEXAPI NTSTATUS NTAPI KexNtWriteFile(
+	IN		HANDLE				FileHandle,
+	IN		HANDLE				Event OPTIONAL,
+	IN		PIO_APC_ROUTINE		ApcRoutine OPTIONAL,
+	IN		PVOID				ApcContext OPTIONAL,
+	OUT		PIO_STATUS_BLOCK	IoStatusBlock,
+	IN		PVOID				Buffer,
+	IN		ULONG				Length,
+	IN		PLARGE_INTEGER		ByteOffset OPTIONAL,
+	IN		PULONG				Key OPTIONAL);
+
+KEXAPI NTSTATUS NTAPI KexNtRaiseHardError(
+	IN	NTSTATUS	ErrorStatus,
+	IN	ULONG		NumberOfParameters,
+	IN	ULONG		UnicodeStringParameterMask,
+	IN	PULONG_PTR	Parameters,
+	IN	ULONG		ValidResponseOptions,
+	OUT	PULONG		Response);

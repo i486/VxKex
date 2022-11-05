@@ -135,9 +135,6 @@ STATIC NTSTATUS KexpInitializeIfeoParameters(
 KEXAPI NTSTATUS NTAPI KexDataInitialize(
 	OUT	PPKEX_PROCESS_DATA	KexDataOut OPTIONAL) PROTECTED_FUNCTION
 {
-	NTSTATUS Status;
-	UNICODE_STRING NtdllName;
-
 	if (KexData) {
 		// Already initialized - fail
 		return STATUS_ACCESS_DENIED;
@@ -155,14 +152,10 @@ KEXAPI NTSTATUS NTAPI KexDataInitialize(
 	KexpInitializeGlobalConfig();
 
 	//
-	// Get NTDLL base address.
+	// Get native NTDLL base address.
 	//
 	
-	RtlInitConstantUnicodeString(&NtdllName, L"ntdll.dll");
-	Status = LdrGetDllHandleByName(&NtdllName, NULL, &_KexData.SystemDllBase);
-	if (!NT_SUCCESS(Status)) {
-		_KexData.SystemDllBase = NULL;
-	}
+	_KexData.SystemDllBase = KexRtlGetNativeSystemDllBase();
 
 	//
 	// All done

@@ -16,6 +16,14 @@ ENDM
 GENERATE_SYSCALL KexNtQuerySystemTime,							0057h
 GENERATE_SYSCALL KexNtCreateUserProcess,						00AAh
 GENERATE_SYSCALL KexNtProtectVirtualMemory,						004Dh
+GENERATE_SYSCALL KexNtAllocateVirtualMemory,					0015h
+GENERATE_SYSCALL KexNtQueryVirtualMemory,						0020h
+GENERATE_SYSCALL KexNtFreeVirtualMemory,						001Bh
+GENERATE_SYSCALL KexNtOpenKeyEx,								00F2h
+GENERATE_SYSCALL KexNtQueryObject,								000Dh
+GENERATE_SYSCALL KexNtOpenFile,									0030h
+GENERATE_SYSCALL KexNtWriteFile,								0005h
+GENERATE_SYSCALL KexNtRaiseHardError,							0130h
 
 _TEXT ENDS
 

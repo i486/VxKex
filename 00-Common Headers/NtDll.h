@@ -202,6 +202,7 @@
 #define RTL_USER_PROCESS_PARAMETERS_LOCAL_DLL_PATH          0x2000
 #define RTL_USER_PROCESS_PARAMETERS_IMAGE_KEY_MISSING       0x4000
 #define RTL_USER_PROCESS_PARAMETERS_NX                      0x20000
+#define RTL_USER_PROCESS_PARAMETERS_USER_CALLBACK_FILTER	0x80000 // see LdrpIsSystemwideUserCallbackExceptionFilterDisabled
 
 #define PROCESS_CREATE_FLAGS_BREAKAWAY 0x00000001 // NtCreateProcessEx & NtCreateUserProcess
 #define PROCESS_CREATE_FLAGS_NO_DEBUG_INHERIT 0x00000002 // NtCreateProcessEx & NtCreateUserProcess
@@ -2036,11 +2037,71 @@ typedef VOID (*PKNORMAL_ROUTINE) (
 	IN PVOID SystemArgument1,
 	IN PVOID SystemArgument2);
 
+typedef enum _OBJECT_INFORMATION_CLASS {
+	ObjectBasicInformation,				// OBJECT_BASIC_INFORMATION
+	ObjectNameInformation,				// UNICODE_STRING
+	ObjectTypeInformation,				// OBJECT_TYPE_INFORMATION
+	ObjectTypesInformation,				// ULONG (NumberOfTypes)
+	ObjectHandleFlagInformation,		// OBJECT_HANDLE_FLAG_INFORMATION
+	ObjectSessionInformation,			// none, set only, and requires SeTcbPrivilege
+	MaxObjectInfoClass
+} OBJECT_INFORMATION_CLASS;
+
+typedef struct _OBJECT_BASIC_INFORMATION {
+	ULONG			Attributes;
+	ACCESS_MASK		GrantedAccess;
+	ULONG			HandleCount;
+	ULONG			PointerCount;
+	ULONG			PagedPoolCharge;
+	ULONG			NonPagedPoolCharge;
+	ULONG			Reserved[3];
+	ULONG			NameInfoSize;
+	ULONG			TypeInfoSize;
+	ULONG			SecurityDescriptorSize;
+	LARGE_INTEGER	CreationTime;
+} TYPEDEF_TYPE_NAME(OBJECT_BASIC_INFORMATION);
+
+typedef struct _OBJECT_TYPE_INFORMATION {
+	UNICODE_STRING	TypeName;
+	ULONG			TotalNumberOfObjects;
+	ULONG			TotalNumberOfHandles;
+	ULONG			TotalPagedPoolUsage;
+	ULONG			TotalNonPagedPoolUsage;
+	ULONG			TotalNamePoolUsage;
+	ULONG			TotalHandleTableUsage;
+	ULONG			HighWaterNumberOfObjects;
+	ULONG			HighWaterNumberOfHandles;
+	ULONG			HighWaterPagedPoolUsage;
+	ULONG			HighWaterNonPagedPoolUsage;
+	ULONG			HighWaterNamePoolUsage;
+	ULONG			HighWaterHandleTableUsage;
+	ULONG			InvalidAttributes;
+	GENERIC_MAPPING	GenericMapping;
+	ULONG			ValidAccessMask;
+	BOOLEAN			SecurityRequired;
+	BOOLEAN			MaintainHandleCount;
+	ULONG			PoolType;
+	ULONG			DefaultPagedPoolCharge;
+	ULONG			DefaultNonPagedPoolCharge;
+} TYPEDEF_TYPE_NAME(OBJECT_TYPE_INFORMATION);
+
+typedef struct _OBJECT_HANDLE_FLAG_INFORMATION {
+	BOOLEAN			Inherit;
+	BOOLEAN			ProtectFromClose;
+} TYPEDEF_TYPE_NAME(OBJECT_HANDLE_FLAG_INFORMATION);
+
 #pragma endregion
 
 STATIC CONST PKUSER_SHARED_DATA SharedUserData = (PKUSER_SHARED_DATA) 0x7FFE0000;
 
 #pragma region Nt* function declarations
+
+NTSYSCALLAPI NTSTATUS NTAPI NtQueryObject(
+	IN		HANDLE						ObjectHandle,
+	IN		OBJECT_INFORMATION_CLASS	ObjectInformationClass,
+	OUT		PVOID						ObjectInformation,
+	IN		ULONG						Length,
+	OUT		PULONG						ReturnLength OPTIONAL);
 
 NTSYSCALLAPI NTSTATUS NTAPI NtFlushInstructionCache(
 	IN	HANDLE			ProcessHandle,
@@ -2468,6 +2529,12 @@ NTSYSCALLAPI NTSTATUS NTAPI NtOpenKey(
 	IN		ACCESS_MASK					DesiredAccess,
 	IN		POBJECT_ATTRIBUTES			ObjectAttributes);
 
+NTSYSCALLAPI NTSTATUS NTAPI NtOpenKeyEx(
+	OUT		PHANDLE						KeyHandle,
+	IN		ACCESS_MASK					DesiredAccess,
+	IN		POBJECT_ATTRIBUTES			ObjectAttributes,
+	IN		ULONG						OpenOptions);
+
 NTSYSCALLAPI NTSTATUS NTAPI NtQueryKey(
 	IN		HANDLE						KeyHandle,
 	IN		KEY_INFORMATION_CLASS		KeyInformationClass,
@@ -2623,6 +2690,9 @@ NTSYSCALLAPI NTSTATUS NTAPI NtQueueApcThread(
 	IN		PVOID						NormalContext,
 	IN		PVOID						SystemArgument1,
 	IN		PVOID						SystemArgument2);
+
+NTSYSCALLAPI NTSTATUS NTAPI NtAlertThread(
+	IN		HANDLE						ThreadHandle);
 
 #pragma endregion
 

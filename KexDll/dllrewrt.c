@@ -18,6 +18,7 @@
 //
 //     vxiiduu              18-Oct-2022  Initial creation.
 //     vxiiduu              22-Oct-2022  Bound imports are now erased
+//     vxiiduu              03-Nov-2022  Optimize KexRewriteImageImportDirectory
 //
 ///////////////////////////////////////////////////////////////////////////////
 

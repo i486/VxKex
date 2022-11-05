@@ -90,9 +90,6 @@ NTSTATUS KexRewriteImageImportDirectory(
 NTSTATUS KexHeInstallHandler(
 	VOID);
 
-NTSTATUS KexHeRemoveHandler(
-	VOID);
-
 NORETURN VOID KexHeErrorBox(
 	IN	PCWSTR	ErrorMessage);
 
@@ -109,3 +106,14 @@ VOID NTAPI KexDllInitializeThunk(
 	IN	PVOID	NormalContext,
 	IN	PVOID	SystemArgument1,
 	IN	PVOID	SystemArgument2);
+
+NTSTATUS NTAPI KexpNtOpenKeyExHook(
+	OUT		PHANDLE						KeyHandle,
+	IN		ACCESS_MASK					DesiredAccess,
+	IN		POBJECT_ATTRIBUTES			ObjectAttributes,
+	IN		ULONG						OpenOptions);
+
+NTSTATUS NTAPI KexpNtOpenKeyHook(
+	OUT		PHANDLE						KeyHandle,
+	IN		ACCESS_MASK					DesiredAccess,
+	IN		POBJECT_ATTRIBUTES			ObjectAttributes);

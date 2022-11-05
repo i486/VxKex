@@ -71,9 +71,6 @@
     <ClCompile Include="avrf.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="inithunk.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="KexDll.def">

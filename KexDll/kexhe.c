@@ -21,6 +21,7 @@
 // Revision History:
 //
 //     vxiiduu              29-Oct-2022  Initial creation.
+//     vxiiduu              05-Nov-2022  Remove ability to remove the HE hook.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -28,12 +29,11 @@
 #include "kexdllp.h"
 #include <KexLog.h>
 
-STATIC KEX_BASIC_HOOK_CONTEXT KexHeHookContext;
-
 //
 // Send a message to KexSrv that contains the error and its parameters.
+// If not connected to KexSrv, fall back to original API.
 //
-STATIC NTSTATUS NTAPI KexHepHardErrorHandler(
+STATIC NTSTATUS NTAPI KexpNtRaiseHardErrorHook(
 	IN	NTSTATUS	ErrorStatus,
 	IN	ULONG		NumberOfParameters,
 	IN	ULONG		UnicodeStringParameterMask,
@@ -135,15 +135,13 @@ BailOut:
 	// call original NtRaiseHardError
 	//
 
-	KexHeRemoveHandler();
-	Status = NtRaiseHardError(
+	Status = KexNtRaiseHardError(
 		ErrorStatus,
 		NumberOfParameters,
 		UnicodeStringParameterMask,
 		Parameters,
 		ValidResponseOptions,
 		Response);
-	KexHeInstallHandler();
 
 	return Status;
 } PROTECTED_FUNCTION_END
@@ -157,36 +155,13 @@ NTSTATUS KexHeInstallHandler(
 		return STATUS_PORT_DISCONNECTED;
 	}
 
-	Status = KexHkInstallBasicHook(NtRaiseHardError, KexHepHardErrorHandler, &KexHeHookContext);
+	Status = KexHkInstallBasicHook(NtRaiseHardError, KexpNtRaiseHardErrorHook, NULL);
 
 	if (NT_SUCCESS(Status)) {
 		KexSrvLogInformationEvent(L"Successfully installed hard error handler.");
 	} else {
 		KexSrvLogErrorEvent(
 			L"Failed to install hard error handler\r\n\r\n"
-			L"NTSTATUS error code: 0x%08lx",
-			Status);
-	}
-
-	return Status;
-} PROTECTED_FUNCTION_END
-
-NTSTATUS KexHeRemoveHandler(
-	VOID) PROTECTED_FUNCTION
-{
-	NTSTATUS Status;
-
-	if (!KexData->SrvChannel) {
-		return STATUS_PORT_DISCONNECTED;
-	}
-
-	Status = KexHkRemoveBasicHook(&KexHeHookContext);
-
-	if (NT_SUCCESS(Status)) {
-		KexSrvLogInformationEvent(L"Successfully removed hard error handler.");
-	} else {
-		KexSrvLogErrorEvent(
-			L"Failed to remove hard error handler\r\n\r\n"
 			L"NTSTATUS error code: 0x%08lx",
 			Status);
 	}
@@ -204,13 +179,15 @@ NORETURN VOID KexHeErrorBox(
 		RtlInitUnicodeString(&ErrorString, ErrorMessage);
 		Parameter = &ErrorString;
 
-		KexHepHardErrorHandler(
+		KexpNtRaiseHardErrorHook(
 			STATUS_KEXDLL_INITIALIZATION_FAILURE,
 			1,
 			1,
 			(PULONG_PTR) &Parameter,
 			0,
 			NULL);
+	} else {
+		// TODO
 	}
 
 	NtTerminateProcess(NtCurrentProcess(), STATUS_KEXDLL_INITIALIZATION_FAILURE);

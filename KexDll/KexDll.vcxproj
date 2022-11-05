@@ -219,7 +219,6 @@
     <ClCompile Include="dllpath.c" />
     <ClCompile Include="dllrewrt.c" />
     <ClCompile Include="except.c" />
-    <ClCompile Include="inithunk.c" />
     <ClCompile Include="kexdata.c" />
     <ClCompile Include="kexhe.c" />
     <ClCompile Include="kexhk.c" />

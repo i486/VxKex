@@ -72,4 +72,66 @@ GENERATE_SYSCALL(NtProtectVirtualMemory,			0x00D7, 0x004D, 0x00, 0x14,
 	IN		ULONG		NewProtect,
 	OUT		PULONG		OldProtect);
 
+GENERATE_SYSCALL(NtAllocateVirtualMemory,			0x0013, 0x0015, 0x00, 0x18,
+	IN		HANDLE		ProcessHandle,
+	IN OUT	PVOID		*BaseAddress,
+	IN		ULONG_PTR	ZeroBits,
+	IN OUT	PSIZE_T		RegionSize,
+	IN		ULONG		AllocationType,
+	IN		ULONG		Protect);
+
+GENERATE_SYSCALL(NtQueryVirtualMemory,				0x010B, 0x0020, 0x00, 0x18,
+	IN		HANDLE			ProcessHandle,
+	IN		PVOID			BaseAddress OPTIONAL,
+	IN		MEMINFOCLASS	MemoryInformationClass,
+	OUT		PVOID			MemoryInformation,
+	IN		SIZE_T			MemoryInformationLength,
+	OUT		PSIZE_T			ReturnLength OPTIONAL);
+
+GENERATE_SYSCALL(NtFreeVirtualMemory,				0x0083, 0x001B, 0x00, 0x10,
+	IN		HANDLE		ProcessHandle,
+	IN OUT	PVOID		*BaseAddress,
+	IN OUT	PSIZE_T		RegionSize,
+	IN		ULONG		FreeType);
+
+GENERATE_SYSCALL(NtOpenKeyEx,						0x00B7, 0x00F2, 0x00, 0x10,
+	OUT		PHANDLE						KeyHandle,
+	IN		ACCESS_MASK					DesiredAccess,
+	IN		POBJECT_ATTRIBUTES			ObjectAttributes,
+	IN		ULONG						OpenOptions);
+
+GENERATE_SYSCALL(NtQueryObject,						0x00F8, 0x000D, 0x00, 0x14,
+	IN		HANDLE						ObjectHandle,
+	IN		OBJECT_INFORMATION_CLASS	ObjectInformationClass,
+	OUT		PVOID						ObjectInformation,
+	IN		ULONG						Length,
+	OUT		PULONG						ReturnLength OPTIONAL);
+
+GENERATE_SYSCALL(NtOpenFile,						0x00B3, 0x0030, 0x00, 0x18,
+	OUT		PHANDLE				FileHandle,
+	IN		ACCESS_MASK			DesiredAccess,
+	IN		POBJECT_ATTRIBUTES	ObjectAttributes,
+	OUT		PIO_STATUS_BLOCK	IoStatusBlock,
+	IN		ULONG				ShareAccess,
+	IN		ULONG				OpenOptions);
+
+GENERATE_SYSCALL(NtWriteFile,						0x018C, 0x0005, 0x1A, 0x24,
+	IN		HANDLE				FileHandle,
+	IN		HANDLE				Event OPTIONAL,
+	IN		PIO_APC_ROUTINE		ApcRoutine OPTIONAL,
+	IN		PVOID				ApcContext OPTIONAL,
+	OUT		PIO_STATUS_BLOCK	IoStatusBlock,
+	IN		PVOID				Buffer,
+	IN		ULONG				Length,
+	IN		PLARGE_INTEGER		ByteOffset OPTIONAL,
+	IN		PULONG				Key OPTIONAL);
+
+GENERATE_SYSCALL(NtRaiseHardError,					0x0110, 0x0130, 0x00, 0x18,
+	IN	NTSTATUS	ErrorStatus,
+	IN	ULONG		NumberOfParameters,
+	IN	ULONG		UnicodeStringParameterMask,
+	IN	PULONG_PTR	Parameters,
+	IN	ULONG		ValidResponseOptions,
+	OUT	PULONG		Response);
+
 #endif

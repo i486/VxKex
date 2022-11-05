@@ -34,7 +34,7 @@ KEXAPI NTSTATUS NTAPI KexSrvOpenChannel(
 	RtlInitConstantUnicodeString(&PipeName, KEXSRV_IPC_CHANNEL_NAME);
 	InitializeObjectAttributes(&ObjectAttributes, &PipeName, 0, NULL, NULL);
 
-	Status = NtOpenFile(
+	Status = KexNtOpenFile(
 		ChannelHandle,
 		GENERIC_WRITE | SYNCHRONIZE,
 		&ObjectAttributes,
@@ -59,7 +59,7 @@ KEXAPI NTSTATUS NTAPI KexSrvSendMessage(
 		return STATUS_PORT_DISCONNECTED;
 	}
 
-	return NtWriteFile(
+	return KexNtWriteFile(
 		ChannelHandle,
 		NULL,
 		NULL,

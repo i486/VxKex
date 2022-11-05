@@ -191,8 +191,10 @@
 //
 // Convert a relative virtual address (e.g. as found in PE image files) to a
 // real virtual address which can be read, written, dereferenced etc.
+// VA_TO_RVA does the opposite.
 //
-#  define RVA_TO_VA(base, rva) ((LPVOID) (((LPBYTE) (base)) + (rva)))
+#  define RVA_TO_VA(base, rva) ((LPVOID) (((PBYTE) (base)) + (rva)))
+#  define VA_TO_RVA(base, va) ((LPVOID) (((PBYTE) (va)) - ((PBYTE) (base))))
 
 //
 // Convert a boolean to a string which can be displayed to the user.
