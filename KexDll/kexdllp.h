@@ -117,3 +117,9 @@ NTSTATUS NTAPI KexpNtOpenKeyHook(
 	OUT		PHANDLE						KeyHandle,
 	IN		ACCESS_MASK					DesiredAccess,
 	IN		POBJECT_ATTRIBUTES			ObjectAttributes);
+
+VOID KexApplyVersionSpoof(
+	VOID);
+
+NTSTATUS KexInitializeAdvancedLogging(
+	VOID);

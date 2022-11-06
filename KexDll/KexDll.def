@@ -11,10 +11,7 @@ EXPORTS
 	KexRtlFindUnicodeSubstring
 	KexRtlAdvanceUnicodeString
 	KexRtlRetreatUnicodeString
-	KexRtlGetNativeSystemDllBase
-	KexRtlMiniGetProcedureAddress
 	KexRtlWriteProcessMemory
-
 	KexRtlCreateStringMapper
 	KexRtlDeleteStringMapper
 	KexRtlInsertEntryStringMapper
@@ -24,6 +21,12 @@ EXPORTS
 	KexRtlInsertMultipleEntriesStringMapper
 	KexRtlLookupMultipleEntriesStringMapper
 	KexRtlBatchApplyStringMapper
+
+	KexLdrGetNativeSystemDllBase
+	KexLdrMiniGetProcedureAddress
+	KexLdrFindDllInitRoutine
+	KexLdrGetDllFullName
+	KexLdrGetDllFullPathFromAddress
 
 	KexSrvOpenChannel
 	KexSrvSendMessage

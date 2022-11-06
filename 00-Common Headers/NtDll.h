@@ -45,6 +45,9 @@
 
 #define STATUS_SUCCESS						((NTSTATUS) 0)
 #define STATUS_IMAGE_MACHINE_TYPE_MISMATCH	((NTSTATUS) 0x4000000EL)
+#define STATUS_FATAL_APP_EXIT				((NTSTATUS) 0x40000015L)
+#define STATUS_SERVICE_NOTIFICATION			((NTSTATUS) 0x40000018L)
+#define STATUS_LOG_HARD_ERROR				((NTSTATUS) 0x4000001AL)
 #define STATUS_WX86_BREAKPOINT				((NTSTATUS) 0x4000001FL)
 #define STATUS_NO_MORE_ENTRIES				((NTSTATUS) 0x8000001AL)
 #define STATUS_UNSUCCESSFUL					((NTSTATUS) 0xC0000001L)
@@ -55,6 +58,7 @@
 #define STATUS_OBJECT_TYPE_MISMATCH			((NTSTATUS) 0xC0000024L)
 #define STATUS_INVALID_PARAMETER_MIX		((NTSTATUS) 0xC0000030L)
 #define STATUS_PORT_DISCONNECTED			((NTSTATUS) 0xC0000037L)
+#define STATUS_PROCEDURE_NOT_FOUND			((NTSTATUS) 0xC000007AL)
 #define STATUS_INVALID_IMAGE_FORMAT			((NTSTATUS) 0xC000007BL)
 #define STATUS_INSUFFICIENT_RESOURCES		((NTSTATUS) 0xC000009AL)
 #define STATUS_INTERNAL_ERROR				((NTSTATUS) 0xC00000E5L)
@@ -76,6 +80,8 @@
 #define STATUS_PIPE_BROKEN					((NTSTATUS) 0xC000014BL)
 #define STATUS_IMAGE_MP_UP_MISMATCH			((NTSTATUS) 0xC0000249L)
 #define NT_SUCCESS(st) (((NTSTATUS) (st)) >= 0)
+
+#define HARDERROR_OVERRIDE_ERRORMODE		0x10000000L
 
 #define RTL_MAX_DRIVE_LETTERS 32
 #define PROCESSOR_FEATURE_MAX 64
@@ -187,6 +193,7 @@
 #define FSCTL_PIPE_QUERY_CLIENT_PROCESS		CTL_CODE(FILE_DEVICE_NAMED_PIPE, 9, METHOD_BUFFERED, FILE_ANY_ACCESS)
 #define FSCTL_PIPE_GET_CONNECTION_ATTRIBUTE	CTL_CODE(FILE_DEVICE_NAMED_PIPE, 12, METHOD_BUFFERED, FILE_ANY_ACCESS)
 
+// RTL_USER_PROCESS_PARAMETERS->Flags
 #define RTL_USER_PROCESS_PARAMETERS_NORMALIZED              0x01
 #define RTL_USER_PROCESS_PARAMETERS_PROFILE_USER            0x02
 #define RTL_USER_PROCESS_PARAMETERS_PROFILE_KERNEL          0x04
@@ -459,21 +466,23 @@
 #define LDRP_MM_LOADED					0x40000000
 #define LDRP_COMPAT_DATABASE_PROCESSED	0x80000000
 
-// RTL_USER_PROCESS_PARAMETERS->Flags
-#define RTL_USER_PROC_PARAMS_NORMALIZED     0x00000001
-#define RTL_USER_PROC_PROFILE_USER          0x00000002
-#define RTL_USER_PROC_PROFILE_KERNEL        0x00000004
-#define RTL_USER_PROC_PROFILE_SERVER        0x00000008
-#define RTL_USER_PROC_RESERVE_1MB           0x00000020
-#define RTL_USER_PROC_RESERVE_16MB          0x00000040
-#define RTL_USER_PROC_CASE_SENSITIVE        0x00000080
-#define RTL_USER_PROC_DISABLE_HEAP_DECOMMIT 0x00000100
-#define RTL_USER_PROC_DLL_REDIRECTION_LOCAL 0x00001000
-#define RTL_USER_PROC_APP_MANIFEST_PRESENT  0x00002000
-
 #define RTL_FIND_CHAR_IN_UNICODE_STRING_START_AT_END		(0x00000001)
 #define RTL_FIND_CHAR_IN_UNICODE_STRING_COMPLEMENT_CHAR_SET	(0x00000002)
 #define RTL_FIND_CHAR_IN_UNICODE_STRING_CASE_INSENSITIVE	(0x00000004)
+
+#define HEAP_SIGNATURE						(ULONG) 0xEEFFEEFF
+#define HEAP_LOCK_USER_ALLOCATED			(ULONG) 0x80000000
+#define HEAP_VALIDATE_PARAMETERS_ENABLED	(ULONG) 0x40000000
+#define HEAP_VALIDATE_ALL_ENABLED			(ULONG) 0x20000000
+#define HEAP_SKIP_VALIDATION_CHECKS			(ULONG) 0x10000000
+#define HEAP_CAPTURE_STACK_BACKTRACES		(ULONG) 0x08000000
+#define HEAP_FLAG_PAGE_ALLOCS				(ULONG) 0x01000000
+
+#define HEAP_DEBUG_FLAGS	(HEAP_VALIDATE_PARAMETERS_ENABLED	| \
+							 HEAP_VALIDATE_ALL_ENABLED			| \
+							 HEAP_CAPTURE_STACK_BACKTRACES		| \
+							 HEAP_CREATE_ENABLE_TRACING			| \
+							 HEAP_FLAG_PAGE_ALLOCS)
 
 #pragma endregion
 
@@ -1256,7 +1265,8 @@ typedef struct _KUSER_SHARED_DATA {
 	ULONG								CryptoExponent;
 	ULONG								TimeZoneId;
 	ULONG								LargePageMinimum;
-	ULONG								Reserved2[7];
+	ULONG								Reserved2[6];		// actually Reserved2[7]
+	ULONG								NtBuildNumber;		// win10 only but used for vxkex
 
 	NT_PRODUCT_TYPE						NtProductType;
 	BOOLEAN								ProductTypeIsValid;
@@ -1269,6 +1279,7 @@ typedef struct _KUSER_SHARED_DATA {
 	BOOLEAN								ProcessorFeatures[PROCESSOR_FEATURE_MAX];
 
 	// these two NOT VALID FOR 64BIT since they are ULONGs.
+	// They are however valid for wow64 apps.
 	ULONG								MmHighestUserAddress;
 	ULONG								MmSystemRangeStart;
 
@@ -2016,7 +2027,8 @@ typedef struct _KERNELBASE_GLOBAL_DATA {
 	//
 	// There are more entries past this, but should not be used as they
 	// change between OS builds and don't contain anything interesting.
-	// Mostly just NLS crap, locale tables and whatever.
+	// Mostly just NLS crap, locale tables and whatever. There are also
+	// some function pointers to some pretty irrelevant functions.
 	//
 } TYPEDEF_TYPE_NAME(KERNELBASE_GLOBAL_DATA);
 
@@ -2090,9 +2102,43 @@ typedef struct _OBJECT_HANDLE_FLAG_INFORMATION {
 	BOOLEAN			ProtectFromClose;
 } TYPEDEF_TYPE_NAME(OBJECT_HANDLE_FLAG_INFORMATION);
 
+// Not the real structure, but same size
+typedef struct _HEAP_ENTRY {
+	PVOID			Data1;
+	PVOID			Data2;
+} TYPEDEF_TYPE_NAME(HEAP_ENTRY);
+
+typedef struct _HEAP *PHEAP;
+
+// This structure is not complete.
+typedef struct _HEAP {
+	HEAP_ENTRY		Entry;
+	ULONG			SegmentSignature;
+	ULONG			SegmentFlags;
+	LIST_ENTRY		SegmentListEntry;
+	PHEAP			Heap;
+	PVOID			BaseAddress;
+	ULONG			NumberOfPages;
+	PHEAP_ENTRY		FirstEntry;
+	PHEAP_ENTRY		LastValidEntry;
+	ULONG			NumberOfUnCommittedPages;
+	ULONG			NumberOfUnCommittedRanges;
+	USHORT			SegmentAllocatorBackTraceIndex;
+	USHORT			Reserved;
+	LIST_ENTRY		UCRSegmentList;
+	ULONG			Flags;
+	ULONG			ForceFlags;
+	ULONG			CompatibilityFlags;
+} TYPEDEF_TYPE_NAME(HEAP);
+
+typedef BOOLEAN (NTAPI *PDLL_INIT_ROUTINE) (
+	IN	PVOID	DllHandle,
+	IN	ULONG	Reason,
+	IN	PVOID	Context OPTIONAL);
+
 #pragma endregion
 
-STATIC CONST PKUSER_SHARED_DATA SharedUserData = (PKUSER_SHARED_DATA) 0x7FFE0000;
+STATIC PKUSER_SHARED_DATA SharedUserData = (PKUSER_SHARED_DATA) 0x7FFE0000;
 
 #pragma region Nt* function declarations
 
@@ -2694,6 +2740,9 @@ NTSYSCALLAPI NTSTATUS NTAPI NtQueueApcThread(
 NTSYSCALLAPI NTSTATUS NTAPI NtAlertThread(
 	IN		HANDLE						ThreadHandle);
 
+NTSYSCALLAPI NTSTATUS NTAPI NtQuerySystemTime(
+	OUT		PULONGLONG					SystemTime);
+
 #pragma endregion
 
 #pragma region Rtl* function declarations
@@ -2818,8 +2867,8 @@ NTSYSAPI BOOLEAN NTAPI RtlEqualUnicodeString(
 	IN	BOOLEAN				CaseInsensitive);
 
 NTSYSAPI BOOLEAN NTAPI RtlPrefixUnicodeString(
-	IN	PCUNICODE_STRING	String1,
-	IN	PCUNICODE_STRING	String2,
+	IN	PCUNICODE_STRING	Prefix,
+	IN	PCUNICODE_STRING	String,
 	IN	BOOLEAN				CaseInsensitive);
 
 NTSYSAPI VOID NTAPI RtlCopyString(
@@ -3046,6 +3095,11 @@ NTSYSAPI VOID NTAPI RtlApplicationVerifierStop(
     IN	ULONG_PTR		Param4,
 	IN	PCHAR			Description4);
 
+NTSYSAPI VOID NTAPI RtlGetNtVersionNumbers(
+	OUT	PULONG	MajorVersion OPTIONAL,
+	OUT	PULONG	MinorVersion OPTIONAL,
+	OUT	PULONG	BuildNumber OPTIONAL);
+
 #pragma endregion
 
 #pragma region Ldr* function declarations
@@ -3130,6 +3184,22 @@ NTSYSAPI VOID NTAPI LdrShutdownThread(
 NTSYSAPI VOID NTAPI LdrShutdownProcess(
 	VOID);
 
+NTSYSAPI NTSTATUS NTAPI LdrOpenImageFileOptionsKey(
+	IN	PCUNICODE_STRING	ImageFileName,
+	IN	BOOLEAN				Wow64,			// no effect - just set to FALSE
+	OUT	PHANDLE				KeyHandle);
+
+//
+// Non-Exported Functions - Must manually find, or reimplement.
+//
+
+BOOLEAN NTAPI LdrpFindLoadedDllByHandle(
+	IN	PVOID					DllHandle,
+	OUT	PPLDR_DATA_TABLE_ENTRY	DataTableEntry);
+
+PLDR_DATA_TABLE_ENTRY NTAPI LdrpAllocateDataTableEntry(
+	IN	PVOID	DllBase);
+
 #pragma endregion
 
 #pragma region Dbg* function declarations
@@ -3197,6 +3267,9 @@ NTSYSAPI ULONG NTAPI DbgPrintEx(
 #define RtlInitEmptyAnsiString(AnsiString, InitBuffer, BufferCb) RtlInitEmptyUnicodeString(AnsiString, InitBuffer, BufferCb)
 
 #define HASH_ENTRY_KEY(x) ((x)->Signature)
+
+#define LdrpCallInitRoutine(InitRoutine, DllHandle, Reason, Context) \
+	(InitRoutine)((DllHandle), (Reason), (Context))
 
 #pragma endregion
 

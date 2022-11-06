@@ -71,6 +71,15 @@
     <ClCompile Include="avrf.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="verspoof.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="advlog.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="kexldr.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="KexDll.def">

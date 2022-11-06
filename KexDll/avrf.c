@@ -41,31 +41,40 @@ NTSTATUS KexDisableAVrf(
 {
 	NTSTATUS Status;
 	UNICODE_STRING VerifierDllName;
-	ANSI_STRING VerifierStopMessageName;
 	PVOID VerifierDllBase;
-	PVOID VerifierStopMessage;
+	PDLL_INIT_ROUTINE VerifierDllMain;
 
-	Status = KexHkInstallBasicHook(RtlApplicationVerifierStop, KexpApplicationVerifierStopHook, NULL);
+	RtlInitConstantUnicodeString(&VerifierDllName, L"verifier.dll");
+
+	Status = LdrGetDllHandleByName(&VerifierDllName, NULL, &VerifierDllBase);
 	if (!NT_SUCCESS(Status)) {
-		return Status;
+		// This function was probably already called.
+		return STATUS_UNSUCCESSFUL;
 	}
 
-	//
-	// If verifier.dll is loaded, also patch out its VerifierStopMessage function.
-	//
-	RtlInitConstantUnicodeString(&VerifierDllName, L"verifier.dll");
-	Status = LdrGetDllHandleByName(&VerifierDllName, NULL, &VerifierDllBase);
-	if (NT_SUCCESS(Status)) {
-		RtlInitConstantAnsiString(&VerifierStopMessageName, "VerifierStopMessage");
-		Status = LdrGetProcedureAddress(VerifierDllBase, &VerifierStopMessageName, 0, &VerifierStopMessage);
+	Status = KexLdrFindDllInitRoutine(
+		VerifierDllBase,
+		(PPVOID) &VerifierDllMain);
 
-		if (NT_SUCCESS(Status)) {
-			Status = KexHkInstallBasicHook(VerifierStopMessage, KexpApplicationVerifierStopHook, NULL);
-
-			if (!NT_SUCCESS(Status)) {
-				return Status;
-			}
+	if (NT_SUCCESS(Status) && VerifierDllMain != NULL) {
+		if (!VerifierDllMain(VerifierDllBase, DLL_PROCESS_DETACH, NULL)) {
+			KexSrvLogWarningEvent(L"Verifier.dll failed to de-initialize.");
 		}
+	}
+
+	NtCurrentPeb()->NtGlobalFlag &= ~(FLG_APPLICATION_VERIFIER | FLG_HEAP_PAGE_ALLOCS);
+
+	Status = NtSetInformationProcess(
+		NtCurrentProcess(),
+		ProcessHandleTracing,
+		NULL,
+		0);
+
+	if (!NT_SUCCESS(Status)) {
+		KexSrvLogWarningEvent(
+			L"Failed to disable process handle tracing.\r\n\r\n"
+			L"NTSTATUS error code: 0x%08lx",
+			Status);
 	}
 
 	return STATUS_SUCCESS;

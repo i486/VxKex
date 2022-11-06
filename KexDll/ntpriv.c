@@ -16,18 +16,15 @@
 // Revision History:
 //
 //     vxiiduu              23-Oct-2022  Initial creation.
+//     vxiiduu              06-Nov-2022  Add LdrpFindLoadedDllByHandle
+//                                       Remove incorrect comment (LdrpHeap is
+//                                       actually the same as the process heap)
 //
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "buildcfg.h"
 #include "kexdllp.h"
 
-//
-// Notes:
-//   - The real LdrpAllocateDataTableEntry allocates from LdrpHeap (a private
-//     heap which is inaccessible to us). Therefore, we can't let NTDLL free
-//     the entry.
-//
 PLDR_DATA_TABLE_ENTRY NTAPI LdrpAllocateDataTableEntry(
 	IN	PVOID	DllBase)
 {
@@ -56,4 +53,30 @@ PLDR_DATA_TABLE_ENTRY NTAPI LdrpAllocateDataTableEntry(
 	InitializeListHead(&Entry->StaticLinks);
 
 	return Entry;
+}
+
+BOOLEAN NTAPI LdrpFindLoadedDllByHandle(
+	IN	PVOID					DllHandle,
+	OUT	PPLDR_DATA_TABLE_ENTRY	DataTableEntry)
+{
+	PLDR_DATA_TABLE_ENTRY Entry;
+	PPEB_LDR_DATA PebLdr;
+
+	PebLdr = NtCurrentPeb()->Ldr;
+	Entry = (PLDR_DATA_TABLE_ENTRY) PebLdr->InLoadOrderModuleList.Flink;
+
+	if (IsListEmpty(&PebLdr->InLoadOrderModuleList)) {
+		return FALSE;
+	}
+
+	while (Entry->DllBase != DllHandle || !Entry->InMemoryOrderLinks.Flink) {
+		Entry = (PLDR_DATA_TABLE_ENTRY) Entry->InLoadOrderLinks.Flink;
+
+		if ((PLIST_ENTRY) Entry == &PebLdr->InLoadOrderModuleList) {
+			return FALSE;
+		}
+	}
+
+	*DataTableEntry = Entry;
+	return TRUE;
 }

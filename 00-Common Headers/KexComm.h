@@ -179,6 +179,7 @@
 
 #  define until(Condition) while (!(Condition))
 #  define unless(Condition) if (!(Condition))
+#  define ReturnAddress _ReturnAddress
 #pragma endregion
 
 #pragma region Convenience Macros

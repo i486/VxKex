@@ -213,6 +213,7 @@
     <ClInclude Include="kexdllp.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="advlog.c" />
     <ClCompile Include="avrf.c" />
     <ClCompile Include="dllmain.c" />
     <ClCompile Include="dllnotif.c" />
@@ -222,12 +223,14 @@
     <ClCompile Include="kexdata.c" />
     <ClCompile Include="kexhe.c" />
     <ClCompile Include="kexhk.c" />
+    <ClCompile Include="kexldr.c" />
     <ClCompile Include="kexrtl.c" />
     <ClCompile Include="kexsrv.c" />
     <ClCompile Include="ntpriv.c" />
     <ClCompile Include="propagte.c" />
     <ClCompile Include="strmap.c" />
     <ClCompile Include="syscal32.c" />
+    <ClCompile Include="verspoof.c" />
   </ItemGroup>
   <ItemGroup>
     <None Include="KexDll.def" />

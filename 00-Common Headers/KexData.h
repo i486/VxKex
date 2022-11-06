@@ -28,12 +28,19 @@
 #include <KexComm.h>
 #include <NtDll.h>
 
+#define KEXDATA_FLAG_PROPAGATED			1
+
+#define KEX_STRONGSPOOF_SHAREDUSERDATA	1
+#define KEX_STRONGSPOOF_REGISTRY		2
+
 typedef enum _KEX_WIN_VER_SPOOF {
 	WinVerSpoofNone,	// do not spoof
+	WinVerSpoofWin7,	// for testing - not useful in practice
 	WinVerSpoofWin8,
 	WinVerSpoofWin8Point1,
 	WinVerSpoofWin10,
-	WinVerSpoofWin11
+	WinVerSpoofWin11,
+	WinVerSpoofMax		// should always be the last value
 } TYPEDEF_TYPE_NAME(KEX_WIN_VER_SPOOF);
 
 //
@@ -48,6 +55,7 @@ typedef struct _KEX_IFEO_PARAMETERS {
 	ULONG				DisableForChild;
 	ULONG				DisableAppSpecific;
 	KEX_WIN_VER_SPOOF	WinVerSpoof;
+	ULONG				StrongVersionSpoof;
 } TYPEDEF_TYPE_NAME(KEX_IFEO_PARAMETERS);
 
 //
@@ -56,6 +64,7 @@ typedef struct _KEX_IFEO_PARAMETERS {
 //
 
 typedef struct _KEX_PROCESS_DATA {
+	ULONG					Flags;
 	ULONG					InstalledVersion;			// version dword of VxKex
 	KEX_IFEO_PARAMETERS		IfeoParameters;
 	UNICODE_STRING			WinDir;						// e.g. C:\Windows

@@ -22,6 +22,8 @@
 //
 //     vxiiduu              29-Oct-2022  Initial creation.
 //     vxiiduu              05-Nov-2022  Remove ability to remove the HE hook.
+//     vxiiduu              06-Nov-2022  KEXDLL init failure message now works
+//                                       even if KexSrv is not running.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -173,10 +175,12 @@ NORETURN VOID KexHeErrorBox(
 	IN	PCWSTR	ErrorMessage)
 {
 	UNICODE_STRING ErrorString;
-	PUNICODE_STRING Parameter;
+
+	RtlInitUnicodeString(&ErrorString, ErrorMessage);
 
 	if (KexData->SrvChannel != NULL) {
-		RtlInitUnicodeString(&ErrorString, ErrorMessage);
+		PUNICODE_STRING Parameter;
+
 		Parameter = &ErrorString;
 
 		KexpNtRaiseHardErrorHook(
@@ -187,7 +191,24 @@ NORETURN VOID KexHeErrorBox(
 			0,
 			NULL);
 	} else {
-		// TODO
+		UNICODE_STRING Caption;
+		ULONG_PTR Parameters[4];
+		ULONG Response;
+
+		RtlInitConstantUnicodeString(&Caption, L"Application Error (VxKex)");
+
+		Parameters[0] = (ULONG_PTR) &ErrorString;
+		Parameters[1] = (ULONG_PTR) &Caption;
+		Parameters[2] = 16;							// MB_ICONERROR
+		Parameters[3] = INFINITE;					// Timeout in milliseconds
+
+		KexNtRaiseHardError(
+			STATUS_SERVICE_NOTIFICATION | HARDERROR_OVERRIDE_ERRORMODE,
+			ARRAYSIZE(Parameters),
+			3,
+			Parameters,
+			1,
+			&Response);
 	}
 
 	NtTerminateProcess(NtCurrentProcess(), STATUS_KEXDLL_INITIALIZATION_FAILURE);

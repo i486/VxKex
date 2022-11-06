@@ -99,19 +99,26 @@ BOOL WINAPI DllMain(
 		KexSrvNotifyProcessStart(KexData->SrvChannel, &KexData->ImageBaseName);
 
 		//
-		// Disable Application Verifier stops.
-		// We don't want that interfering with behavior of the application.
-		//
-
-		KexDisableAVrf();
-
-		//
 		// Install VxKex hard error handler.
 		// This is responsible for displaying the custom error messages e.g.
 		// when a DLL is not found.
 		//
 
 		KexHeInstallHandler();
+
+		//
+		// Initialize Advanced logging (displaying DbgPrint and DbgPrintEx
+		// messages in the VxKex log).
+		//
+		
+		KexInitializeAdvancedLogging();
+
+		//
+		// Try to get rid of as much Application verifier functionality as
+		// possible.
+		//
+
+		KexDisableAVrf();
 
 		//
 		// Initialize DLL rewrite subsystem.
@@ -185,6 +192,12 @@ BOOL WINAPI DllMain(
 		//
 
 		KexInitializePropagation();
+
+		//
+		// Perform version spoofing, if required.
+		//
+
+		KexApplyVersionSpoof();
 
 		//
 		// Register a useless descriptor with app verifier system.

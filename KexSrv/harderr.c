@@ -173,8 +173,8 @@ VOID KexSrvpHardError(
 		case STATUS_DLL_INIT_FAILED:
 			TaskDialogConfig.pszWindowTitle = L"DLL Initialization Failure";
 			TaskDialogConfig.pszContent = L"One of the DLLs statically linked by the application "
-										  L"has failed within its entry point. Unfortunately, the DLL "
-										  L"which has caused this failure is unknown.";
+										  L"has failed within its entry point. Enabling advanced "
+										  L"logging will help you to find out which DLL has failed.";
 			break;
 		default:
 			TaskDialogConfig.pszWindowTitle = L"Miscellaneous Error";

@@ -43,13 +43,209 @@ STATIC NTSTATUS NTAPI KexpNtCreateUserProcessHook(
     IN OUT	CONST PPS_CREATE_INFO				CreateInfo,
     IN		CONST PPS_ATTRIBUTE_LIST			AttributeList OPTIONAL);
 
+STATIC PVOID NativeNtOpenKey;
+STATIC PVOID NativeNtOpenKeyEx;
+
+//
+// This function unhooks NtOpenKey/NtOpenKeyEx and unmaps the
+// temporary KexDll from the current process.
+//
+STATIC VOID KexpCleanupPropagationRemains(
+	VOID) PROTECTED_FUNCTION
+{
+	NTSTATUS Status;
+	PBYTE Function;
+	PVOID HookDestination;
+	MEMORY_BASIC_INFORMATION MemoryInformation;
+
+	unless (KexData->Flags & KEXDATA_FLAG_PROPAGATED) {
+		KexSrvLogDebugEvent(L"Propagation flag not set.");
+		return;
+	}
+
+	//
+	// Inspect the entry points of the native NtOpenKey and see if they
+	// look like a hook template that has previously been written.
+	//
+
+	Function = (PBYTE) NativeNtOpenKey;
+	HookDestination = NULL;
+
+	if (KexRtlOperatingSystemBitness() == 64) {
+		//
+		// Look for 0xFF 0x25 0x00 0x00 0x00 0x00, followed by 8 byte address
+		//
+
+		if (Function[0] == 0xFF && Function[1] == 0x25 && *((PULONG) &Function[2]) == 0) {
+			HookDestination = (PVOID) *((PULONGLONG) &Function[6]);
+		}
+	} else {
+		//
+		// Look for 0x68, followed by 4 byte address and then 0xC3
+		//
+
+		if (Function[0] == 0x68 && Function[5] == 0xC3) {
+			HookDestination = (PVOID) *((PULONG) &Function[1]);
+		}
+	}
+
+	if (!HookDestination) {
+		KexSrvLogWarningEvent(L"Propagation flag set, but no propagation remains found.");
+		return;
+	}
+
+	Status = NtQueryVirtualMemory(
+		NtCurrentProcess(),
+		HookDestination,
+		MemoryBasicInformation,
+		&MemoryInformation,
+		sizeof(MemoryInformation),
+		NULL);
+
+	if (NT_SUCCESS(Status) && (MemoryInformation.Type & MEM_IMAGE)) {
+		//
+		// Unmap the temporary KexDll.
+		//
+		Status = NtUnmapViewOfSection(NtCurrentProcess(), MemoryInformation.AllocationBase);
+
+		if (NT_SUCCESS(Status)) {
+			ULONG OldProtect;
+			ULONG Discard;
+			PVOID BaseAddress;
+			SIZE_T RegionSize;
+
+			KexSrvLogInformationEvent(
+				L"Successfully unmapped temporary KexDll from propagation.\r\n\r\n"
+				L"Base address: 0x%p",
+				MemoryInformation.AllocationBase);
+
+			//
+			// Restore original syscalls.
+			//
+			
+			BaseAddress = NativeNtOpenKey;
+			RegionSize = 15;
+			NtProtectVirtualMemory(
+				NtCurrentProcess(),
+				&BaseAddress,
+				&RegionSize,
+				PAGE_EXECUTE_WRITECOPY,
+				&OldProtect);
+
+			BaseAddress = NativeNtOpenKeyEx;
+			NtProtectVirtualMemory(
+				NtCurrentProcess(),
+				&BaseAddress,
+				&RegionSize,
+				PAGE_EXECUTE_WRITECOPY,
+				&OldProtect);
+
+			if (KexRtlOperatingSystemBitness() == 64) {
+				PULONG SyscallNumber;
+				BYTE SyscallTemplate[] = {
+					0x4C, 0x8B, 0xD1,					// mov r10, rcx
+					0xB8, 0x00, 0x00, 0x00, 0x00,		// mov eax, <syscallnumber>
+					0x0F, 0x05,							// syscall
+					0xC3								// ret
+				};
+
+				SyscallNumber = (PDWORD) &SyscallTemplate[4];
+				
+				*SyscallNumber = 0x0F; // NtOpenKey
+				RtlCopyMemory(NativeNtOpenKey, SyscallTemplate, sizeof(SyscallTemplate));
+				*SyscallNumber = 0xF2; // NtOpenKeyEx
+				RtlCopyMemory(NativeNtOpenKeyEx, SyscallTemplate, sizeof(SyscallTemplate));
+			} else {
+				PULONG SyscallNumber;
+				PUSHORT ParamBytes;
+				BYTE SyscallTemplate[] = {
+					0xB8, 0xB6, 0x00, 0x00, 0x00,		// mov eax, <syscallnumber>
+					0xBA, 0x00, 0x03, 0xFE, 0x7F,		// mov edx, 0x7ffe0300
+					0xFF, 0x12,							// call [edx]
+					0xC2, 0x00, 0x00					// ret <parambytes>
+				};
+
+				SyscallNumber = (PULONG) &SyscallTemplate[1];
+				ParamBytes = (PUSHORT) &SyscallTemplate[13];
+
+				*SyscallNumber = 0xB6; // NtOpenKey
+				*ParamBytes = 0x0C;
+				RtlCopyMemory(NativeNtOpenKey, SyscallTemplate, sizeof(SyscallTemplate));
+				*SyscallNumber = 0xB7; // NtOpenKeyEx
+				*ParamBytes = 0x10;
+				RtlCopyMemory(NativeNtOpenKeyEx, SyscallTemplate, sizeof(SyscallTemplate));
+			}
+
+			BaseAddress = NativeNtOpenKey;
+			NtProtectVirtualMemory(
+				NtCurrentProcess(),
+				&BaseAddress,
+				&RegionSize,
+				OldProtect,
+				&Discard);
+
+			BaseAddress = NativeNtOpenKeyEx;
+			NtProtectVirtualMemory(
+				NtCurrentProcess(),
+				&BaseAddress,
+				&RegionSize,
+				OldProtect,
+				&Discard);
+		} else {
+			KexSrvLogWarningEvent(
+				L"Failed to unmap temporary KexDll from propagation.\r\n\r\n"
+				L"NTSTATUS error code: 0x%08lx",
+				Status);
+		}
+	}
+} PROTECTED_FUNCTION_END_VOID
+
 NTSTATUS KexInitializePropagation(
 	VOID) PROTECTED_FUNCTION
 {
 	NTSTATUS Status;
 
+	//
+	// Find the entrypoints of NtOpenKey and NtOpenKeyEx because we will
+	// need them both for cleaning up propagation remains and also for
+	// propagating to child processes.
+	//
+
+	if (KexRtlCurrentProcessBitness() == KexRtlOperatingSystemBitness()) {
+		NativeNtOpenKey = NtOpenKey;
+		NativeNtOpenKeyEx = NtOpenKeyEx;
+	} else {
+		Status = KexLdrMiniGetProcedureAddress(
+			KexData->SystemDllBase,
+			"NtOpenKey",
+			&NativeNtOpenKey);
+
+		if (!NT_SUCCESS(Status)) {
+			KexSrvLogWarningEvent(
+				L"Failed to find the entry point of native NtOpenKey.\r\n\r\n",
+				L"NTSTATUS error code: 0x%08lx",
+				Status);
+			return Status;
+		}
+
+		Status = KexLdrMiniGetProcedureAddress(
+			KexData->SystemDllBase,
+			"NtOpenKeyEx",
+			&NativeNtOpenKeyEx);
+
+		if (!NT_SUCCESS(Status)) {
+			KexSrvLogWarningEvent(
+				L"Failed to find the entry point of native NtOpenKeyEx.\r\n\r\n",
+				L"NTSTATUS error code: 0x%08lx",
+				Status);
+			return Status;
+		}
+	}
+
+	KexpCleanupPropagationRemains();
+
 	if (KexData->IfeoParameters.DisableForChild) {
-		KexSrvLogDetailEvent(L"Not enabling propagation due to user preferences.");
+		KexSrvLogInformationEvent(L"Not enabling propagation due to user preferences.");
 		return STATUS_USER_DISABLED;
 	}
 
@@ -71,6 +267,16 @@ NTSTATUS KexInitializePropagation(
 	return Status;
 } PROTECTED_FUNCTION_END
 
+//
+// KexpNtOpenKeyHook and KexpNtOpenKeyExHook are called early in process
+// initialization (see LdrpInitializeExecutionOptions), and more importantly,
+// *NTDLL imports are not snapped*. This means you cannot call any function
+// from NTDLL, directly or indirectly, from the NtOpenKey* hook functions.
+//
+// Exception handling also doesn't work, since on x64 that depends on the
+// NTDLL export __C_specific_handler.
+//
+
 NTSTATUS NTAPI KexpNtOpenKeyExHook(
 	OUT		PHANDLE						KeyHandle,
 	IN		ACCESS_MASK					DesiredAccess,
@@ -78,12 +284,23 @@ NTSTATUS NTAPI KexpNtOpenKeyExHook(
 	IN		ULONG						OpenOptions)
 {
 	UNICODE_STRING IfeoBaseKeyName;
+	UNICODE_STRING DotExe;
+	PPEB Peb;
+
+	Peb = NtCurrentPeb();
+	Peb->ProcessParameters->Flags &= ~RTL_USER_PROCESS_PARAMETERS_IMAGE_KEY_MISSING;
+	Peb->SubSystemData = (PVOID) 0xB02BA295L;
 
 	if (!ObjectAttributes || !ObjectAttributes->ObjectName || !ObjectAttributes->ObjectName->Buffer) {
 		goto BailOut;
 	}
 
-	RtlInitConstantUnicodeString(&IfeoBaseKeyName, L"Image File Execution Options");
+	RtlInitConstantUnicodeString(
+		&IfeoBaseKeyName, 
+		L"\\Registry\\Machine\\Software\\Microsoft\\Windows NT"
+		L"\\CurrentVersion\\Image File Execution Options");
+
+	RtlInitConstantUnicodeString(&DotExe, L".exe");
 
 	if (ObjectAttributes->RootDirectory) {
 		NTSTATUS Status;
@@ -111,7 +328,10 @@ NTSTATUS NTAPI KexpNtOpenKeyExHook(
 			(ULONG) RootDirectoryNameLength,
 			NULL);
 
-		if (NT_SUCCESS(Status) && KexRtlFindUnicodeSubstring(RootDirectoryName, &IfeoBaseKeyName, TRUE)) {
+		if (NT_SUCCESS(Status) && 
+			KexRtlFindUnicodeSubstring(RootDirectoryName, &IfeoBaseKeyName, TRUE) &&
+			KexRtlFindUnicodeSubstring(ObjectAttributes->ObjectName, &DotExe, TRUE)) {
+
 			OBJECT_ATTRIBUTES ModifiedObjectAttributes;
 			UNICODE_STRING KexVirtualIfeoEntryName;
 
@@ -164,7 +384,6 @@ STATIC NTSTATUS NTAPI KexpNtCreateUserProcessHook(
 	ULONG ModifiedThreadFlags;
 	ULONG ModifiedProcessDesiredAccess;
 	ULONG ModifiedThreadDesiredAccess;
-	RTL_USER_PROCESS_PARAMETERS ModifiedProcessParameters;
 
 	NTSTATUS Status;
 	UNICODE_STRING DllPath;
@@ -174,8 +393,6 @@ STATIC NTSTATUS NTAPI KexpNtCreateUserProcessHook(
 	SIZE_T RemoteDllSize;
 	HANDLE FileHandle;
 	HANDLE SectionHandle;
-	PVOID NativeNtOpenKey;
-	PVOID NativeNtOpenKeyEx;
 	ULONG_PTR RemoteNtOpenKeyHook;
 	ULONG_PTR RemoteNtOpenKeyExHook;
 	PBYTE HookTemplate;
@@ -185,7 +402,6 @@ STATIC NTSTATUS NTAPI KexpNtCreateUserProcessHook(
 	ModifiedProcessDesiredAccess = ProcessDesiredAccess;
 	ModifiedThreadDesiredAccess = ThreadDesiredAccess;
 	ModifiedThreadFlags = ThreadFlags;
-	ModifiedProcessParameters = *ProcessParameters;
 
 	//
 	// 1. We need to be able to write to the new process's memory space
@@ -198,15 +414,10 @@ STATIC NTSTATUS NTAPI KexpNtCreateUserProcessHook(
 	//    so that we can install the hooks and have them called at the
 	//    appropriate time.
 	//
-	// 4. We need to clear a flag in the process parameters structure,
-	//    because if that flag is set, the loader in the new process will
-	//    not even attempt to read our virtualized IFEO key.
-	//
 
 	ModifiedProcessDesiredAccess |= PROCESS_VM_OPERATION | PROCESS_VM_READ | PROCESS_VM_WRITE;
 	ModifiedThreadDesiredAccess |= THREAD_SUSPEND_RESUME;
 	ModifiedThreadFlags |= THREAD_CREATE_FLAGS_CREATE_SUSPENDED;
-	ModifiedProcessParameters.Flags &= ~RTL_USER_PROCESS_PARAMETERS_IMAGE_KEY_MISSING;
 	
 	Status = KexNtCreateUserProcess(
 		ProcessHandle,
@@ -217,7 +428,7 @@ STATIC NTSTATUS NTAPI KexpNtCreateUserProcessHook(
 		ThreadObjectAttributes,
 		ProcessFlags,
 		ModifiedThreadFlags,
-		&ModifiedProcessParameters,
+		ProcessParameters,
 		CreateInfo,
 		AttributeList);
 	
@@ -318,51 +529,16 @@ STATIC NTSTATUS NTAPI KexpNtCreateUserProcessHook(
 		RemoteDllSize);
 
 	//
-	// KexDll has now been mapped into the remote process.
-	// Now, we have the following tasks:
-	//
-	//   1. Find the entry points of NtOpenKey and NtOpenKeyEx in the
-	//      *native* NTDLL in the current process, and use those entry
-	//      point addresses to patch the remote native NTDLL.
-	//
-	//   2. Update the remote PEB to remove the "image key missing" flag
-	//      from its ProcessParameters.
+	// Find the addresses of the native-bitness hook procedures in the temporary
+	// KexDll mapping into the child process.
 	//
 
 	if (KexRtlCurrentProcessBitness() == KexRtlOperatingSystemBitness()) {
-		NativeNtOpenKey = NtOpenKey;
-		NativeNtOpenKeyEx = NtOpenKeyEx;
 		RemoteNtOpenKeyHook = (ULONG_PTR) VA_TO_RVA(KexData->KexDllBase, KexpNtOpenKeyHook);
 		RemoteNtOpenKeyExHook = (ULONG_PTR) VA_TO_RVA(KexData->KexDllBase, KexpNtOpenKeyExHook);
 	} else {
 		PVOID TemporaryMapping;
 		SIZE_T TemporaryMappingSize;
-
-		Status = KexRtlMiniGetProcedureAddress(
-			KexData->SystemDllBase,
-			"NtOpenKey",
-			&NativeNtOpenKey);
-
-		if (!NT_SUCCESS(Status)) {
-			KexSrvLogWarningEvent(
-				L"Failed to find the entry point of native NtOpenKey.\r\n\r\n",
-				L"NTSTATUS error code: 0x%08lx",
-				Status);
-			goto BailOut;
-		}
-
-		Status = KexRtlMiniGetProcedureAddress(
-			KexData->SystemDllBase,
-			"NtOpenKeyEx",
-			&NativeNtOpenKeyEx);
-
-		if (!NT_SUCCESS(Status)) {
-			KexSrvLogWarningEvent(
-				L"Failed to find the entry point of native NtOpenKeyEx.\r\n\r\n",
-				L"NTSTATUS error code: 0x%08lx",
-				Status);
-			goto BailOut;
-		}
 
 		Status = NtMapViewOfSection(
 			SectionHandle,
@@ -384,7 +560,7 @@ STATIC NTSTATUS NTAPI KexpNtCreateUserProcessHook(
 			goto BailOut;
 		}
 
-		Status = KexRtlMiniGetProcedureAddress(
+		Status = KexLdrMiniGetProcedureAddress(
 			TemporaryMapping,
 			"KexpNtOpenKeyHook",
 			(PPVOID) &RemoteNtOpenKeyHook);
@@ -397,7 +573,7 @@ STATIC NTSTATUS NTAPI KexpNtCreateUserProcessHook(
 			goto BailOut;
 		}
 
-		Status = KexRtlMiniGetProcedureAddress(
+		Status = KexLdrMiniGetProcedureAddress(
 			TemporaryMapping,
 			"KexpNtOpenKeyExHook",
 			(PPVOID) &RemoteNtOpenKeyExHook);
@@ -419,7 +595,11 @@ STATIC NTSTATUS NTAPI KexpNtCreateUserProcessHook(
 	RemoteNtOpenKeyHook = (ULONG_PTR) RVA_TO_VA(RemoteDllBase, RemoteNtOpenKeyHook);
 	RemoteNtOpenKeyExHook = (ULONG_PTR) RVA_TO_VA(RemoteDllBase, RemoteNtOpenKeyExHook);
 
-	if (KexRtlRemoteProcessBitness(*ProcessHandle) == 64) {
+	//
+	// Create hook templates and write them into the target process.
+	//
+
+	if (KexRtlOperatingSystemBitness() == 64) {
 		HookTemplate = StackAlloc(BYTE, 14);
 		RtlZeroMemory(HookTemplate, 14);
 		HookTemplate[0] = 0xFF;
@@ -431,11 +611,36 @@ STATIC NTSTATUS NTAPI KexpNtCreateUserProcessHook(
 			(ULONG_PTR) NativeNtOpenKey,
 			HookTemplate,
 			14);
+
+		if (!NT_SUCCESS(Status)) {
+			goto WriteProcessMemoryFailure;
+		}
+
+		*((PULONGLONG) &HookTemplate[6]) = RemoteNtOpenKeyExHook;
+
+		Status = KexRtlWriteProcessMemory(
+			*ProcessHandle,
+			(ULONG_PTR) NativeNtOpenKeyEx,
+			HookTemplate,
+			14);
 	} else {
 		HookTemplate = StackAlloc(BYTE, 6);
 		RtlZeroMemory(HookTemplate, 6);
 		HookTemplate[0] = 0x68;
 		HookTemplate[5] = 0xC3;
+
+		*((PULONG) &HookTemplate[1]) = (ULONG) RemoteNtOpenKeyHook;
+
+		Status = KexRtlWriteProcessMemory(
+			*ProcessHandle,
+			(ULONG_PTR) NativeNtOpenKey,
+			HookTemplate,
+			14);
+
+		if (!NT_SUCCESS(Status)) {
+			goto WriteProcessMemoryFailure;
+		}
+
 		*((PULONG) &HookTemplate[1]) = (ULONG) RemoteNtOpenKeyExHook;
 
 		Status = KexRtlWriteProcessMemory(
@@ -445,6 +650,7 @@ STATIC NTSTATUS NTAPI KexpNtCreateUserProcessHook(
 			6);
 	}
 
+WriteProcessMemoryFailure:
 	if (!NT_SUCCESS(Status)) {
 		KexSrvLogWarningEvent(
 			L"Failed to write hook template to remote process.\r\n\r\n"

@@ -30,12 +30,14 @@ STATIC WCHAR KexDir_Buffer[MAX_PATH];
 STATIC WCHAR ImageBaseName_Buffer[MAX_PATH];
 
 KEX_PROCESS_DATA _KexData = {
+	0,															// Flags
 	KEX_VERSION_DW,												// InstalledVersion
 	
 	{															// IfeoParameters
 		FALSE,													// DisableForChild
 		FALSE,													// DisableAppSpecific
-		WinVerSpoofNone											// WinVerSpoof
+		WinVerSpoofNone,										// WinVerSpoof
+		FALSE,													// StrongVersionSpoof
 	},
 
 	// make sure the trailing spaces are preserved such that the length of the buffer
@@ -122,12 +124,101 @@ STATIC NTSTATUS KexpInitializeGlobalConfig(
 	return Status;
 } PROTECTED_FUNCTION_END
 
-STATIC NTSTATUS KexpInitializeIfeoParameters(
-	VOID) PROTECTED_FUNCTION
+// Min and Max are inclusive.
+STATIC VOID ClampIntegerIfeoParameter(
+	IN		PCWSTR	UserFriendlyName OPTIONAL,
+	IN OUT	PULONG	Number,
+	IN		ULONG	Min,
+	IN		ULONG	Max) PROTECTED_FUNCTION
 {
+	ASSERT (Number != NULL);
+
+	if (!UserFriendlyName) {
+		UserFriendlyName = L"An unspecified IFEO parameter";
+	}
+
+	if (*Number < Min) {
+		*Number = Min;
+	} else if (*Number > Max) {
+		*Number = Max;
+	} else {
+		return;
+	}
+
+	KexSrvLogWarningEvent(
+		L"%s was outside the allowed range of %lu-%lu.\r\n\r\n"
+		L"The value has been set to %lu.",
+		UserFriendlyName,
+		Min, Max, *Number);
+} PROTECTED_FUNCTION_END_VOID
+
+STATIC NTSTATUS KexpInitializeIfeoParameters(
+	OUT	PKEX_IFEO_PARAMETERS	IfeoParameters) PROTECTED_FUNCTION
+{
+	NTSTATUS Status;
+	HANDLE IfeoKeyHandle;
+	PPEB Peb;
+
+	Peb = NtCurrentPeb();
+
 	//
-	// TODO
+	// Remember that if this is a propagated VxKex, the hook on NtOpenKey
+	// will still be active, and LdrOpenImageFileOptionsKey will read the
+	// propagation virtual key. This is intended behavior.
 	//
+
+	Status = LdrOpenImageFileOptionsKey(
+		&NtCurrentPeb()->ProcessParameters->ImagePathName,
+		FALSE,
+		&IfeoKeyHandle);
+
+	if (!NT_SUCCESS(Status)) {
+		return Status;
+	}
+
+	LdrQueryImageFileKeyOption(
+		IfeoKeyHandle, 
+		L"KEX_DisableForChild", 
+		REG_DWORD, 
+		&IfeoParameters->DisableForChild,
+		sizeof(IfeoParameters->DisableForChild),
+		NULL);
+	
+	LdrQueryImageFileKeyOption(
+		IfeoKeyHandle, 
+		L"KEX_DisableAppSpecific", 
+		REG_DWORD, 
+		&IfeoParameters->DisableAppSpecific,
+		sizeof(IfeoParameters->DisableAppSpecific),
+		NULL);
+	
+	LdrQueryImageFileKeyOption(
+		IfeoKeyHandle, 
+		L"KEX_WinVerSpoof", 
+		REG_DWORD, 
+		&IfeoParameters->WinVerSpoof,
+		sizeof(IfeoParameters->WinVerSpoof),
+		NULL);
+
+	LdrQueryImageFileKeyOption(
+		IfeoKeyHandle,
+		L"KEX_StrongVersionSpoof",
+		REG_DWORD,
+		&IfeoParameters->WinVerSpoof,
+		sizeof(IfeoParameters->WinVerSpoof),
+		NULL);
+
+	NtClose(IfeoKeyHandle);
+
+	//
+	// Validate numbers to be within a certain range.
+	//
+
+	ClampIntegerIfeoParameter(
+		L"KEX_WinVerSpoof",
+		(PULONG) &IfeoParameters->WinVerSpoof,
+		WinVerSpoofNone,
+		WinVerSpoofMax - 1);
 
 	return STATUS_SUCCESS;
 } PROTECTED_FUNCTION_END
@@ -135,9 +226,23 @@ STATIC NTSTATUS KexpInitializeIfeoParameters(
 KEXAPI NTSTATUS NTAPI KexDataInitialize(
 	OUT	PPKEX_PROCESS_DATA	KexDataOut OPTIONAL) PROTECTED_FUNCTION
 {
+	PPEB Peb;
+
+	Peb = NtCurrentPeb();
+
 	if (KexData) {
 		// Already initialized - fail
 		return STATUS_ACCESS_DENIED;
+	}
+
+	//
+	// If we were propagated from another process, Peb->SubSystemData will be
+	// 0xB02BA295 (magic number set by NtOpenKeyEx hook).
+	//
+
+	if (Peb->SubSystemData == (PVOID) 0xB02BA295L) {
+		_KexData.Flags |= KEXDATA_FLAG_PROPAGATED;
+		Peb->SubSystemData = NULL;
 	}
 
 	//
@@ -148,14 +253,14 @@ KEXAPI NTSTATUS NTAPI KexDataInitialize(
 	RtlInitUnicodeString(&_KexData.WinDir, SharedUserData->NtSystemRoot);
 
 	KexRtlGetProcessImageBaseName(&_KexData.ImageBaseName);
-	KexpInitializeIfeoParameters();
+	KexpInitializeIfeoParameters(&_KexData.IfeoParameters);
 	KexpInitializeGlobalConfig();
 
 	//
 	// Get native NTDLL base address.
 	//
 	
-	_KexData.SystemDllBase = KexRtlGetNativeSystemDllBase();
+	_KexData.SystemDllBase = KexLdrGetNativeSystemDllBase();
 
 	//
 	// All done

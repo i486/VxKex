@@ -2,7 +2,7 @@
 //
 // Module Name:
 //
-//     NtDll.h
+//     KexDll.h
 //
 // Abstract:
 //
@@ -15,6 +15,7 @@
 // Revision History:
 //
 //     vxiiduu               11-Oct-2022  Initial creation.
+//     vxiiduu               06-Nov-2022  Refactor and create KexLdr* section
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -30,6 +31,8 @@
 #ifndef KEX_COMPONENT
 #  error You must define a Unicode component name as the KEX_COMPONENT macro.
 #endif
+
+#pragma region Macros and Structure Definitions
 
 //
 // Uncomment the macro definition to keep debug logging enabled in release
@@ -130,6 +133,10 @@ typedef struct _KEX_RTL_STRING_MAPPER_HASH_TABLE_ENTRY {
 	UNICODE_STRING					Value;
 } TYPEDEF_TYPE_NAME(KEX_RTL_STRING_MAPPER_HASH_TABLE_ENTRY);
 
+#pragma endregion
+
+#pragma region KexData* functions
+
 //
 // External code should access this data through a pointer because
 // it is more efficient.
@@ -141,6 +148,10 @@ extern KEX_PROCESS_DATA _KexData;
 
 KEXAPI NTSTATUS NTAPI KexDataInitialize(
 	OUT	PPKEX_PROCESS_DATA	KexDataOut OPTIONAL);
+
+#pragma endregion
+
+#pragma region KexRtl* functions
 
 KEXAPI NTSTATUS NTAPI KexRtlPathFindFileName(
 	IN	PCUNICODE_STRING Path,
@@ -181,18 +192,10 @@ KEXAPI VOID NTAPI KexRtlRetreatUnicodeString(
 	OUT	PUNICODE_STRING	String,
 	IN	USHORT			RetreatCb);
 
-KEXAPI PVOID NTAPI KexRtlGetNativeSystemDllBase(
-	VOID);
-
-KEXAPI NTSTATUS NTAPI KexRtlMiniGetProcedureAddress(
-	IN	PVOID	DllBase,
-	IN	PCSTR	ProcedureName,
-	OUT	PPVOID	ProcedureAddress);
-
 KEXAPI ULONG NTAPI KexRtlRemoteProcessBitness(
 	IN	HANDLE	ProcessHandle);
 
-NTSTATUS NTAPI KexRtlWriteProcessMemory(
+KEXAPI NTSTATUS NTAPI KexRtlWriteProcessMemory(
 	IN	HANDLE		ProcessHandle,
 	IN	ULONG_PTR	Destination,
 	IN	PVOID		Source,
@@ -259,6 +262,34 @@ KEXAPI NTSTATUS NTAPI KexRtlBatchApplyStringMapper(
 #define KexRtlEndOfUnicodeString(UnicodeString) ((UnicodeString)->Buffer + KexRtlUnicodeStringCch(UnicodeString))
 #define KexRtlCopyMemory(Destination, Source, Cb) __movsb((PUCHAR) (Destination), (PUCHAR) (Source), (Cb))
 
+#pragma endregion
+
+#pragma region KexLdr* functions
+
+KEXAPI PVOID NTAPI KexLdrGetNativeSystemDllBase(
+	VOID);
+
+KEXAPI NTSTATUS NTAPI KexLdrMiniGetProcedureAddress(
+	IN	PVOID	DllBase,
+	IN	PCSTR	ProcedureName,
+	OUT	PPVOID	ProcedureAddress);
+
+KEXAPI NTSTATUS NTAPI KexLdrFindDllInitRoutine(
+	IN	PVOID	DllBase,
+	OUT	PPVOID	InitRoutine);
+
+NTSTATUS NTAPI KexLdrGetDllFullName(
+	IN	PVOID			DllBase OPTIONAL,
+	OUT	PUNICODE_STRING	DllFullPath);
+
+KEXAPI NTSTATUS NTAPI KexLdrGetDllFullPathFromAddress(
+	IN	PVOID			Address,
+	OUT	PUNICODE_STRING	DllFullPath);
+
+#pragma endregion
+
+#pragma region KexSrv* functions
+
 KEXAPI NTSTATUS NTAPI KexSrvOpenChannel(
 	OUT	PHANDLE	ChannelHandle);
 
@@ -295,6 +326,10 @@ KEXAPI NTSTATUS CDECL KexSrvLogEventEx(
 	IN	PCWSTR		Format,
 	IN	...);
 
+#pragma endregion
+
+#pragma region KexHk* functions
+
 #ifdef KEX_ARCH_X64
 #  define BASIC_HOOK_LENGTH 14
 #  define BASIC_HOOK_DESTINATION_OFFSET 6
@@ -316,9 +351,9 @@ KEXAPI NTSTATUS NTAPI KexHkInstallBasicHook(
 KEXAPI NTSTATUS NTAPI KexHkRemoveBasicHook(
 	IN		PKEX_BASIC_HOOK_CONTEXT	HookContext);
 
-//
-// KexNt* syscall stubs (see syscal32.c and syscal64.asm)
-//
+#pragma endregion
+
+#pragma region KexNt* functions
 
 KEXAPI NTSTATUS NTAPI KexNtQuerySystemTime(
 	OUT		PULONGLONG	CurrentTime);
@@ -404,3 +439,5 @@ KEXAPI NTSTATUS NTAPI KexNtRaiseHardError(
 	IN	PULONG_PTR	Parameters,
 	IN	ULONG		ValidResponseOptions,
 	OUT	PULONG		Response);
+
+#pragma endregion

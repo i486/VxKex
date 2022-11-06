@@ -17,7 +17,8 @@ Debugger
 
 == kernel32!BaseDllInitialize ==
 
-SearchPathMode - passed directly to SetSearchPathMode() on dll init
+SearchPathMode
+  passed directly to SetSearchPathMode() on dll init
 
 == ntdll!RtlpProcessIFEOKeyFilter ==
 
@@ -64,6 +65,9 @@ PageHeapFlags(*)
 == ntdll!AVrfInitializeVerifier ==
 
 VerifierFlags(*)
+  See RTL_VRF_FLG_*.
+  Set to 0x80000000 to disable page heap (which is slow as balls).
+
 HandleTraces(*)
 
 VerifierDebug(*)
@@ -71,6 +75,17 @@ VerifierDebug(*)
   See AVRF_DBG_* in NtDll.h
 
 VerifierDlls(*)
+
+== verifier!AVrfpMiniLoadAttach == (only when avrf enabled of course)
+
+PageHeapSizeRangeStart
+PageHeapSizeRangeEnd
+PageHeapRandomProbability
+PageHeapDllRangeStart
+PageHeapDllRangeEnd
+PageHeapTargetDlls
+PageHeapVirtualMemoryPercent
+PageHeapCommitMemoryPercent
 
 
 (*) - Any value thus marked is able to be read from HKCU ifeo key
