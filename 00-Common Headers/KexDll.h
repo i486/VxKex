@@ -227,9 +227,9 @@ KEXAPI NTSTATUS NTAPI KexRtlApplyStringMapper(
 	IN OUT	PUNICODE_STRING					KeyToValue);
 
 KEXAPI NTSTATUS NTAPI KexRtlInsertMultipleEntriesStringMapper(
-	IN		PKEX_RTL_STRING_MAPPER			StringMapper,
-	IN		KEX_RTL_STRING_MAPPER_ENTRY		Entries[],
-	IN		ULONG							EntryCount);
+	IN		PKEX_RTL_STRING_MAPPER				StringMapper,
+	IN		CONST KEX_RTL_STRING_MAPPER_ENTRY	Entries[],
+	IN		ULONG								EntryCount);
 
 KEXAPI NTSTATUS NTAPI KexRtlLookupMultipleEntriesStringMapper(
 	IN		PKEX_RTL_STRING_MAPPER			StringMapper,
@@ -282,7 +282,7 @@ NTSTATUS NTAPI KexLdrGetDllFullName(
 	IN	PVOID			DllBase OPTIONAL,
 	OUT	PUNICODE_STRING	DllFullPath);
 
-KEXAPI NTSTATUS NTAPI KexLdrGetDllFullPathFromAddress(
+KEXAPI NTSTATUS NTAPI KexLdrGetDllFullNameFromAddress(
 	IN	PVOID			Address,
 	OUT	PUNICODE_STRING	DllFullPath);
 

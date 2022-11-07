@@ -16,6 +16,8 @@
 // Revision History:
 //
 //     vxiiduu              18-Oct-2022  Initial creation.
+//     vxiiduu              06-Nov-2022  Add IFEO parameter reading.
+//     vxiiduu              07-Nov-2022  Remove spurious range check.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -124,34 +126,6 @@ STATIC NTSTATUS KexpInitializeGlobalConfig(
 	return Status;
 } PROTECTED_FUNCTION_END
 
-// Min and Max are inclusive.
-STATIC VOID ClampIntegerIfeoParameter(
-	IN		PCWSTR	UserFriendlyName OPTIONAL,
-	IN OUT	PULONG	Number,
-	IN		ULONG	Min,
-	IN		ULONG	Max) PROTECTED_FUNCTION
-{
-	ASSERT (Number != NULL);
-
-	if (!UserFriendlyName) {
-		UserFriendlyName = L"An unspecified IFEO parameter";
-	}
-
-	if (*Number < Min) {
-		*Number = Min;
-	} else if (*Number > Max) {
-		*Number = Max;
-	} else {
-		return;
-	}
-
-	KexSrvLogWarningEvent(
-		L"%s was outside the allowed range of %lu-%lu.\r\n\r\n"
-		L"The value has been set to %lu.",
-		UserFriendlyName,
-		Min, Max, *Number);
-} PROTECTED_FUNCTION_END_VOID
-
 STATIC NTSTATUS KexpInitializeIfeoParameters(
 	OUT	PKEX_IFEO_PARAMETERS	IfeoParameters) PROTECTED_FUNCTION
 {
@@ -204,22 +178,11 @@ STATIC NTSTATUS KexpInitializeIfeoParameters(
 		IfeoKeyHandle,
 		L"KEX_StrongVersionSpoof",
 		REG_DWORD,
-		&IfeoParameters->WinVerSpoof,
-		sizeof(IfeoParameters->WinVerSpoof),
+		&IfeoParameters->StrongVersionSpoof,
+		sizeof(IfeoParameters->StrongVersionSpoof),
 		NULL);
 
 	NtClose(IfeoKeyHandle);
-
-	//
-	// Validate numbers to be within a certain range.
-	//
-
-	ClampIntegerIfeoParameter(
-		L"KEX_WinVerSpoof",
-		(PULONG) &IfeoParameters->WinVerSpoof,
-		WinVerSpoofNone,
-		WinVerSpoofMax - 1);
-
 	return STATUS_SUCCESS;
 } PROTECTED_FUNCTION_END
 

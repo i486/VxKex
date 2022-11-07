@@ -2136,6 +2136,11 @@ typedef BOOLEAN (NTAPI *PDLL_INIT_ROUTINE) (
 	IN	ULONG	Reason,
 	IN	PVOID	Context OPTIONAL);
 
+typedef VOID (NTAPI *PLDR_LOADED_MODULE_ENUMERATION_CALLBACK_FUNCTION) (
+	IN		PCLDR_DATA_TABLE_ENTRY	DataTableEntry,
+	IN		PVOID					Context,
+	IN OUT	PBOOLEAN				StopEnumeration);
+
 #pragma endregion
 
 STATIC PKUSER_SHARED_DATA SharedUserData = (PKUSER_SHARED_DATA) 0x7FFE0000;
@@ -3189,6 +3194,11 @@ NTSYSAPI NTSTATUS NTAPI LdrOpenImageFileOptionsKey(
 	IN	BOOLEAN				Wow64,			// no effect - just set to FALSE
 	OUT	PHANDLE				KeyHandle);
 
+NTSYSAPI NTSTATUS NTAPI LdrEnumerateLoadedModules(
+	IN	ULONG												Flags,
+	IN	PLDR_LOADED_MODULE_ENUMERATION_CALLBACK_FUNCTION	CallbackFunction,
+	IN	PVOID												Context OPTIONAL);
+
 //
 // Non-Exported Functions - Must manually find, or reimplement.
 //
@@ -3265,6 +3275,12 @@ NTSYSAPI ULONG NTAPI DbgPrintEx(
      (UnicodeString)->Length = 0, \
      (UnicodeString)->MaximumLength = (USHORT)(BufferCb))
 #define RtlInitEmptyAnsiString(AnsiString, InitBuffer, BufferCb) RtlInitEmptyUnicodeString(AnsiString, InitBuffer, BufferCb)
+
+#define RtlInitEmptyUnicodeStringFromTeb(UnicodeString) \
+	((UnicodeString)->Buffer = NtCurrentTeb()->StaticUnicodeBuffer, \
+	 (UnicodeString)->Length = 0, \
+	 (UnicodeString)->MaximumLength = RTL_FIELD_SIZE(TEB, StaticUnicodeBuffer))
+#define RtlInitEmptyAnsiStringFromTeb(AnsiString) RtlInitEmptyUnicodeStringFromTeb(AnsiString)
 
 #define HASH_ENTRY_KEY(x) ((x)->Signature)
 

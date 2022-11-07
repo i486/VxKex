@@ -357,9 +357,9 @@ KEXAPI NTSTATUS NTAPI KexRtlApplyStringMapper(
 // mapper with a single call. It is intended to be used with static arrays.
 //
 KEXAPI NTSTATUS NTAPI KexRtlInsertMultipleEntriesStringMapper(
-	IN		PKEX_RTL_STRING_MAPPER			StringMapper,
-	IN		KEX_RTL_STRING_MAPPER_ENTRY		Entries[],
-	IN		ULONG							EntryCount) PROTECTED_FUNCTION
+	IN		PKEX_RTL_STRING_MAPPER				StringMapper,
+	IN		CONST KEX_RTL_STRING_MAPPER_ENTRY	Entries[],
+	IN		ULONG								EntryCount) PROTECTED_FUNCTION
 {
 	NTSTATUS FailureStatus;
 

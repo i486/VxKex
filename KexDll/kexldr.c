@@ -15,6 +15,7 @@
 // Revision History:
 //
 //     vxiiduu              06-Nov-2022  Initial creation.
+//     vxiiduu              06-Nov-2022  Rework KexLdrGetDllFullNameFromAddress
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -23,6 +24,9 @@
 
 //
 // Compatible with Win8.
+// In Windows 8, this function forms the basis of GetModuleFileName,
+// whereas in Win7 and before, the scanning of the loader data table
+// is done directly in kernelbase.dll (or kernel32.dll).
 //
 NTSTATUS NTAPI KexLdrGetDllFullName(
 	IN	PVOID			DllBase OPTIONAL,
@@ -58,32 +62,34 @@ NTSTATUS NTAPI KexLdrGetDllFullName(
 	return STATUS_SUCCESS;
 }
 
-NTSTATUS NTAPI KexLdrGetDllFullPathFromAddress(
+//
+// This function matches for any address inside the DLL instead of
+// only its base address. It is therefore less efficient than using
+// KexLdrGetDllFullName, but required for e.g. figuring out which
+// DLL a function call comes from.
+//
+NTSTATUS NTAPI KexLdrGetDllFullNameFromAddress(
 	IN	PVOID			Address,
 	OUT	PUNICODE_STRING	DllFullPath) PROTECTED_FUNCTION
 {
 	NTSTATUS Status;
-	MEMORY_BASIC_INFORMATION BasicInformation;
+	PLDR_DATA_TABLE_ENTRY Entry;
 
 	if (!Address || !DllFullPath) {
 		return STATUS_INVALID_PARAMETER;
 	}
 
-	Status = NtQueryVirtualMemory(
-		NtCurrentProcess(),
-		Address,
-		MemoryBasicInformation,
-		&BasicInformation,
-		sizeof(BasicInformation),
-		NULL);
-
+	Status = LdrFindEntryForAddress(Address, &Entry);
 	if (!NT_SUCCESS(Status)) {
 		return Status;
 	}
 
-	return KexLdrGetDllFullName(
-		BasicInformation.AllocationBase,
-		DllFullPath);
+	if (Entry->FullDllName.Length > DllFullPath->MaximumLength) {
+		return STATUS_BUFFER_TOO_SMALL;
+	}
+
+	RtlCopyUnicodeString(DllFullPath, &Entry->FullDllName);
+	return STATUS_SUCCESS;
 } PROTECTED_FUNCTION_END
 
 //
@@ -119,6 +125,9 @@ NTSTATUS NTAPI KexLdrFindDllInitRoutine(
 // Main reason for using this is to:
 //   - get proc address in DLLs mapped but not registered with loader
 //   - get proc address in "wrong" bitness dlls (e.g. native ntdll.dll from wow64 process)
+//
+// However, for DLLs registered with loader, this function is not useful
+// as it is far slower than LdrGetProcedureAddress.
 //
 NTSTATUS NTAPI KexLdrMiniGetProcedureAddress(
 	IN	PVOID	DllBase,

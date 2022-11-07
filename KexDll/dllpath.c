@@ -83,10 +83,7 @@ NTSTATUS KexpAddKex3264ToDllPath(
 	// Create a scratch buffer for the data we will prepend to DllPath.
 	//
 
-	RtlInitEmptyUnicodeString(
-		&Prepend, 
-		NtCurrentTeb()->StaticUnicodeBuffer, 
-		RTL_FIELD_SIZE(TEB, StaticUnicodeBuffer));
+	RtlInitEmptyUnicodeStringFromTeb(&Prepend);
 
 	//
 	// Build up the prepend string (KexDir + \Kex32; or \Kex64;)

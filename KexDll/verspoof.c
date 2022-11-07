@@ -15,6 +15,7 @@
 // Revision History:
 //
 //     vxiiduu              06-Nov-2022  Initial creation.
+//     vxiiduu              07-Nov-2022  Increase resilience of KexApplyVersionSpoof
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -40,7 +41,6 @@ STATIC VOID NTAPI KexpRtlGetNtVersionNumbersHook(
 	NTSTATUS Status;
 	PPEB Peb;
 	UNICODE_STRING CallerDll;
-	WCHAR CallerDllBuffer[MAX_PATH];
 	ULONG ReturnMajorVersion;
 	ULONG ReturnMinorVersion;
 	ULONG ReturnBuildNumber;
@@ -58,18 +58,14 @@ STATIC VOID NTAPI KexpRtlGetNtVersionNumbersHook(
 	// version and will fail in its DllMain if that isn't the case.
 	//
 
-	RtlInitEmptyUnicodeString(&CallerDll, CallerDllBuffer, sizeof(CallerDllBuffer));
-	Status = KexLdrGetDllFullPathFromAddress(ReturnAddress(), &CallerDll);
+	RtlInitEmptyUnicodeStringFromTeb(&CallerDll);
+	Status = KexLdrGetDllFullNameFromAddress(ReturnAddress(), &CallerDll);
 	if (!NT_SUCCESS(Status)) {
 		goto Exit;
 	}
 
 	if (NT_SUCCESS(Status)) {
-		KexSrvLogDebugEvent(L"Called from %wZ (pfx %wZ)", &CallerDll, &KexData->WinDir);
-
 		if (RtlPrefixUnicodeString(&KexData->WinDir, &CallerDll, TRUE)) {
-			KexSrvLogDebugEvent(L"XXX");
-
 			ReturnMajorVersion = 6;
 			ReturnMinorVersion = 1;
 			ReturnBuildNumber = 7601;
@@ -98,8 +94,6 @@ VOID KexApplyVersionSpoof(
 	ULONG MinorVersion;
 	USHORT BuildNumber;
 	USHORT CSDVersion;
-
-	ASSUME (KexData->IfeoParameters.WinVerSpoof < WinVerSpoofMax);
 
 	if (KexData->IfeoParameters.WinVerSpoof == WinVerSpoofNone) {
 		KexSrvLogDebugEvent(L"Not spoofing Windows version since it is not requested.");
@@ -149,12 +143,11 @@ VOID KexApplyVersionSpoof(
 		BuildNumber = 19044; // Win10 21H2
 		break;
 	case WinVerSpoofWin11:
+	default: // default case should always be at the highest win version
 		MajorVersion = 10;
 		MinorVersion = 0;
 		BuildNumber = 22000; // Win11 21H2
 		break;
-	default:
-		NOT_REACHED;
 	}
 
 	Peb->OSMajorVersion = MajorVersion;
