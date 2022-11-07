@@ -69,7 +69,7 @@ VOID PopulateSourceComponents(
 	ListView_DeleteAllItems(SourceComponentListViewWindow);
 
 	for (Index = 0; Index < ARRAYSIZE(LogHandle->Header.SourceComponents) &&
-					LogHandle->Header.SourceComponents[Index][0] != '\0'; Index++) {
+					LogHandle->Header.SourceComponents[Index][0] != '\0'; ++Index) {
 		LVITEM Item;
 
 		Item.mask = LVIF_TEXT;

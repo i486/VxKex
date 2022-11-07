@@ -158,7 +158,7 @@ VOID BuildBackendFilters(
 	for (Index = 0; Index < NumberOfComponents; ++Index) {
 		Filters->ComponentFilters[Index] = ListView_GetCheckState(
 			ComponentListWindow, 
-			NumberOfComponents - Index - 1);
+			Index);
 	}
 }
 
