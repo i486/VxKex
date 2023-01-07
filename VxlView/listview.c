@@ -1,5 +1,6 @@
 #include "vxlview.h"
 #include "resource.h"
+#include "backendp.h"
 
 //
 // This file contains functions for dealing with the list-view control in
@@ -151,26 +152,26 @@ VOID PopulateListViewItem(
 
 	switch (Item->iSubItem) {
 	case ColumnSeverity:
-		Item->iImage = CacheEntry->LogEntry->Severity;
-		Item->pszText = (PWSTR) VxlSeverityLookup(CacheEntry->LogEntry->Severity, FALSE);
+		Item->iImage = CacheEntry->LogEntry.Severity;
+		Item->pszText = (PWSTR) VxlSeverityToText(CacheEntry->LogEntry.Severity, FALSE);
 		break;
 	case ColumnDateTime:
 		Item->pszText = CacheEntry->ShortDateTimeAsString;
 		break;
 	case ColumnSourceComponent:
-		Item->pszText = (PWSTR) CacheEntry->LogEntry->SourceComponent;
+		Item->pszText = State->LogHandle->Header->SourceComponents[CacheEntry->LogEntry.SourceComponentIndex];
 		break;
 	case ColumnSourceFile:
-		Item->pszText = (PWSTR) CacheEntry->LogEntry->SourceFile;
+		Item->pszText = State->LogHandle->Header->SourceFiles[CacheEntry->LogEntry.SourceFileIndex];
 		break;
 	case ColumnSourceLine:
 		Item->pszText = CacheEntry->SourceLineAsString;
 		break;
 	case ColumnSourceFunction:
-		Item->pszText = (PWSTR) CacheEntry->LogEntry->SourceFunction;
+		Item->pszText = State->LogHandle->Header->SourceFunctions[CacheEntry->LogEntry.SourceFunctionIndex];
 		break;
 	case ColumnText:
-		Item->pszText = (PWSTR) CacheEntry->LogEntry->TextHeader;
+		Item->pszText = CacheEntry->LogEntry.TextHeader.Buffer;
 		break;
 	default:
 		ASSUME (FALSE);
@@ -187,9 +188,10 @@ VOID HandleListViewContextMenu(
 	ListView_HitTest(ListViewWindow, &HitTestInfo);
 
 	if (HitTestInfo.flags & LVHT_ONITEM) {
-		VXLSTATUS Status;
+		NTSTATUS Status;
 		HGLOBAL CopiedText;
-		ULONG TextLength;
+		UNICODE_STRING LogEntryText;
+		PWCHAR TextBuffer;
 		PLOGENTRYCACHEENTRY CacheEntry;
 		ULONG EntryIndex = HitTestInfo.iItem;
 		ULONG MenuSelection;
@@ -204,29 +206,27 @@ VOID HandleListViewContextMenu(
 			return;
 		}
 
-		Status = VxlConvertLogEntryToText(
-			CacheEntry->LogEntry,
-			NULL,
-			&TextLength,
-			(MenuSelection == M_COPYLONG));
-		if (Status != VXL_INSUFFICIENT_BUFFER) {
+		Status = ConvertCacheEntryToText(
+			CacheEntry,
+			&LogEntryText,
+			MenuSelection == M_COPYLONG ? TRUE : FALSE);
+
+		if (!NT_SUCCESS(Status)) {
 			return;
 		}
 
-		CopiedText = GlobalAlloc(GMEM_MOVEABLE, TextLength * sizeof(WCHAR));
+		CopiedText = GlobalAlloc(GMEM_MOVEABLE, LogEntryText.Length + sizeof(WCHAR));
 		if (!CopiedText) {
 			return;
 		}
 
-		Status = VxlConvertLogEntryToText(
-			CacheEntry->LogEntry,
-			(PWSTR) GlobalLock(CopiedText),
-			&TextLength,
-			(MenuSelection == M_COPYLONG));
-
+		TextBuffer = (PWCHAR) GlobalLock(CopiedText);
+		RtlCopyMemory(TextBuffer, LogEntryText.Buffer, LogEntryText.Length + sizeof(WCHAR));
+		ASSERT (wcslen(TextBuffer) == LogEntryText.Length / sizeof(WCHAR));
+		RtlFreeUnicodeString(&LogEntryText);
 		GlobalUnlock(CopiedText);
 		
-		if (VXL_FAILED(Status)) {
+		if (!NT_SUCCESS(Status)) {
 			GlobalFree(CopiedText);
 			return;
 		}

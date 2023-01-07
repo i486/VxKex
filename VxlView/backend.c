@@ -34,7 +34,7 @@ VOID CleanupBackend(
 		// All allocated memory will be released by the operating system so there is
 		// no reason to waste time trying to clean it.
 		//
-		VxlCloseLogFile(&State->LogHandle);
+		VxlCloseLog(&State->LogHandle);
 	}
 }
 
@@ -55,25 +55,61 @@ BOOLEAN IsLogFileOpened(
 // Open a log file.
 //
 BOOLEAN OpenLogFile(
-	IN	PCWSTR	LogFileName)
+	IN	PCWSTR	LogFileNameWin32)
 {
-	VXLSTATUS Status;
+	NTSTATUS Status;
 	VXLHANDLE NewLogHandle;
+	UNICODE_STRING LogFileNameNt;
+	OBJECT_ATTRIBUTES ObjectAttributes;
 	PPLOGENTRYCACHEENTRY NewLogEntryCache;
 	ULONG NewNumberOfLogEntries;
 	ULONG SizeOfNewNumberOfLogEntries;
+	ULONG Index;
 
 	NewLogHandle = NULL;
 	NewLogEntryCache = NULL;
 
-	//
-	// Tell VXLL to open the file.
-	//
 	SetWindowText(StatusBarWindow, L"Opening file, please wait...");
-	Status = VxlOpenLogFileReadOnly(LogFileName, &NewLogHandle);
-	if (VXL_FAILED(Status)) {
-		ErrorBoxF(L"%s failed to open %s. %s.",
-				  FRIENDLYAPPNAME, LogFileName, VxlErrorLookup(Status));
+
+	//
+	// Convert Win32 file name to NT
+	//
+
+	Status = RtlDosPathNameToNtPathName_U_WithStatus(
+		LogFileNameWin32,
+		&LogFileNameNt,
+		NULL,
+		NULL);
+
+	if (!NT_SUCCESS(Status)) {
+		ErrorBoxF(L"%s failed to convert \"%s\" to a NT filename (%s)",
+				  FRIENDLYAPPNAME, LogFileNameWin32, KexRtlNtStatusToString(Status));
+		goto OpenFailure;
+	}
+
+	InitializeObjectAttributes(
+		&ObjectAttributes, 
+		&LogFileNameNt, 
+		OBJ_CASE_INSENSITIVE, 
+		NULL, 
+		NULL);
+
+	//
+	// Open the log file
+	//
+
+	Status = VxlOpenLog(
+		&NewLogHandle,
+		NULL,
+		&ObjectAttributes,
+		GENERIC_READ,
+		FILE_OPEN);
+
+	RtlFreeUnicodeString(&LogFileNameNt);
+
+	if (!NT_SUCCESS(Status)) {
+		ErrorBoxF(L"%s failed to open %s (%s)",
+				  FRIENDLYAPPNAME, LogFileNameWin32, KexRtlNtStatusToString(Status));
 		goto OpenFailure;
 	}
 
@@ -82,14 +118,15 @@ BOOLEAN OpenLogFile(
 	// the log-entry cache.
 	//
 	SizeOfNewNumberOfLogEntries = sizeof(NewNumberOfLogEntries);
-	Status = VxlQueryLogInformation(
+	Status = VxlQueryInformationLog(
 		NewLogHandle,
-		LogNumberOfEntries,
+		LogTotalNumberOfEvents,
 		&NewNumberOfLogEntries,
 		&SizeOfNewNumberOfLogEntries);
-	if (VXL_FAILED(Status)) {
+
+	if (!NT_SUCCESS(Status)) {
 		ErrorBoxF(L"%s failed to query information about %s. %s.",
-				  FRIENDLYAPPNAME, LogFileName, VxlErrorLookup(Status));
+				  FRIENDLYAPPNAME, LogFileNameWin32, KexRtlNtStatusToString(Status));
 		goto OpenFailure;
 	}
 
@@ -108,23 +145,25 @@ BOOLEAN OpenLogFile(
 		goto OpenFailure;
 	}
 
-	ZeroMemory(NewLogEntryCache, NewNumberOfLogEntries * sizeof(PLOGENTRYCACHEENTRY));
+	RtlZeroMemory(NewLogEntryCache, NewNumberOfLogEntries * sizeof(PLOGENTRYCACHEENTRY));
 
 	//
 	// copy values of all New* variables into the global ones
 	//
 
 	if (State->LogHandle) {
-		VxlCloseLogFile(&State->LogHandle);
-	}
-
-	if (State->LogEntryCache) {
-		DestroyLogEntryCache(State->NumberOfLogEntries, State->LogEntryCache);
+		VxlCloseLog(&State->LogHandle);
 	}
 
 	SafeFree(State->FilteredLookupCache);
 
-	ZeroMemory(State, sizeof(*State));
+	for (Index = 0; Index < State->NumberOfLogEntries; ++Index) {
+		SafeFree(State->LogEntryCache[Index]);
+	}
+
+	SafeFree(State->LogEntryCache);
+
+	RtlZeroMemory(State, sizeof(*State));
 	State->NumberOfLogEntries = NewNumberOfLogEntries;
 	State->LogHandle = NewLogHandle;
 	State->LogEntryCache = NewLogEntryCache;
@@ -132,12 +171,13 @@ BOOLEAN OpenLogFile(
 	//
 	// perform other misc. actions such as updating the UI text and whatever
 	//
+
 	UpdateMainMenu();
 	SetWindowText(StatusBarWindow, L"Finished.");
 	StatusBar_SetTextF(StatusBarWindow, 1, L"%lu entr%s in file",
 					   State->NumberOfLogEntries,
 					   State->NumberOfLogEntries == 1 ? L"y" : L"ies");
-	SetWindowTextF(MainWindow, L"%s - %s", FRIENDLYAPPNAME, LogFileName);
+	SetWindowTextF(MainWindow, L"%s - %s", FRIENDLYAPPNAME, LogFileNameWin32);
 
 	PopulateSourceComponents(State->LogHandle);
 	ResetFilterControls();
@@ -146,11 +186,7 @@ BOOLEAN OpenLogFile(
 
 OpenFailure:
 	if (NewLogHandle) {
-		VxlCloseLogFile(&NewLogHandle);
-	}
-
-	if (NewLogEntryCache) {
-		DestroyLogEntryCache(NewNumberOfLogEntries, NewLogEntryCache);
+		VxlCloseLog(&NewLogHandle);
 	}
 
 	SetWindowText(StatusBarWindow, L"Couldn't open the log file.");
@@ -187,23 +223,94 @@ BOOLEAN OpenLogFileWithPrompt(
 	return Success;
 }
 
+// Free the UNICODE_STRING by calling RtlFreeUnicodeString after you're done with it
+NTSTATUS ConvertCacheEntryToText(
+	IN	PLOGENTRYCACHEENTRY	CacheEntry,
+	OUT	PUNICODE_STRING		ExportedText,
+	IN	BOOLEAN				LongForm)
+{
+	HRESULT Result;
+	PVXLLOGENTRY LogEntry;
+	SIZE_T RemainingBytes;
+
+	ASSERT (CacheEntry != NULL);
+	ASSERT (ExportedText != NULL);
+
+	LogEntry = &CacheEntry->LogEntry;
+
+	ExportedText->Length = 0;
+	ExportedText->MaximumLength = LogEntry->Text.Length + LogEntry->TextHeader.Length + (256 * sizeof(WCHAR));
+	ExportedText->Buffer = (PWCHAR) SafeAlloc(BYTE, ExportedText->MaximumLength);
+
+	if (LongForm) {
+		Result = StringCbPrintfEx(
+			ExportedText->Buffer,
+			ExportedText->MaximumLength,
+			NULL,
+			&RemainingBytes,
+			0,
+			L"Date/Time: %s\r\n"
+			L"Source: PID %lu, TID %lu, %s\\%s:%s (in function %s)\r\n"
+			L"%wZ%s%wZ\r\n",
+			CacheEntry->ShortDateTimeAsString,
+			(ULONG) LogEntry->ClientId.UniqueProcess,
+			(ULONG) LogEntry->ClientId.UniqueThread,
+			State->LogHandle->Header->SourceComponents[LogEntry->SourceComponentIndex],
+			State->LogHandle->Header->SourceFiles[LogEntry->SourceFileIndex],
+			CacheEntry->SourceLineAsString,
+			State->LogHandle->Header->SourceFunctions[LogEntry->SourceFunctionIndex],
+			&LogEntry->TextHeader,
+			LogEntry->Text.Length != 0 ? L"\r\n\r\n" : L"",
+			&LogEntry->Text);
+	} else {
+		Result = StringCbPrintfEx(
+			ExportedText->Buffer,
+			ExportedText->MaximumLength,
+			NULL,
+			&RemainingBytes,
+			0,
+			L"[%s %04lx:%04lx %s\\%s:%s (%s)] %wZ%s%s\r\n",
+			CacheEntry->ShortDateTimeAsString,
+			(ULONG) LogEntry->ClientId.UniqueProcess,
+			(ULONG) LogEntry->ClientId.UniqueThread,
+			State->LogHandle->Header->SourceComponents[LogEntry->SourceComponentIndex],
+			State->LogHandle->Header->SourceFiles[LogEntry->SourceFileIndex],
+			CacheEntry->SourceLineAsString,
+			State->LogHandle->Header->SourceFunctions[LogEntry->SourceFunctionIndex],
+			&LogEntry->TextHeader,
+			LogEntry->Text.Length != 0 ? L" // " : L"",
+			LogEntry->Text.Buffer != NULL ? LogEntry->Text.Buffer : L"");
+	}
+
+	if (Result == STRSAFE_E_INSUFFICIENT_BUFFER) {
+		ExportedText->Length = ExportedText->MaximumLength - sizeof(WCHAR);
+		return STATUS_BUFFER_OVERFLOW;
+	} else if (FAILED(Result)) {
+		ExportedText->Length = 0;
+		return STATUS_DATA_ERROR;
+	}
+
+	ExportedText->Length = ExportedText->MaximumLength - (USHORT) RemainingBytes;
+	return STATUS_SUCCESS;
+}
+
 //
 // Export the currently opened log to a text file.
 //
 VOID ExportLog(
 	IN	PCWSTR	TextFileName)
 {
-	HANDLE ThreadHandle;
-
-	ThreadHandle = CreateThread(
+	RtlCreateUserThread(
+		NtCurrentProcess(),
 		NULL,
+		FALSE,
+		0,
+		0,
 		0,
 		ExportLogThreadProc,
 		(PVOID) TextFileName,
-		0,
+		NULL,
 		NULL);
-
-	CloseHandle(ThreadHandle);
 }
 
 //
@@ -229,7 +336,7 @@ BOOLEAN ExportLogWithPrompt(
 		SaveFileName,
 		ARRAYSIZE(SaveFileName),
 		FileNameFormat,
-		State->LogHandle->Header.SourceApplication);
+		State->LogHandle->Header->SourceApplication);
 	if (FAILED(Result)) {
 		StringCchCopy(SaveFileName, ARRAYSIZE(SaveFileName), L"Exported Log.txt");
 	}

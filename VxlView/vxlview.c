@@ -1,8 +1,8 @@
 #include "vxlview.h"
 #include "resource.h"
 
-VOID EntryPoint(
-	VOID)
+NTSTATUS NTAPI EntryPoint(
+	IN	PVOID	Parameter)
 {
 	HACCEL Accelerators;
 	MSG Message;
@@ -27,6 +27,9 @@ VOID EntryPoint(
 			DispatchMessage(&Message);
 		}
 	}
+
+	LdrShutdownProcess();
+	return NtTerminateProcess(NtCurrentProcess(), STATUS_SUCCESS);
 }
 
 INT_PTR CALLBACK MainWndProc(

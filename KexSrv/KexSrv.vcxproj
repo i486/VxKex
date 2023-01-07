@@ -87,18 +87,18 @@
     </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="client.c" />
-    <ClCompile Include="dispatch.c" />
-    <ClCompile Include="harderr.c" />
-    <ClCompile Include="kexsrv.c" />
-    <ClCompile Include="logging.c" />
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="buildcfg.h" />
     <ClInclude Include="kexsrvp.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="KexSrv.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="apc.c" />
+    <ClCompile Include="kexsrv.c" />
+    <ClCompile Include="logging.c" />
+    <ClCompile Include="pipe.c" />
+    <ClCompile Include="procthrd.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

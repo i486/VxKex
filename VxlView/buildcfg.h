@@ -35,4 +35,5 @@
 #define NOSERVICE
 #define NOSOUND
 
+#define KEX_COMPONENT L"VxlView"
 #define KEX_TARGET_TYPE_EXE

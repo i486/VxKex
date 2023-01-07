@@ -15,23 +15,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="kexsrv.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="client.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="dispatch.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="logging.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="harderr.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="buildcfg.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -43,5 +26,22 @@
     <ResourceCompile Include="KexSrv.rc">
       <Filter>Resource Files</Filter>
     </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="kexsrv.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="apc.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="logging.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="pipe.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="procthrd.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

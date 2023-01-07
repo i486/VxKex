@@ -6,166 +6,184 @@
 //
 // Abstract:
 //
-//     Main file for the VxKex server program.
-//
-//     KexSrv runs as a normal background program, accepts connections from
-//     VxKex enabled processes and is responsible for performing logging and
-//     displaying hard error messages.
-//
-//     In the future we may explore bidirectional communication with the
-//     client. However, for the time being, communication between client and
-//     server is unidirectional.
+//     VxKex local server, main file
 //
 // Author:
 //
-//     vxiiduu (02-Oct-2022)
-//
-// Environment:
-//
-//     Runs as a normal win32 program. Not as a "service" or anything
-//     like that.
+//     vxiiduu (03-Jan-2023)
 //
 // Revision History:
 //
-//     vxiiduu               02-Oct-2022  Initial creation.
+//     vxiiduu               03-Jan-2023  Initial creation, rewrite original.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "buildcfg.h"
-#include <KexComm.h>
-#include <KexLog.h>
 #include "kexsrvp.h"
 
-VXLHANDLE GlobalLogHandle;
+PKEX_PROCESS_DATA KexData = NULL;
+RTL_DYNAMIC_HASH_TABLE _ProcessThreadTable;
+PRTL_DYNAMIC_HASH_TABLE ProcessThreadTable = &_ProcessThreadTable;
 
-NORETURN VOID EntryPoint(
-	VOID)
+NORETURN VOID NTAPI EntryPoint(
+	IN	PVOID	Parameter)
 {
 	NTSTATUS Status;
+	HANDLE ConnectEventHandle;
 	HANDLE PipeHandle;
 	UNICODE_STRING PipeName;
 	OBJECT_ATTRIBUTES ObjectAttributes;
 	IO_STATUS_BLOCK IoStatusBlock;
-	LARGE_INTEGER DefaultTimeout;
-	LARGE_INTEGER FailureDelay;
 
-	KexgApplicationFriendlyName = FRIENDLYAPPNAME;
+	//
+	// Try to open the KexSrv named pipe. If we succeed, that means that
+	// another instance of KexSrv is already running. If another instance
+	// of the server is already running, we can just quit here.
+	//
 
 	RtlInitConstantUnicodeString(&PipeName, KEXSRV_IPC_CHANNEL_NAME);
-	InitializeObjectAttributes(&ObjectAttributes, &PipeName, 0, NULL, NULL);
+	InitializeObjectAttributes(&ObjectAttributes, &PipeName, OBJ_CASE_INSENSITIVE, NULL, NULL);
 
-	FailureDelay.QuadPart = -(10 * 1000 * 10000); // 10 s
-	DefaultTimeout.QuadPart = -(50 * 10000); // 50 ms
-
-	//
-	// See if another instance of KexSrv is already running. If so, quit.
-	//
 	Status = NtOpenFile(
 		&PipeHandle,
-		GENERIC_WRITE | SYNCHRONIZE,
+		GENERIC_WRITE,
 		&ObjectAttributes,
 		&IoStatusBlock,
-		FILE_SHARE_WRITE,
-		FILE_SYNCHRONOUS_IO_NONALERT);
+		FILE_SHARE_READ | FILE_SHARE_WRITE,
+		0);
 
 	if (NT_SUCCESS(Status)) {
-		// kexsrv is already running, since we were able to open the pipe which
-		// we didn't create yet.
-#ifdef _DEBUG
-		ErrorBoxF(L"Another instance of KexSrv is already running.");
-#endif
-		ExitProcess(0);
+		DbgPrint("Server pipe already exists\r\n");
+		NtTerminateProcess(NtCurrentProcess(), STATUS_OBJECT_NAME_EXISTS);
 	}
 
 	//
-	// Open global log file.
+	// Get a pointer to KexData.
 	//
-	GlobalLogHandle = KexSrvOpenLogFile(NULL, 0, NULL);
-	KexSrvGlobalLog(
-		LogSeverityInformation,
-		L"KexSrv started\r\n\r\n"
-		L"VxKex version: %s\r\n"
-		L"Build timestamp: %s %s\r\n"
-		L"Source last modified: %s",
-		_L(KEX_VERSION_STR),
-		__DATEW__,
-		__TIMEW__,
-		__TIMESTAMPW__);
+
+	Status = KexDataInitialize(&KexData);
+	if (!NT_SUCCESS(Status)) {
+		DbgPrint("Failed to initialize KexData (%ws)\r\n", KexRtlNtStatusToString(Status));
+		NtTerminateProcess(NtCurrentProcess(), Status);
+	}
+
+	//
+	// Initialize the process/thread table.
+	//
+
+	RtlCreateHashTable(&ProcessThreadTable, 0, 0);
+
+	//
+	// Open the server's log file. If this fails, we will not be able to
+	// log anything, but it's otherwise a non-critical error.
+	//
+
+	OpenServerLogFile(&KexData->LogHandle);
+	KexLogInformationEvent(L"Server process started.");
+
+	//
+	// Create an event. This event will be signaled when a client is attempting to
+	// connect to the server.
+	//
+
+	Status = NtCreateEvent(
+		&ConnectEventHandle,
+		EVENT_ALL_ACCESS,
+		NULL,
+		NotificationEvent,
+		TRUE);
+
+	if (!NT_SUCCESS(Status)) {
+		KexLogErrorEvent(
+			L"Failed to create the pipe-connect event.\r\n\r\n"
+			L"NTSTATUS error code: %s",
+			KexRtlNtStatusToString(Status));
+		NtTerminateProcess(NtCurrentProcess(), Status);
+	}
+
+	//
+	// Create and connect the first instance of the pipe.
+	//
+
+	Status = CreateConnectPipeInstance(
+			&PipeHandle,
+			ConnectEventHandle,
+			&ObjectAttributes, 
+			&IoStatusBlock);
+
+	if (Status != STATUS_PENDING && !NT_SUCCESS(Status)) {
+		KexLogErrorEvent(
+			L"Failed to create and connect the first instance of the server pipe.\r\n\r\n"
+			L"NTSTATUS error code: %s",
+			KexRtlNtStatusToString(Status));
+		NtTerminateProcess(NtCurrentProcess(), Status);
+	}
+
+	//
+	// Main loop
+	//
 
 	while (TRUE) {
-		//
-		// Create an instance of KexSrv's named pipe.
-		//
-
-		Status = NtCreateNamedPipeFile(
-			&PipeHandle,
-			GENERIC_READ | SYNCHRONIZE | FILE_CREATE_PIPE_INSTANCE,
-			&ObjectAttributes,
-			&IoStatusBlock,
-			FILE_SHARE_WRITE,
-			FILE_OPEN_IF,
-			FILE_WRITE_THROUGH | FILE_SYNCHRONOUS_IO_NONALERT,
-			FILE_PIPE_MESSAGE_TYPE,
-			FILE_PIPE_MESSAGE_MODE,
-			FILE_PIPE_QUEUE_OPERATION,
-			256, // max instances
-			1024,
-			1024,
-			&DefaultTimeout);
-		ASSERT (NT_SUCCESS(Status));
-
-		if (!NT_SUCCESS(Status)) {
-			// wait a while and then try again
-			NtDelayExecution(FALSE, &FailureDelay);
-			continue;
-		}
-
-		//
-		// Listen for an incoming client.
-		//
-
-		Status = NtFsControlFile(
-			PipeHandle,
-			NULL,
-			NULL,
-			NULL,
-			&IoStatusBlock,
-			FSCTL_PIPE_LISTEN,
-			NULL,
-			0,
-			NULL,
-			0);
-		ASSERT (NT_SUCCESS(Status));
-
-		if (!NT_SUCCESS(Status)) {
-			NtDelayExecution(FALSE, &FailureDelay);
-			NtClose(PipeHandle);
-			continue;
-		}
-
-		//
-		// Create a thread to handle this client.
-		// The parameter to the thread is the pipe handle.
-		// The thread is responsible for closing the handle when finished.
-		//
-
-		Status = RtlCreateUserThread(
-			NtCurrentProcess(),
-			NULL,
-			FALSE,
-			0,
-			0,
-			0,
-			KexSrvHandleClientThreadProc,
-			PipeHandle,
-			NULL,
+		Status = NtWaitForSingleObject(
+			ConnectEventHandle,
+			TRUE,
 			NULL);
-		ASSERT (NT_SUCCESS(Status));
 
-		if (!NT_SUCCESS(Status)) {
-			NtDelayExecution(FALSE, &FailureDelay);
-			NtClose(PipeHandle);
-			continue;
+		if (Status == STATUS_SUCCESS) {
+			PKEXSRV_PER_CLIENT_PROCESS_DATA PerProcessData;
+
+			//
+			// This means that a client is connected.
+			// Invoke a subroutine to allocate and register data structures, etc.
+			//
+
+			Status = AcceptConnectProcess(&PerProcessData, PipeHandle);
+			if (NT_SUCCESS(Status)) {
+				//
+				// Initiate an asynchronous read of the new pipe.
+				// This call will return immediately.
+				//
+
+				CompletedWriteApc(NULL, &PerProcessData->IoStatusBlock, 0);
+
+				KexLogInformationEvent(
+					L"New client process (PID %lu) has successfully connected.",
+					PerProcessData->ProcessId);
+			} else {
+				KexLogErrorEvent(
+					L"Failed to accept a connection from a client process. (%s)",
+					KexRtlNtStatusToString(Status));
+				NtClose(PipeHandle);
+			}
+
+			//
+			// Create and connect another instance.
+			//
+
+			Status = CreateConnectPipeInstance(
+				&PipeHandle,
+				ConnectEventHandle,
+				&ObjectAttributes,
+				&IoStatusBlock);
+
+			if (Status != STATUS_PENDING && !NT_SUCCESS(Status)) {
+				NtTerminateProcess(NtCurrentProcess(), Status);
+			}
+		} else if (!NT_SUCCESS(Status)) {
+			NtTerminateProcess(NtCurrentProcess(), Status);
+		} else {
+			//
+			// - Thread was alerted (somehow)
+			// - User APC was delivered (somehow)
+			// - I/O APC was delivered
+			//
+			// In these cases we don't need to take any action here.
+			// See functions in apc.c
+			//
+
+			NOTHING;
 		}
 	}
+
+	NOT_REACHED;
 }

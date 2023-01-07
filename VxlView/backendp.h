@@ -9,7 +9,7 @@ typedef struct {
 	PPLOGENTRYCACHEENTRY LogEntryCache;	// Array of pointers to LOGENTRYCACHEENTRY structures. Some of the
 										// pointers may be NULL. The following condition holds:
 										//     if (LogEntryCache) {
-										//         DefHeapSize(LogEntryCache) / sizeof(LOGENTRYCACHEENTRY) == NumberOfLogEntries;
+										//         DefHeapSize(LogEntryCache) / sizeof(PLOGENTRYCACHEENTRY) == NumberOfLogEntries;
 										//     }
 	BACKENDFILTERS Filters;
 	ULONG EstimatedNumberOfFilteredLogEntries;
@@ -27,11 +27,8 @@ extern PBACKENDSTATE State;
 //
 // Private functions, defined in backendp.c
 //
-DWORD WINAPI ExportLogThreadProc(
+NTSTATUS NTAPI ExportLogThreadProc(
 	IN	PVOID	Parameter);
-VOID DestroyLogEntryCache(
-	IN	ULONG					NumberOfEntries,
-	IN	PPLOGENTRYCACHEENTRY	Cache);
 VOID PopulateSourceComponents(
 	IN	VXLHANDLE	LogHandle);
 PLOGENTRYCACHEENTRY GetLogEntryRaw(

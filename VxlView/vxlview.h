@@ -1,7 +1,7 @@
 #pragma once
 #include "buildcfg.h"
 #include <KexComm.h>
-#include <KexLog.h>
+#include <KexDll.h>
 
 #define FRIENDLYAPPNAME L"Log Viewer"
 
@@ -19,13 +19,13 @@ typedef enum {
 } LOGENTRYCOLUMNS;
 
 typedef struct {
-	PVXLLOGENTRY LogEntry;
+	VXLLOGENTRY LogEntry;
 	WCHAR SourceLineAsString[11];
 	WCHAR ShortDateTimeAsString[32];
 } LOGENTRYCACHEENTRY, *PLOGENTRYCACHEENTRY, **PPLOGENTRYCACHEENTRY, *CONST PCLOGENTRYCACHEENTRY, **CONST PPCLOGENTRYCACHEENTRY;
 
 typedef struct {
-	PWSTR TextFilter;					// same as what user typed in search box
+	UNICODE_STRING TextFilter;					// same as what user typed in search box
 	BOOLEAN TextFilterCaseSensitive;
 	BOOLEAN TextFilterWildcardMatch;
 	BOOLEAN TextFilterInverted;
@@ -57,6 +57,10 @@ PLOGENTRYCACHEENTRY GetLogEntry(
 	IN	ULONG	EntryIndex);
 VOID SetBackendFilters(
 	IN	PBACKENDFILTERS	Filters);
+NTSTATUS ConvertCacheEntryToText(
+	IN	PLOGENTRYCACHEENTRY	CacheEntry,
+	OUT	PUNICODE_STRING		ExportedText,
+	IN	BOOLEAN				LongForm);
 
 // config.c
 

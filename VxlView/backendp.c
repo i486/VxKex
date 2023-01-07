@@ -7,56 +7,150 @@
 // This file contains private functions of the backend.
 //
 
-DWORD WINAPI ExportLogThreadProc(
+NTSTATUS NTAPI ExportLogThreadProc(
 	IN	PVOID	Parameter)
 {
-	VXLSTATUS Status;
-	PCWSTR TextFileName;
+	NTSTATUS Status;
+	HANDLE FileHandle;
+	UNICODE_STRING TextFileNameNt;
+	OBJECT_ATTRIBUTES ObjectAttributes;
+	IO_STATUS_BLOCK IoStatusBlock;
+	PCWSTR TextFileNameWin32;
+	ULONG EntryIndex;
+	ULONG MaxEntryIndex;
+	ULONG SizeofMaxEntryIndex;
+	ULONG CompletedPercentage;
+	ULONG PreviousCompletedPercentage;
 
-	TextFileName = (PCWSTR) Parameter;
-
-	SetWindowText(StatusBarWindow, L"Exporting log entries. Please wait...");
 	SetClassLongPtr(MainWindow, GCLP_HCURSOR, (LONG_PTR) LoadCursor(NULL, IDC_WAIT));
 	EnableWindow(MainWindow, FALSE);
 
-	Status = VxlExportLogToText(
-		State->LogHandle,
-		TextFileName,
-		FALSE);
+	TextFileNameWin32 = (PCWSTR) Parameter;
+	EntryIndex = 0;
+	SizeofMaxEntryIndex = sizeof(MaxEntryIndex);
+	CompletedPercentage = 0;
+	PreviousCompletedPercentage = 0;
 
+	//
+	// find out total number of log entries, for calculating percentage
+	//
+
+	Status = VxlQueryInformationLog(
+		State->LogHandle,
+		LogTotalNumberOfEvents,
+		&MaxEntryIndex,
+		&SizeofMaxEntryIndex);
+
+	if (!NT_SUCCESS(Status)) {
+		goto Finished;
+	}
+
+	// safe to do this because we refuse to open log files with no entries
+	--MaxEntryIndex;
+
+	//
+	// Convert win32 name to NT name and open the destination file
+	//
+
+	Status = RtlDosPathNameToNtPathName_U_WithStatus(
+		TextFileNameWin32,
+		&TextFileNameNt,
+		NULL,
+		NULL);
+
+	if (!NT_SUCCESS(Status)) {
+		goto Finished;
+	}
+
+	InitializeObjectAttributes(&ObjectAttributes, &TextFileNameNt, OBJ_CASE_INSENSITIVE, NULL, NULL);
+
+	Status = NtCreateFile(
+		&FileHandle,
+		GENERIC_WRITE | SYNCHRONIZE,
+		&ObjectAttributes,
+		&IoStatusBlock,
+		NULL,
+		FILE_ATTRIBUTE_NORMAL,
+		FILE_SHARE_READ,
+		FILE_OVERWRITE_IF,
+		FILE_NON_DIRECTORY_FILE,
+		NULL,
+		0);
+
+	RtlFreeUnicodeString(&TextFileNameNt);
+
+	if (!NT_SUCCESS(Status)) {
+		goto Finished;
+	}
+
+	//
+	// loop over every log entry, convert to text and write out to the file
+	//
+
+	while (EntryIndex <= MaxEntryIndex) {
+		PLOGENTRYCACHEENTRY CacheEntry;
+		UNICODE_STRING ExportedText;
+		LONGLONG ByteOffset;
+
+		CacheEntry = GetLogEntryRaw(EntryIndex++);
+		ConvertCacheEntryToText(CacheEntry, &ExportedText, FALSE);
+
+		//
+		// Write out the text to the file.
+		//
+
+		ByteOffset = -1; // write at end of file
+		
+		// wait for previous write to complete before starting a new one
+		Status = NtWaitForSingleObject(FileHandle, FALSE, NULL);
+		ASSERT (Status == STATUS_SUCCESS);
+
+		Status = NtWriteFile(
+			FileHandle,
+			NULL,
+			NULL,
+			NULL,
+			&IoStatusBlock,
+			ExportedText.Buffer,
+			ExportedText.Length,
+			&ByteOffset,
+			NULL);
+
+		RtlFreeUnicodeString(&ExportedText);
+		ASSERT (NT_SUCCESS(Status));
+
+		//
+		// Calculate percentage completed, for UI update
+		//
+
+		CompletedPercentage = (EntryIndex + 1) * 100 / (MaxEntryIndex + 1);
+		ASSERT (CompletedPercentage <= 100);
+		ASSERT (PreviousCompletedPercentage <= 100);
+
+		//
+		// Avoid expensive UI update if the percentage hasn't changed
+		//
+
+		if (CompletedPercentage != PreviousCompletedPercentage) {
+			SetWindowTextF(StatusBarWindow, L"Exporting log entries. Please wait... (%ld%%)", CompletedPercentage);
+			PreviousCompletedPercentage = CompletedPercentage;
+		}
+	}
+
+	NtClose(FileHandle);
+
+Finished:
 	EnableWindow(MainWindow, TRUE);
 	SetClassLongPtr(MainWindow, GCLP_HCURSOR, (LONG_PTR) LoadCursor(NULL, IDC_ARROW));
 	SetWindowText(StatusBarWindow, L"Finished.");
 
-	if (VXL_SUCCEEDED(Status)) {
+	if (NT_SUCCESS(Status)) {
 		InfoBoxF(L"Export complete.");
 	} else {
-		ErrorBoxF(L"Failed to export the log. %s.", VxlErrorLookup(Status));
+		ErrorBoxF(L"Failed to export the log (%s)", KexRtlNtStatusToString(Status));
 	}
 
-	return 0;
-}
-
-VOID DestroyLogEntryCache(
-	IN	ULONG					NumberOfEntries,
-	IN	PPLOGENTRYCACHEENTRY	Cache)
-{
-	ULONG Index;
-
-	if (!Cache) {
-		return;
-	}
-
-	for (Index = 0; Index < NumberOfEntries; Index++) {
-		PLOGENTRYCACHEENTRY CacheEntry;
-
-		CacheEntry = Cache[Index];
-		if (!CacheEntry) {
-			continue;
-		}
-
-		VxlFreeLogEntry(&CacheEntry->LogEntry);
-	}
+	return Status;
 }
 
 VOID PopulateSourceComponents(
@@ -68,14 +162,14 @@ VOID PopulateSourceComponents(
 	SourceComponentListViewWindow = GetDlgItem(FilterWindow, IDC_COMPONENTLIST);
 	ListView_DeleteAllItems(SourceComponentListViewWindow);
 
-	for (Index = 0; Index < ARRAYSIZE(LogHandle->Header.SourceComponents) &&
-					LogHandle->Header.SourceComponents[Index][0] != '\0'; ++Index) {
+	for (Index = 0; Index < ARRAYSIZE(LogHandle->Header->SourceComponents) &&
+					LogHandle->Header->SourceComponents[Index][0] != '\0'; ++Index) {
 		LVITEM Item;
 
 		Item.mask = LVIF_TEXT;
 		Item.iItem = Index;
 		Item.iSubItem = 0;
-		Item.pszText = LogHandle->Header.SourceComponents[Index];
+		Item.pszText = LogHandle->Header->SourceComponents[Index];
 
 		ListView_InsertItem(SourceComponentListViewWindow, &Item);
 		ListView_SetCheckState(SourceComponentListViewWindow, Index, TRUE);
@@ -95,8 +189,8 @@ PLOGENTRYCACHEENTRY AddLogEntryToCache(
 		return NULL;
 	}
 
-	ZeroMemory(CacheEntry, sizeof(*CacheEntry));
-	CacheEntry->LogEntry = LogEntry;
+	RtlZeroMemory(CacheEntry, sizeof(*CacheEntry));
+	CacheEntry->LogEntry = *LogEntry;
 	
 	//
 	// pre-calc some strings
@@ -140,36 +234,23 @@ PLOGENTRYCACHEENTRY AddLogEntryToCache(
 PLOGENTRYCACHEENTRY GetLogEntryRaw(
 	IN	ULONG	EntryIndex)
 {
+	NTSTATUS Status;
 	PLOGENTRYCACHEENTRY CacheEntry;
 
 	CacheEntry = State->LogEntryCache[EntryIndex];
 
 	if (!CacheEntry) {
-		VXLSTATUS Status;
-		PVXLLOGENTRY LogEntry;
+		VXLLOGENTRY LogEntry;
 
-		Status = VxlReadLogEntry(State->LogHandle, EntryIndex, &LogEntry);
-		if (VXL_FAILED(Status)) {
+		Status = VxlReadLog(State->LogHandle, EntryIndex, &LogEntry);
+		if (!NT_SUCCESS(Status)) {
 			return NULL;
 		}
 
-		CacheEntry = AddLogEntryToCache(EntryIndex, LogEntry);
+		CacheEntry = AddLogEntryToCache(EntryIndex, &LogEntry);
 	}
 
 	return CacheEntry;
-}
-
-//
-// You can't just pass any random string. You MUST pass the string that is returned
-// by VXLL in the VXLLOGENTRY structure. Even if it is char-for-char identical, it
-// won't work if it is a different pointer.
-//
-// This method is way faster than doing anything else.
-//
-FORCEINLINE USHORT GetSourceComponentIndex(
-	IN	PCWSTR	SourceComponentString)
-{
-	return (USHORT) (((ULONG_PTR) SourceComponentString - (ULONG_PTR) State->LogHandle->Header.SourceComponents[0]) >> 5);
 }
 
 BOOLEAN LogEntryMatchesFilters(
@@ -189,59 +270,60 @@ BOOLEAN LogEntryMatchesFilters(
 
 	// 1. Does the log entry match the severity filter? If not, then we don't display
 	//    this log entry.
-	if (State->Filters.SeverityFilters[CacheEntry->LogEntry->Severity] == FALSE) {
+	if (State->Filters.SeverityFilters[CacheEntry->LogEntry.Severity] == FALSE) {
 		return FALSE;
 	}
 
 	// 2. Does this log entry match the source component filter? If not, then we don't
 	//    display this log entry.
-	if (State->Filters.ComponentFilters[GetSourceComponentIndex(CacheEntry->LogEntry->SourceComponent)] == FALSE) {
+	if (State->Filters.ComponentFilters[CacheEntry->LogEntry.SourceComponentIndex] == FALSE) {
 		return FALSE;
 	}
 
 	// 3. Does this log entry match the text filter? Note: empty filter always matches.
 	LogEntryMatchesTextFilter = FALSE;
 
-	if (State->Filters.TextFilter == NULL || State->Filters.TextFilter[0] == '\0') {
+	if (State->Filters.TextFilter.Length == 0) {
 		// empty filter
 		LogEntryMatchesTextFilter = TRUE;
 	} else {
-		PCWSTR TextToSearch;
+		PUNICODE_STRING TextToSearch;
 
-		TextToSearch = CacheEntry->LogEntry->TextHeader;
+		TextToSearch = &CacheEntry->LogEntry.TextHeader;
 
 SearchAgain:
 		if (State->Filters.TextFilterWildcardMatch) {
-			LogEntryMatchesTextFilter = SymMatchStringW(
-				CacheEntry->LogEntry->TextHeader,
-				State->Filters.TextFilter,
-				State->Filters.TextFilterCaseSensitive);
+			LogEntryMatchesTextFilter = RtlIsNameInExpression(
+				&State->Filters.TextFilter,
+				TextToSearch,
+				!State->Filters.TextFilterCaseSensitive,
+				NULL);
 		} else {
 			if (State->Filters.TextFilterCaseSensitive) {
 				if (State->Filters.TextFilterExact) {
-					if (StringEqual(TextToSearch, State->Filters.TextFilter)) {
+					if (StringEqual(TextToSearch->Buffer, State->Filters.TextFilter.Buffer)) {
 						LogEntryMatchesTextFilter = TRUE;
 					}
 				} else {
-					if (StringSearch(TextToSearch, State->Filters.TextFilter)) {
+					if (StringSearch(TextToSearch->Buffer, State->Filters.TextFilter.Buffer)) {
 						LogEntryMatchesTextFilter = TRUE;
 					}
 				}
 			} else {
 				if (State->Filters.TextFilterExact) {
-					if (StringEqualI(TextToSearch, State->Filters.TextFilter)) {
+					if (StringEqualI(TextToSearch->Buffer, State->Filters.TextFilter.Buffer)) {
 						LogEntryMatchesTextFilter = TRUE;
 					}
 				} else {
-					if (StringSearchI(TextToSearch, State->Filters.TextFilter)) {
+					if (StringSearchI(TextToSearch->Buffer, State->Filters.TextFilter.Buffer)) {
 						LogEntryMatchesTextFilter = TRUE;
 					}
 				}
 			}
 		}
 
-		if (State->Filters.TextFilterWhole && TextToSearch == CacheEntry->LogEntry->TextHeader) {
-			TextToSearch = CacheEntry->LogEntry->Text;
+		if (State->Filters.TextFilterWhole && TextToSearch == &CacheEntry->LogEntry.TextHeader) {
+			TextToSearch = &CacheEntry->LogEntry.Text;
 			goto SearchAgain;
 		}
 	}
@@ -270,7 +352,7 @@ ULONG EstimateNumberOfFilteredLogEntries(
 
 	NumberOfFilteredLogEntries = 0;
 
-	if (State->NumberOfLogEntries < 200000) {
+	if (State->NumberOfLogEntries < 2000000) {
 		//
 		// do an accurate estimate - evaluate all the entries
 		//
@@ -289,7 +371,7 @@ ULONG EstimateNumberOfFilteredLogEntries(
 		//
 		for (Index = 0; Index < LogSeverityMaximumValue; Index++) {
 			if (State->Filters.SeverityFilters[Index]) {
-				NumberOfFilteredLogEntries += State->LogHandle->Header.EventSeverityTypeCount[Index];
+				NumberOfFilteredLogEntries += State->LogHandle->Header->EventSeverityTypeCount[Index];
 			}
 		}
 	}

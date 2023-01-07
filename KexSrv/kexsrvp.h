@@ -6,64 +6,110 @@
 //
 // Abstract:
 //
-//     Private header for KexSrv internal functions.
+//     Private header file for KexSrv.
 //
 // Author:
 //
-//     vxiiduu (02-Oct-2022)
-//
-// Environment:
-//
-//     KexSrv only.
+//     vxiiduu (05-Jan-2023)
 //
 // Revision History:
 //
-//     vxiiduu               02-Oct-2022  Initial creation.
+//     vxiiduu               05-Jan-2023  Initial creation.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
-#include <KexLog.h>
 
-#ifdef _DEBUG
-#  define FRIENDLYAPPNAME L"VxKex Local Server (DEBUG BUILD)"
-#else
-#  define FRIENDLYAPPNAME L"VxKex Local Server"
-#endif
+#include "buildcfg.h"
+#include <KexComm.h>
+#include <KexDll.h>
 
-#define KexSrvGlobalLog(Severity, ...) VxlLog(GlobalLogHandle, L"KexSrv", Severity, __VA_ARGS__)
+extern PKEX_PROCESS_DATA KexData;
+extern PRTL_DYNAMIC_HASH_TABLE ProcessThreadTable;
 
-typedef struct _KEXSRV_PER_CLIENT_INFO {
-	VXLHANDLE LogHandle;
-	ULONG ProcessId;
-	WCHAR LogFilePath[MAX_PATH];
-	WCHAR ApplicationName[MAX_PATH];
+//
+// Data-Type Definitions
+//
+
+typedef struct _KEXSRV_PER_CLIENT_THREAD_DATA **PPKEXSRV_PER_CLIENT_THREAD_DATA;
+
+typedef struct _KEXSRV_PER_CLIENT_PROCESS_DATA {
+	BOOLEAN							IsProcess;
+	RTL_DYNAMIC_HASH_TABLE_ENTRY	HashTableEntry;
+	ULONG							ProcessId;
+
+	// Thread table. Contains an array of all the threads in this
+	// process.
+	ULONG							NumberOfThreads;
+	PPKEXSRV_PER_CLIENT_THREAD_DATA	Threads;
+	
+	HANDLE							PipeHandle;
+	IO_STATUS_BLOCK					IoStatusBlock;
 
 	union {
-		BYTE MessageBuffer[0xFFFF];
-		KEX_IPC_MESSAGE Message;
+		KEX_IPC_MESSAGE				IncomingMessage;
+		BYTE						IncomingMessageBuffer[0xFFFF];
 	};
-} KEXSRV_PER_CLIENT_INFO, *PKEXSRV_PER_CLIENT_INFO;
 
-extern VXLHANDLE GlobalLogHandle;
+	union {
+		KEX_IPC_MESSAGE				OutgoingMessage;
+		BYTE						OutgoingMessageBuffer[0xFFFF];
+	};
+} TYPEDEF_TYPE_NAME(KEXSRV_PER_CLIENT_PROCESS_DATA);
 
-NTSTATUS NTAPI KexSrvHandleClientThreadProc(
-	IN	HANDLE	PipeHandle);
+typedef struct _KEXSRV_PER_CLIENT_THREAD_DATA {
+	BOOLEAN							IsProcess;
+	RTL_DYNAMIC_HASH_TABLE_ENTRY	HashTableEntry;
+	ULONG							ThreadId;
 
-NTSTATUS KexSrvDispatchMessage(
-	IN OUT	PKEXSRV_PER_CLIENT_INFO ClientInfo);
+	// Index into the parent process's thread table, such that:
+	// (this.ParentProcess->Threads[this.ThreadTableIndex] == &this)
+	ULONG							ThreadTableIndex;
+	
+	// Pointer to the parent process's data.
+	PKEXSRV_PER_CLIENT_PROCESS_DATA	ParentProcess;
 
-VXLHANDLE KexSrvOpenLogFile(
-	IN	PCWSTR	KexProgramName OPTIONAL,
-	IN	ULONG	LogFilePathBufferCch OPTIONAL,
-	OUT	PWSTR	LogFilePathOut OPTIONAL);
+	UNICODE_STRING					ThreadDescription;
+} TYPEDEF_TYPE_NAME(KEXSRV_PER_CLIENT_THREAD_DATA);
 
-VOID KexSrvDumpMessageToLog(
-	IN	PKEXSRV_PER_CLIENT_INFO	ClientInfo);
+//
+// apc.c
+//
 
-VOID KexSrvpHardError(
-	IN	PKEXSRV_PER_CLIENT_INFO	ClientInfo,
-	IN	NTSTATUS				Status,
-	IN	ULONG					UlongParameter,
-	IN	PCWSTR					StringParameter1,
-	IN	PCWSTR					StringParameter2);
+VOID NTAPI CompletedReadApc(
+	IN	PVOID				ApcContext,
+	IN	PIO_STATUS_BLOCK	IoStatusBlock,
+	IN	ULONG				Reserved);
+
+VOID NTAPI CompletedWriteApc(
+	IN	PVOID				ApcContext,
+	IN	PIO_STATUS_BLOCK	IoStatusBlock,
+	IN	ULONG				Reserved);
+
+//
+// logging.c
+//
+
+NTSTATUS OpenServerLogFile(
+	OUT	PVXLHANDLE	LogHandle);
+
+//
+// pipe.c
+//
+
+NTSTATUS CreateConnectPipeInstance(
+	OUT	PHANDLE				PipeHandle,
+	IN	HANDLE				ConnectEventHandle,
+	IN	POBJECT_ATTRIBUTES	ObjectAttributes,
+	OUT	PIO_STATUS_BLOCK	IoStatusBlock);
+
+//
+// procthrd.c
+//
+
+NTSTATUS AcceptConnectProcess(
+	OUT	PPKEXSRV_PER_CLIENT_PROCESS_DATA	ProcessDataOut OPTIONAL,
+	IN	HANDLE								PipeHandle);
+
+NTSTATUS DisconnectProcess(
+	IN OUT	PKEXSRV_PER_CLIENT_PROCESS_DATA	Process);

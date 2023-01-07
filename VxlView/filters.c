@@ -26,7 +26,7 @@ VOID InitializeFilterControls(
 			ToolTipText,
 			ARRAYSIZE(ToolTipText),
 			L"Display %s events.",
-			VxlSeverityLookup((VXLSEVERITY) (Index - IDC_CBFILTERCRITICAL), FALSE));
+			VxlSeverityToText((VXLSEVERITY) (Index - IDC_CBFILTERCRITICAL), FALSE));
 
 		if (SUCCEEDED(Result)) {
 			ToolTip(FilterWindow, Index, ToolTipText);
@@ -122,6 +122,12 @@ VOID BuildBackendFilters(
 		NeedToAddTwoStars = FALSE;
 	}
 
+	Filters->TextFilterCaseSensitive = IsDlgButtonChecked(FilterWindow, IDC_CBCASESENSITIVE);
+	Filters->TextFilterWildcardMatch = IsDlgButtonChecked(FilterWindow, IDC_CBWILDCARD);
+	Filters->TextFilterInverted = IsDlgButtonChecked(FilterWindow, IDC_CBINVERTSEARCH);
+	Filters->TextFilterExact = IsDlgButtonChecked(FilterWindow, IDC_CBEXACTMATCH);
+	Filters->TextFilterWhole = IsDlgButtonChecked(FilterWindow, IDC_CBSEARCHWHOLE);
+
 	TextFilter = SafeAlloc(WCHAR, TextFilterBufCch);
 	if (TextFilter) {
 		GetDlgItemText(
@@ -136,14 +142,13 @@ VOID BuildBackendFilters(
 			TextFilter[TextFilterBufCch - 1] = '\0';
 		}
 
-		Filters->TextFilter = TextFilter;
-	}
+		RtlInitUnicodeString(&Filters->TextFilter, TextFilter);
 
-	Filters->TextFilterCaseSensitive = IsDlgButtonChecked(FilterWindow, IDC_CBCASESENSITIVE);
-	Filters->TextFilterWildcardMatch = IsDlgButtonChecked(FilterWindow, IDC_CBWILDCARD);
-	Filters->TextFilterInverted = IsDlgButtonChecked(FilterWindow, IDC_CBINVERTSEARCH);
-	Filters->TextFilterExact = IsDlgButtonChecked(FilterWindow, IDC_CBEXACTMATCH);
-	Filters->TextFilterWhole = IsDlgButtonChecked(FilterWindow, IDC_CBSEARCHWHOLE);
+		if (Filters->TextFilterWildcardMatch && !Filters->TextFilterCaseSensitive) {
+			// needed for RtlIsNameInExpression
+			RtlUpcaseUnicodeString(&Filters->TextFilter, &Filters->TextFilter, FALSE);
+		}
+	}
 
 	for (Index = IDC_CBFILTERCRITICAL; Index <= IDC_CBFILTERDEBUG; Index++) {
 		VXLSEVERITY Severity;
@@ -158,7 +163,7 @@ VOID BuildBackendFilters(
 	for (Index = 0; Index < NumberOfComponents; ++Index) {
 		Filters->ComponentFilters[Index] = ListView_GetCheckState(
 			ComponentListWindow, 
-			Index);
+			ListView_MapIDToIndex(ComponentListWindow, Index));
 	}
 }
 

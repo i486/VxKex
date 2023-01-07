@@ -1,5 +1,6 @@
 #include "vxlview.h"
 #include "resource.h"
+#include "backendp.h"
 
 VOID InitializeDetailsWindow(
 	VOID)
@@ -77,7 +78,7 @@ VOID PopulateDetailsWindow(
 	GetDateFormatEx(
 		LOCALE_NAME_USER_DEFAULT,
 		DATE_AUTOLAYOUT | DATE_LONGDATE,
-		&CacheEntry->LogEntry->Time,
+		&CacheEntry->LogEntry.Time,
 		NULL,
 		DateFormat,
 		ARRAYSIZE(DateFormat),
@@ -86,32 +87,34 @@ VOID PopulateDetailsWindow(
 	GetTimeFormatEx(
 		LOCALE_NAME_USER_DEFAULT,
 		0,
-		&CacheEntry->LogEntry->Time,
+		&CacheEntry->LogEntry.Time,
 		NULL,
 		TimeFormat,
 		ARRAYSIZE(TimeFormat));
 
 	SetDlgItemTextF(DetailsWindow, IDC_DETAILSSEVERITYTEXT, L"%s (%s.)",
-					VxlSeverityLookup(CacheEntry->LogEntry->Severity, FALSE),
-					VxlSeverityLookup(CacheEntry->LogEntry->Severity, TRUE));
+					VxlSeverityToText(CacheEntry->LogEntry.Severity, FALSE),
+					VxlSeverityToText(CacheEntry->LogEntry.Severity, TRUE));
 
 	SetDlgItemTextF(DetailsWindow, IDC_DETAILSDATETIMETEXT, L"%s at %s", DateFormat, TimeFormat);
 	
-	SetDlgItemTextF(DetailsWindow, IDC_DETAILSSOURCETEXT, L"%s (%s, line %lu, in function %s)",
-					CacheEntry->LogEntry->SourceComponent,
-					CacheEntry->LogEntry->SourceFile,
-					CacheEntry->LogEntry->SourceLine,
-					CacheEntry->LogEntry->SourceFunction);
+	SetDlgItemTextF(DetailsWindow, IDC_DETAILSSOURCETEXT, L"[%04lx:%04lx], %s (%s, line %lu, in function %s)",
+					(ULONG) CacheEntry->LogEntry.ClientId.UniqueProcess,
+					(ULONG) CacheEntry->LogEntry.ClientId.UniqueThread,
+					State->LogHandle->Header->SourceComponents[CacheEntry->LogEntry.SourceComponentIndex],
+					State->LogHandle->Header->SourceFiles[CacheEntry->LogEntry.SourceFileIndex],
+					CacheEntry->LogEntry.SourceLine,
+					State->LogHandle->Header->SourceFunctions[CacheEntry->LogEntry.SourceFunctionIndex]);
 
 	DetailsMessageTextWindow = GetDlgItem(DetailsWindow, IDC_DETAILSMESSAGETEXT);
-	SetWindowText(DetailsMessageTextWindow, CacheEntry->LogEntry->TextHeader);
+	SetWindowText(DetailsMessageTextWindow, CacheEntry->LogEntry.TextHeader.Buffer);
 
-	if (CacheEntry->LogEntry->Text[0] != '\0') {
+	if (CacheEntry->LogEntry.Text.Length != 0) {
 		// append the rest of the log entry text
 		Edit_SetSel(DetailsMessageTextWindow, INT_MAX, INT_MAX);
-		Edit_ReplaceSel(DetailsMessageTextWindow, L"\r\n");
+		Edit_ReplaceSel(DetailsMessageTextWindow, L"\r\n\r\n");
 		Edit_SetSel(DetailsMessageTextWindow, INT_MAX, INT_MAX);
-		Edit_ReplaceSel(DetailsMessageTextWindow, CacheEntry->LogEntry->Text);
+		Edit_ReplaceSel(DetailsMessageTextWindow, CacheEntry->LogEntry.Text.Buffer);
 	}
 }
 
