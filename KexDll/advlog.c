@@ -18,6 +18,7 @@
 //
 //     vxiiduu              06-Nov-2022  Initial creation.
 //     vxiiduu              07-Nov-2022  Add special parsing for loader.
+//     vxiiduu              10-Nov-2022  Change search range to 64 bytes.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -49,7 +50,7 @@ NTSTATUS KexInitializeAdvancedLogging(
 	//
 
 	unless (Peb->NtGlobalFlag & FLG_SHOW_LDR_SNAPS) {
-		KexSrvLogDebugEvent(L"Not enabling advanced logging due to user preferences.");
+		KexLogDebugEvent(L"Not enabling advanced logging due to user preferences.");
 		return STATUS_USER_DISABLED;
 	}
 
@@ -67,7 +68,7 @@ NTSTATUS KexInitializeAdvancedLogging(
 		return Status;
 	}
 
-	KexSrvLogInformationEvent(L"Successfully initialized advanced logging.");
+	KexLogInformationEvent(L"Successfully initialized advanced logging.");
 	return STATUS_SUCCESS;
 } PROTECTED_FUNCTION_END
 
@@ -109,12 +110,12 @@ STATIC NTSTATUS FindAddressOfDbgPrintInternal(
 
 	//
 	// Scan for a byte pattern (which varies depending on bitness).
-	// Limit the start of the search to 32 bytes starting from the beginning
+	// Limit the start of the search to 64 bytes starting from the beginning
 	// of vDbgPrintExWithPrefix.
 	//
 
 	Search = (PBYTE) vDbgPrintExWithPrefix;
-	SearchEnd = Search + 32;
+	SearchEnd = Search + 64;
 
 	if (KexRtlCurrentProcessBitness() == 64) {
 		// look for E8 followed by a 4-byte signed relative displacement,
@@ -323,13 +324,13 @@ STATIC NTSTATUS KexAdvlParseAndDispatchMessage(
 
 		KexAdvlMapLdrFunctionToSourceFile(&File, &Function);
 
-		return KexSrvLogEventEx(
-			KexData->SrvChannel,
-			Severity,
-			0,
+		return VxlWriteLogEx(
+			KexData->LogHandle,
 			L"Loader",
-			File.Buffer,		// null terminated - RTL_CONSTANT_STRING
-			Function.Buffer,	// null terminated - we made sure of it earlier
+			File.Buffer,
+			0,
+			Function.Buffer,
+			Severity,
 			L"%hs",
 			Text);
 	}
@@ -374,9 +375,9 @@ STATIC NTSTATUS NTAPI KexpvDbgPrintExWithPrefixInternalHook(
 
 	Component = KexAdvlComponentIdToTextLookup(ComponentId);
 
-	// don't use KexSrvLogDebugEvent because that will be disabled
+	// don't use KexLogDebugEvent because that will be disabled
 	// in release builds
-	return KexSrvLogEvent(
+	return KexLogEvent(
 		LogSeverityDebug,
 		L"DbgPrintEx from component ID 0x%04lx (%s)\r\n\r\n"
 		L"%hs\r\n"

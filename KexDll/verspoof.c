@@ -16,6 +16,7 @@
 //
 //     vxiiduu              06-Nov-2022  Initial creation.
 //     vxiiduu              07-Nov-2022  Increase resilience of KexApplyVersionSpoof
+//     vxiiduu              05-Jan-2023  Convert to user friendly NTSTATUS.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -96,13 +97,13 @@ VOID KexApplyVersionSpoof(
 	USHORT CSDVersion;
 
 	if (KexData->IfeoParameters.WinVerSpoof == WinVerSpoofNone) {
-		KexSrvLogDebugEvent(L"Not spoofing Windows version since it is not requested.");
+		KexLogDebugEvent(L"Not spoofing Windows version since it is not requested.");
 		return;
 	}
 
 	Peb = NtCurrentPeb();
 
-	KexSrvLogInformationEvent(
+	KexLogInformationEvent(
 		L"Applying Windows version spoof: %s",
 		ARRAY_LOOKUP_BOUNDS_CHECKED(HumanReadableWinVerSpoof, KexData->IfeoParameters.WinVerSpoof));
 
@@ -219,10 +220,10 @@ VOID KexApplyVersionSpoof(
 			//
 			KexHkInstallBasicHook(NtQuerySystemTime, KexNtQuerySystemTime, NULL);
 		} else {
-			KexSrvLogWarningEvent(
+			KexLogWarningEvent(
 				L"Failed to make SharedUserData read-write.\r\n\r\n"
-				L"NTSTATUS error code: 0x%08lx",
-				Status);
+				L"NTSTATUS error code: %s",
+				KexRtlNtStatusToString(Status));
 		}
 	}
 	

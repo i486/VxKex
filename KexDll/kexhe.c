@@ -24,12 +24,12 @@
 //     vxiiduu              05-Nov-2022  Remove ability to remove the HE hook.
 //     vxiiduu              06-Nov-2022  KEXDLL init failure message now works
 //                                       even if KexSrv is not running.
+//     vxiiduu              05-Jan-2023  Convert to user friendly NTSTATUS.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "buildcfg.h"
 #include "kexdllp.h"
-#include <KexLog.h>
 
 //
 // Send a message to KexSrv that contains the error and its parameters.
@@ -90,7 +90,7 @@ STATIC NTSTATUS NTAPI KexpNtRaiseHardErrorHook(
 		}
 	}
 
-	KexSrvLogDebugEvent(
+	KexLogDebugEvent(
 		L"Hard Error handler has been called.\r\n\r\n"
 		L"ErrorStatus:                  0x%08lx\r\n"
 		L"NumberOfParameters:           0x%08lx\r\n"
@@ -131,7 +131,7 @@ STATIC NTSTATUS NTAPI KexpNtRaiseHardErrorHook(
 	return KexSrvSendMessage(KexData->SrvChannel, Message);
 
 BailOut:
-	KexSrvLogWarningEvent(L"Bailing out to original function.");
+	KexLogWarningEvent(L"Bailing out to original function.");
 
 	//
 	// call original NtRaiseHardError
@@ -160,12 +160,12 @@ NTSTATUS KexHeInstallHandler(
 	Status = KexHkInstallBasicHook(NtRaiseHardError, KexpNtRaiseHardErrorHook, NULL);
 
 	if (NT_SUCCESS(Status)) {
-		KexSrvLogInformationEvent(L"Successfully installed hard error handler.");
+		KexLogInformationEvent(L"Successfully installed hard error handler.");
 	} else {
-		KexSrvLogErrorEvent(
+		KexLogErrorEvent(
 			L"Failed to install hard error handler\r\n\r\n"
-			L"NTSTATUS error code: 0x%08lx",
-			Status);
+			L"NTSTATUS error code: %s",
+			KexRtlNtStatusToString(Status));
 	}
 
 	return Status;

@@ -30,6 +30,8 @@
 //                                        because they are useless.
 //     vxiiduu               01-Oct-2022  Add *Ex variants
 //     vxiiduu               22-Oct-2022  Fix SafeReAlloc typos
+//     vxiiduu               12-Nov-2022  Add *Seh variants
+//     vxiiduu               20-Nov-2022  Add SafeClose
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -55,6 +57,15 @@
 #define SafeFree(Pointer) \
 	SafeFreeEx(RtlProcessHeap(), 0, (Pointer))
 
+#define SafeAllocSeh(Type, NumberOfElements) \
+	SafeAllocEx(RtlProcessHeap(), HEAP_GENERATE_EXCEPTIONS | HEAP_ZERO_MEMORY, Type, (NumberOfElements))
+
+#define SafeReAllocSeh(OriginalPointer, Type, NumberOfElements) \
+	SafeReAllocEx(RtlProcessHeap(), HEAP_GENERATE_EXCEPTIONS | HEAP_ZERO_MEMORY, (OriginalPointer), Type, (NumberOfElements))
+
+#define SafeFreeSeh(Pointer) \
+	SafeFreeEx(RtlProcessHeap(), HEAP_GENERATE_EXCEPTIONS, (Pointer))
+
 //
 // _alloca() is a compiler intrinsic.
 //
@@ -62,3 +73,9 @@ PVOID CDECL _alloca(
 	IN	SIZE_T NumberOfBytes);
 
 #define StackAlloc(Type, NumberOfElements) ((Type *) _alloca(sizeof(Type) * (NumberOfElements)))
+
+//
+// SafeClose is for handles.
+//
+
+#define SafeClose(Handle) do { if (Handle) { NtClose(Handle); (Handle) = NULL; } } while(0)

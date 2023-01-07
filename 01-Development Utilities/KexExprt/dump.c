@@ -265,11 +265,6 @@ Exit:
 		NtUnmapViewOfSection(NtCurrentProcess(), DllBase);
 	}
 
-	if (FileHandle) {
-		NtClose(FileHandle);
-	}
-
-	if (SectionHandle) {
-		NtClose(SectionHandle);
-	}
+	SafeClose(FileHandle);
+	SafeClose(SectionHandle);
 }

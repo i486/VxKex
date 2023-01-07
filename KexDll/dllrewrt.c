@@ -19,6 +19,7 @@
 //     vxiiduu              18-Oct-2022  Initial creation.
 //     vxiiduu              22-Oct-2022  Bound imports are now erased
 //     vxiiduu              03-Nov-2022  Optimize KexRewriteImageImportDirectory
+//     vxiiduu              05-Jan-2023  Convert to user friendly NTSTATUS.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -111,10 +112,10 @@ NTSTATUS KexInitializeDllRewrite(
 				Status = STATUS_SUCCESS;
 				break;
 			} else {
-				KexSrvLogWarningEvent(
+				KexLogWarningEvent(
 					L"Failed to read a DLL rewrite value\r\n\r\n"
-					L"NTSTATUS error code: 0x%08lx",
-					Status);
+					L"NTSTATUS error code: %s",
+					KexRtlNtStatusToString(Status));
 
 				// In release builds we don't care if stuff fails. Too bad, we have
 				// to make do with what we have.
@@ -134,7 +135,7 @@ NTSTATUS KexInitializeDllRewrite(
 			SafeFree(KeyInformationBuffer);
 			Status = STATUS_REG_DATA_TYPE_MISMATCH;
 
-			KexSrvLogWarningEvent(
+			KexLogWarningEvent(
 				L"A registry DLL rewrite key has the wrong data type.\r\n\r\n"
 				L"Check HKLM\\Software\\VXsoft\\VxKex\\DllRewrite and remove any non-string keys.");
 
@@ -171,7 +172,7 @@ NTSTATUS KexInitializeDllRewrite(
 		StringMapperValue.MaximumLength = StringMapperValue.Length;
 		StringMapperValue.Buffer = (PWCHAR) (((PBYTE) KeyInformationBuffer) + KeyInformationBuffer->DataOffset);
 
-		KexSrvLogDebugEvent(
+		KexLogDebugEvent(
 			L"Processed a DLL rewrite registry entry: %wZ -> %wZ",
 			&StringMapperKey,
 			&StringMapperValue);
@@ -190,14 +191,14 @@ NTSTATUS KexInitializeDllRewrite(
 	
 	Status = KexpAddKex3264ToDllPath();
 	if (!NT_SUCCESS(Status)) {
-		KexSrvLogErrorEvent(
+		KexLogErrorEvent(
 			L"Failed to append Kex32/64 to the DLL search path.\r\n\r\n"
-			L"NTSTATUS error code: 0x%08lx",
-			Status);
+			L"NTSTATUS error code: %s",
+			KexRtlNtStatusToString(Status));
 	}
 
 	if (NT_SUCCESS(Status)) {
-		KexSrvLogInformationEvent(L"Successfully initialized DLL rewrite subsystem.");
+		KexLogInformationEvent(L"Successfully initialized DLL rewrite subsystem.");
 	}
 
 	return Status;
@@ -263,7 +264,7 @@ STATIC NTSTATUS KexpRewriteDllName(
 
 Exit:
 	if (NT_SUCCESS(Status)) {
-		KexSrvLogDetailEvent(L"Rewrote DLL import: %wZ -> %wZ", &DllName, &RewrittenDllName);
+		KexLogDetailEvent(L"Rewrote DLL import: %wZ -> %wZ", &DllName, &RewrittenDllName);
 	}
 
 	RtlFreeUnicodeString(&DllName);
@@ -311,11 +312,11 @@ NTSTATUS KexRewriteImageImportDirectory(
 
 	Status = RtlImageNtHeaderEx(RTL_IMAGE_NT_HEADER_EX_FLAG_NO_RANGE_CHECK, ImageBase, 0, &NtHeaders);
 	if (!NT_SUCCESS(Status)) {
-		KexSrvLogErrorEvent(
+		KexLogErrorEvent(
 			L"Failed to retrieve the address of the image NT headers for %wZ\r\n\r\n"
-			L"NTSTATUS error code: 0x%08lx",
+			L"NTSTATUS error code: %s",
 			BaseImageName,
-			Status);
+			KexRtlNtStatusToString(Status));
 
 		return Status;
 	}
@@ -331,7 +332,7 @@ NTSTATUS KexRewriteImageImportDirectory(
 		// imports to rewrite anyway.
 		//
 
-		KexSrvLogInformationEvent(
+		KexLogInformationEvent(
 			L"The bitness of %wZ does not match the host process\r\n\r\n"
 			L"This may be caused by a resource-only DLL and "
 			L"is not usually a cause for concern. Not rewriting this import.",
@@ -346,7 +347,7 @@ NTSTATUS KexRewriteImageImportDirectory(
 		// There is no import directory in the image.
 		//
 
-		KexSrvLogInformationEvent(
+		KexLogInformationEvent(
 			L"%wZ contains no import directory",
 			BaseImageName);
 
@@ -360,7 +361,7 @@ NTSTATUS KexRewriteImageImportDirectory(
 		// There shouldn't be an import directory if it has no entries.
 		//
 
-		KexSrvLogWarningEvent(
+		KexLogWarningEvent(
 			L"%wZ contains an empty import directory",
 			BaseImageName);
 
@@ -381,13 +382,13 @@ NTSTATUS KexRewriteImageImportDirectory(
 		&OldProtect);
 
 	if (!NT_SUCCESS(Status)) {
-		KexSrvLogErrorEvent(
+		KexLogErrorEvent(
 			L"Failed to change page protection\r\n\r\n"
 			L"on memory at base 0x%p (region size %hu)\r\n"
-			L"NTSTATUS error code: 0x%08lx",
+			L"NTSTATUS error code: %s",
 			ImportTablePtr,
 			ImportTableSize,
-			Status);
+			KexRtlNtStatusToString(Status));
 
 		// Don't bother returning here. If we AV, the
 		// exception handler will deal with it.
@@ -448,13 +449,13 @@ NTSTATUS KexRewriteImageImportDirectory(
 		if (NT_SUCCESS(Status)) {
 			RtlZeroMemory(BoundImportDirectory, sizeof(*BoundImportDirectory));
 		} else {
-			KexSrvLogErrorEvent(
+			KexLogErrorEvent(
 				L"Failed to change page protection\r\n\r\n"
 				L"on memory at base 0x%p (region size %Iu)\r\n"
-				L"NTSTATUS error code: 0x%08lx",
+				L"NTSTATUS error code: %s",
 				DataDirectoryPtr,
 				DataDirectorySize,
-				Status);
+				KexRtlNtStatusToString(Status));
 		}
 
 		NtProtectVirtualMemory(

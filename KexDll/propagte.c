@@ -24,6 +24,7 @@
 //
 //     vxiiduu              23-Oct-2022  Initial creation.
 //     vxiiduu              05-Nov-2022  Propagation working for 64 bit.
+//     vxiiduu              05-Jan-2023  Convert to user friendly NTSTATUS
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -59,7 +60,7 @@ STATIC VOID KexpCleanupPropagationRemains(
 	MEMORY_BASIC_INFORMATION MemoryInformation;
 
 	unless (KexData->Flags & KEXDATA_FLAG_PROPAGATED) {
-		KexSrvLogDebugEvent(L"Propagation flag not set.");
+		KexLogDebugEvent(L"Propagation flag not set.");
 		return;
 	}
 
@@ -90,7 +91,7 @@ STATIC VOID KexpCleanupPropagationRemains(
 	}
 
 	if (!HookDestination) {
-		KexSrvLogWarningEvent(L"Propagation flag set, but no propagation remains found.");
+		KexLogWarningEvent(L"Propagation flag set, but no propagation remains found.");
 		return;
 	}
 
@@ -114,7 +115,7 @@ STATIC VOID KexpCleanupPropagationRemains(
 			PVOID BaseAddress;
 			SIZE_T RegionSize;
 
-			KexSrvLogInformationEvent(
+			KexLogInformationEvent(
 				L"Successfully unmapped temporary KexDll from propagation.\r\n\r\n"
 				L"Base address: 0x%p",
 				MemoryInformation.AllocationBase);
@@ -192,10 +193,10 @@ STATIC VOID KexpCleanupPropagationRemains(
 				OldProtect,
 				&Discard);
 		} else {
-			KexSrvLogWarningEvent(
+			KexLogWarningEvent(
 				L"Failed to unmap temporary KexDll from propagation.\r\n\r\n"
-				L"NTSTATUS error code: 0x%08lx",
-				Status);
+				L"NTSTATUS error code: %s",
+				KexRtlNtStatusToString(Status));
 		}
 	}
 } PROTECTED_FUNCTION_END_VOID
@@ -221,10 +222,10 @@ NTSTATUS KexInitializePropagation(
 			&NativeNtOpenKey);
 
 		if (!NT_SUCCESS(Status)) {
-			KexSrvLogWarningEvent(
+			KexLogWarningEvent(
 				L"Failed to find the entry point of native NtOpenKey.\r\n\r\n",
-				L"NTSTATUS error code: 0x%08lx",
-				Status);
+				L"NTSTATUS error code: %s",
+				KexRtlNtStatusToString(Status));
 			return Status;
 		}
 
@@ -234,10 +235,10 @@ NTSTATUS KexInitializePropagation(
 			&NativeNtOpenKeyEx);
 
 		if (!NT_SUCCESS(Status)) {
-			KexSrvLogWarningEvent(
+			KexLogWarningEvent(
 				L"Failed to find the entry point of native NtOpenKeyEx.\r\n\r\n",
-				L"NTSTATUS error code: 0x%08lx",
-				Status);
+				L"NTSTATUS error code: %s",
+				KexRtlNtStatusToString(Status));
 			return Status;
 		}
 	}
@@ -245,7 +246,7 @@ NTSTATUS KexInitializePropagation(
 	KexpCleanupPropagationRemains();
 
 	if (KexData->IfeoParameters.DisableForChild) {
-		KexSrvLogInformationEvent(L"Not enabling propagation due to user preferences.");
+		KexLogInformationEvent(L"Not enabling propagation due to user preferences.");
 		return STATUS_USER_DISABLED;
 	}
 
@@ -256,12 +257,12 @@ NTSTATUS KexInitializePropagation(
 	Status = KexHkInstallBasicHook(&NtCreateUserProcess, KexpNtCreateUserProcessHook, NULL);
 
 	if (NT_SUCCESS(Status)) {
-		KexSrvLogInformationEvent(L"Successfully initialized propagation system.");
+		KexLogInformationEvent(L"Successfully initialized propagation system.");
 	} else {
-		KexSrvLogErrorEvent(
+		KexLogErrorEvent(
 			L"Failed to initialize propagation system.\r\n\r\n"
-			L"NTSTATUS error code: 0x%08lx",
-			Status);
+			L"NTSTATUS error code: %s",
+			KexRtlNtStatusToString(Status));
 	}
 
 	return Status;
@@ -433,11 +434,11 @@ STATIC NTSTATUS NTAPI KexpNtCreateUserProcessHook(
 		AttributeList);
 	
 	if (!NT_SUCCESS(Status)) {
-		KexSrvLogWarningEvent(
+		KexLogWarningEvent(
 			L"Failed to create user process with modified parameters. "
 			L"Reverting to system standard behavior.\r\n\r\n"
-			L"NTSTATUS error code: 0x%08lx",
-			Status);
+			L"NTSTATUS error code: %s",
+			KexRtlNtStatusToString(Status));
 
 		//
 		// Perhaps it failed due to the desired access/flags changes.
@@ -471,12 +472,12 @@ STATIC NTSTATUS NTAPI KexpNtCreateUserProcessHook(
 		0);
 
 	if (!NT_SUCCESS(Status)) {
-		KexSrvLogWarningEvent(
+		KexLogWarningEvent(
 			L"Failed to open KexDll.\r\n\r\n"
 			L"Path to the missing or inaccessible DLL: \"%wZ\"\r\n"
-			L"NTSTATUS error code: 0x%08lx",
+			L"NTSTATUS error code: %s",
 			&DllPath,
-			Status);
+			KexRtlNtStatusToString(Status));
 		goto BailOut;
 	}
 
@@ -492,10 +493,10 @@ STATIC NTSTATUS NTAPI KexpNtCreateUserProcessHook(
 	NtClose(FileHandle);
 
 	if (!NT_SUCCESS(Status)) {
-		KexSrvLogWarningEvent(
+		KexLogWarningEvent(
 			L"Failed to create an image section backed by KexDll.\r\n\r\n"
-			L"NTSTATUS error code: 0x%08lx",
-			Status);
+			L"NTSTATUS error code: %s",
+			KexRtlNtStatusToString(Status));
 		goto BailOut;
 	}
 
@@ -514,14 +515,14 @@ STATIC NTSTATUS NTAPI KexpNtCreateUserProcessHook(
 		PAGE_READWRITE);
 
 	if (!NT_SUCCESS(Status)) {
-		KexSrvLogWarningEvent(
+		KexLogWarningEvent(
 			L"Failed to map the KexDll section into the remote process.\r\n\r\n"
-			L"NTSTATUS error code: 0x%08lx",
-			Status);
+			L"NTSTATUS error code: %s",
+			KexRtlNtStatusToString(Status));
 		goto BailOut;
 	}
 
-	KexSrvLogDebugEvent(
+	KexLogDebugEvent(
 		L"Successfully mapped KexDll into remote process.\r\n\r\n"
 		L"Remote base address: 0x%p\r\n"
 		L"Remote view size:    %Iu bytes",
@@ -553,10 +554,10 @@ STATIC NTSTATUS NTAPI KexpNtCreateUserProcessHook(
 			PAGE_READWRITE);
 
 		if (!NT_SUCCESS(Status)) {
-			KexSrvLogWarningEvent(
+			KexLogWarningEvent(
 				L"Failed to map temporary KexDll section into current process.\r\n\r\n"
-				L"NTSTATUS error code: 0x%08lx",
-				Status);
+				L"NTSTATUS error code: %s",
+				KexRtlNtStatusToString(Status));
 			goto BailOut;
 		}
 
@@ -566,10 +567,10 @@ STATIC NTSTATUS NTAPI KexpNtCreateUserProcessHook(
 			(PPVOID) &RemoteNtOpenKeyHook);
 
 		if (!NT_SUCCESS(Status)) {
-			KexSrvLogWarningEvent(
+			KexLogWarningEvent(
 				L"Failed to find the procedure address of KexpNtOpenKeyHook.\r\n\r\n"
-				L"NTSTATUS error code: 0x%08lx",
-				Status);
+				L"NTSTATUS error code: %s",
+				KexRtlNtStatusToString(Status));
 			goto BailOut;
 		}
 
@@ -579,10 +580,10 @@ STATIC NTSTATUS NTAPI KexpNtCreateUserProcessHook(
 			(PPVOID) &RemoteNtOpenKeyExHook);
 
 		if (!NT_SUCCESS(Status)) {
-			KexSrvLogWarningEvent(
+			KexLogWarningEvent(
 				L"Failed to find the procedure address of KexpNtOpenKeyExHook.\r\n\r\n"
-				L"NTSTATUS error code: 0x%08lx",
-				Status);
+				L"NTSTATUS error code: %s",
+				KexRtlNtStatusToString(Status));
 			goto BailOut;
 		}
 
@@ -652,19 +653,17 @@ STATIC NTSTATUS NTAPI KexpNtCreateUserProcessHook(
 
 WriteProcessMemoryFailure:
 	if (!NT_SUCCESS(Status)) {
-		KexSrvLogWarningEvent(
+		KexLogWarningEvent(
 			L"Failed to write hook template to remote process.\r\n\r\n"
-			L"NTSTATUS error code: 0x%08lx",
-			Status);
+			L"NTSTATUS error code: %s",
+			KexRtlNtStatusToString(Status));
 		goto BailOut;
 	}
 
 BailOut:
 	Status = STATUS_SUCCESS;
 
-	if (SectionHandle) {
-		NtClose(SectionHandle);
-	}
+	SafeClose(SectionHandle);
 
 	//
 	// Finally, resume the initial thread (unless the original caller
@@ -675,10 +674,10 @@ BailOut:
 		Status = NtResumeThread(*ThreadHandle, NULL);
 
 		if (!NT_SUCCESS(Status)) {
-			KexSrvLogWarningEvent(
+			KexLogWarningEvent(
 			L"Failed to resume the initial thread of the remote process.\r\n\r\n"
-			L"NTSTATUS error code: 0x%08lx",
-			Status);
+			L"NTSTATUS error code: %s",
+			KexRtlNtStatusToString(Status));
 		}
 	}
 

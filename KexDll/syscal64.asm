@@ -24,6 +24,8 @@ GENERATE_SYSCALL KexNtQueryObject,								000Dh
 GENERATE_SYSCALL KexNtOpenFile,									0030h
 GENERATE_SYSCALL KexNtWriteFile,								0005h
 GENERATE_SYSCALL KexNtRaiseHardError,							0130h
+GENERATE_SYSCALL KexNtQueryInformationThread,					0022h
+GENERATE_SYSCALL KexNtSetInformationThread,                     000Ah
 
 _TEXT ENDS
 

@@ -175,10 +175,10 @@ STATIC NTSTATUS KexpShrinkDllPathLength(
 			&CurrentPathEntry.Length);
 
 		if (!NT_SUCCESS(Status)) {
-			KexSrvLogErrorEvent(
+			KexLogErrorEvent(
 				L"RtlFindCharInUnicodeString returned an error\r\n\r\n"
-				L"NTSTATUS error code: 0x%08lx",
-				Status);
+				L"NTSTATUS error code: %s",
+				KexRtlNtStatusToString(Status));
 			return Status;
 		}
 

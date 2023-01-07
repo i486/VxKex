@@ -86,6 +86,7 @@
       <TreatWarningAsError>true</TreatWarningAsError>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <CallingConvention>StdCall</CallingConvention>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -117,6 +118,7 @@
       <TreatWarningAsError>true</TreatWarningAsError>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <CallingConvention>StdCall</CallingConvention>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -150,6 +152,7 @@
       <TreatWarningAsError>true</TreatWarningAsError>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <CallingConvention>StdCall</CallingConvention>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -185,6 +188,7 @@
       <TreatWarningAsError>true</TreatWarningAsError>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <CallingConvention>StdCall</CallingConvention>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -226,11 +230,22 @@
     <ClCompile Include="kexldr.c" />
     <ClCompile Include="kexrtl.c" />
     <ClCompile Include="kexsrv.c" />
+    <ClCompile Include="logging.c" />
     <ClCompile Include="ntpriv.c" />
+    <ClCompile Include="ntthread.c" />
     <ClCompile Include="propagte.c" />
+    <ClCompile Include="status.c" />
     <ClCompile Include="strmap.c" />
     <ClCompile Include="syscal32.c" />
     <ClCompile Include="verspoof.c" />
+    <ClCompile Include="vxlerror.c" />
+    <ClCompile Include="vxlindex.c" />
+    <ClCompile Include="vxlopcl.c" />
+    <ClCompile Include="vxlpriv.c" />
+    <ClCompile Include="vxlquery.c" />
+    <ClCompile Include="vxlread.c" />
+    <ClCompile Include="vxlsever.c" />
+    <ClCompile Include="vxlwrite.c" />
   </ItemGroup>
   <ItemGroup>
     <None Include="KexDll.def" />

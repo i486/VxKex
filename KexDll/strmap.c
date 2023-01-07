@@ -69,6 +69,7 @@ KEXAPI NTSTATUS NTAPI KexRtlCreateStringMapper(
 	if (!Success) {
 		// The only way RtlCreateHashTable can fail is by running out of memory.
 		// (Or an invalid parameter, but that won't happen to us.)
+		SafeFree(Mapper);
 		return STATUS_NO_MEMORY;
 	}
 
@@ -146,7 +147,6 @@ KEXAPI NTSTATUS NTAPI KexRtlInsertEntryStringMapper(
 	IN		PCUNICODE_STRING			Key,
 	IN		PCUNICODE_STRING			Value OPTIONAL) PROTECTED_FUNCTION
 {
-	BOOLEAN Success;
 	PKEX_RTL_STRING_MAPPER_HASH_TABLE_ENTRY Entry;
 	ULONG KeySignature;
 
@@ -181,7 +181,7 @@ KEXAPI NTSTATUS NTAPI KexRtlInsertEntryStringMapper(
 	Entry->Key = *Key;
 	Entry->Value = *Value;
 
-	Success = RtlInsertEntryHashTable(
+	RtlInsertEntryHashTable(
 		&StringMapper->HashTable,
 		&Entry->HashTableEntry,
 		KeySignature,

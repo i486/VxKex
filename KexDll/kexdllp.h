@@ -18,6 +18,8 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
+#pragma once
+
 #include "buildcfg.h"
 #include <KexComm.h>
 #include <KexDll.h>
@@ -123,3 +125,51 @@ VOID KexApplyVersionSpoof(
 
 NTSTATUS KexInitializeAdvancedLogging(
 	VOID);
+
+NTSTATUS KexOpenVxlLogForCurrentApplication(
+	OUT	PVXLHANDLE	LogHandle);
+
+//
+// Logging (VXL)
+//
+
+NTSTATUS VxlpFlushLogFileHeader(
+	IN	VXLHANDLE			LogHandle);
+
+ULONG VxlpGetTotalLogEntryCount(
+	IN	VXLHANDLE			LogHandle);
+
+NTSTATUS VxlpFindOrCreateSourceComponentIndex(
+	IN	VXLHANDLE			LogHandle,
+	IN	PCWSTR				SourceComponent,
+	OUT	PUCHAR				SourceComponentIndex);
+
+NTSTATUS VxlpFindOrCreateSourceFileIndex(
+	IN	VXLHANDLE			LogHandle,
+	IN	PCWSTR				SourceFile,
+	OUT	PUCHAR				SourceFileIndex);
+
+NTSTATUS VxlpFindOrCreateSourceFunctionIndex(
+	IN	VXLHANDLE			LogHandle,
+	IN	PCWSTR				SourceFunction,
+	OUT	PUCHAR				SourceFunctionIndex);
+
+NTSTATUS VxlpBuildIndex(
+	IN	VXLHANDLE			LogHandle);
+
+//
+// System Service Extensions/Hooks
+//
+
+NTSTATUS NTAPI KexpNtQueryInformationThreadHook(
+	IN	HANDLE				ThreadHandle,
+	IN	THREADINFOCLASS		ThreadInformationClass,
+	OUT	PVOID				ThreadInformation,
+	IN	ULONG				ThreadInformationLength,
+	OUT	PULONG				ReturnLength OPTIONAL);
+
+NTSTATUS NTAPI KexpNtSetInformationThreadHook(
+	IN	HANDLE				ThreadHandle,
+	IN	THREADINFOCLASS		ThreadInformationClass,
+	IN	PVOID				ThreadInformation,
+	IN	ULONG				ThreadInformationLength);

@@ -1,9 +1,12 @@
 LIBRARY "KexDll.dll"
 EXPORTS
-	_KexData
 	KexDataInitialize
 
+	KexDllProtectedFunctionExceptionFilter
+
 	KexRtlPathFindFileName
+	KexRtlPathRemoveExtension
+	KexRtlPathReplaceIllegalCharacters
 	KexRtlGetProcessImageBaseName
 	KexRtlQueryKeyValueData
 	KexRtlQueryKeyMultipleValueData
@@ -11,7 +14,10 @@ EXPORTS
 	KexRtlFindUnicodeSubstring
 	KexRtlAdvanceUnicodeString
 	KexRtlRetreatUnicodeString
+	KexRtlShiftUnicodeString
 	KexRtlWriteProcessMemory
+	KexRtlCreateDirectoryRecursive
+	KexRtlNtStatusToString
 	KexRtlCreateStringMapper
 	KexRtlDeleteStringMapper
 	KexRtlInsertEntryStringMapper
@@ -31,7 +37,14 @@ EXPORTS
 	KexSrvOpenChannel
 	KexSrvSendMessage
 	KexSrvNotifyProcessStart
-	KexSrvLogEventEx
+
+	VxlOpenLog
+	VxlCloseLog
+	VxlQueryInformationLog
+	VxlWriteLogEx
+	VxlReadLog
+	VxlReadMultipleEntriesLog
+	VxlSeverityToText
 
 	KexNtQuerySystemTime
 	KexNtCreateUserProcess

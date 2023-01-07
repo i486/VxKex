@@ -50,7 +50,7 @@ KEXNTSYSCALLAPI NTSTATUS NTAPI Kex##SyscallName##(__VA_ARGS__) { asm { \
 }}
 
 GENERATE_SYSCALL(NtQuerySystemTime,					0x0107, 0x0057, 0x18, 0x04,
-	OUT		PULONGLONG	CurrentTime);
+	OUT		PLONGLONG	CurrentTime);
 
 GENERATE_SYSCALL(NtCreateUserProcess,				0x005D, 0x00AA, 0x00, 0x2C,
 	OUT		PHANDLE							ProcessHandle,
@@ -133,5 +133,18 @@ GENERATE_SYSCALL(NtRaiseHardError,					0x0110, 0x0130, 0x00, 0x18,
 	IN	PULONG_PTR	Parameters,
 	IN	ULONG		ValidResponseOptions,
 	OUT	PULONG		Response);
+
+GENERATE_SYSCALL(NtQueryInformationThread,			0x00EC, 0x0022, 0x00, 0x14,
+	IN	HANDLE				ThreadHandle,
+	IN	THREADINFOCLASS		ThreadInformationClass,
+	OUT	PVOID				ThreadInformation,
+	IN	ULONG				ThreadInformationLength,
+	OUT	PULONG				ReturnLength OPTIONAL);
+
+GENERATE_SYSCALL(NtSetInformationThread,			0x014F, 0x000A, 0x00, 0x10,
+	IN	HANDLE				ThreadHandle,
+	IN	THREADINFOCLASS		ThreadInformationClass,
+	IN	PVOID				ThreadInformation,
+	IN	ULONG				ThreadInformationLength);
 
 #endif

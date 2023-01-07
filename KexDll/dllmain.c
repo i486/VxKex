@@ -23,12 +23,12 @@
 // Revision History:
 //
 //     vxiiduu              17-Oct-2022  Initial creation.
+//     vxiiduu              05-Jan-2023  Convert to user friendly NTSTATUS.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "buildcfg.h"
 #include "kexdllp.h"
-#include <KexLog.h>
 
 INT WINAPI MessageBoxAHookProc(HWND, PCSTR, PCSTR, UINT);
 
@@ -81,8 +81,8 @@ BOOL WINAPI DllMain(
 {
 	NTSTATUS Status;
 	PVOID DllNotificationCookie;
-	
-	if (Reason == DLL_PROCESS_VERIFIER) {
+
+	if (!KexData) {
 		//
 		// First off, initialize the KexData structure, since it contains
 		// some basic data which we will need for logging, etc.
@@ -90,6 +90,14 @@ BOOL WINAPI DllMain(
 
 		KexDataInitialize(&KexData);
 		KexData->KexDllBase = DllBase;
+	}
+	
+	if (Reason == DLL_PROCESS_VERIFIER) {
+		//
+		// Open log file.
+		//
+
+		KexOpenVxlLogForCurrentApplication(&KexData->LogHandle);
 
 		//
 		// Connect to KexSrv and tell him that we exist now.
@@ -126,10 +134,10 @@ BOOL WINAPI DllMain(
 
 		Status = KexInitializeDllRewrite();
 		if (!NT_SUCCESS(Status)) {
-			KexSrvLogCriticalEvent(
+			KexLogCriticalEvent(
 				L"Failed to initialize DLL rewrite subsystem\r\n\r\n"
-				L"NTSTATUS error code: 0x%08lx",
-				Status);
+				L"NTSTATUS error code: %s",
+				KexRtlNtStatusToString(Status));
 
 			// Abort initialization of VxKex.
 			KexHeErrorBox(
@@ -151,12 +159,12 @@ BOOL WINAPI DllMain(
 			&DllNotificationCookie);
 
 		if (NT_SUCCESS(Status)) {
-			KexSrvLogInformationEvent(L"Successfully registered DLL notification callback.");
+			KexLogInformationEvent(L"Successfully registered DLL notification callback.");
 		} else {
-			KexSrvLogCriticalEvent(
+			KexLogCriticalEvent(
 				L"Failed to register DLL notification callback\r\n\r\n"
-				L"NTSTATUS error code: 0x%08lx",
-				Status);
+				L"NTSTATUS error code: %s",
+				KexRtlNtStatusToString(Status));
 
 			KexHeErrorBox(
 				L"VxKex could not start because the DLL notification callback "
@@ -174,11 +182,11 @@ BOOL WINAPI DllMain(
 			&NtCurrentPeb()->ProcessParameters->ImagePathName);
 
 		if (!NT_SUCCESS(Status) && Status != STATUS_IMAGE_NO_IMPORT_DIRECTORY) {
-			KexSrvLogCriticalEvent(
+			KexLogCriticalEvent(
 				L"Failed to rewrite DLL imports of the main process image.\r\n\r\n"
-				L"NTSTATUS error code: 0x%08lx\r\n"
+				L"NTSTATUS error code: %s\r\n"
 				L"Image base address: 0x%p\r\n",
-				Status,
+				KexRtlNtStatusToString(Status),
 				NtCurrentPeb()->ImageBaseAddress);
 
 			KexHeErrorBox(
@@ -206,9 +214,17 @@ BOOL WINAPI DllMain(
 		//
 
 		*Descriptor = &AVrfProviderDescriptor;
+	} else if (Reason == DLL_PROCESS_DETACH) {
+		VxlCloseLog(&KexData->LogHandle);
 	}
 
-	KexSrvLogDebugEvent(
+	VxlWriteLog(
+		KexData->LogHandle,
+		KEX_COMPONENT,
+		LogSeverityDebug,
+		L"Test log entry");
+
+	KexLogDebugEvent(
 		L"DllMain called\r\n\r\n"
 		L"DllBase = %p\r\n"
 		L"Reason = %lu (%s)\r\n"

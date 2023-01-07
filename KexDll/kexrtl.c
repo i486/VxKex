@@ -57,6 +57,104 @@ KEXAPI NTSTATUS NTAPI KexRtlPathFindFileName(
 	return STATUS_SUCCESS;
 } PROTECTED_FUNCTION_END
 
+// Examples:
+// C:\Windows\system32\notepad.exe -> C:\Windows\system32\notepad
+// C:\Users\bob.smith\Videos -> C:\Users\bob.smith\Videos
+// C:\Users\bob.smith\ -> C:\Users\bob.smith\
+// C:\Users\bob.smith -> C:\Users\bob
+// file.txt -> file
+// file -> file
+// file. -> file
+// .file -> <empty string>
+//
+// Returns STATUS_SUCCESS if the extension was successfully removed,
+// or STATUS_NOT_FOUND if no extension was removed.
+
+KEXAPI NTSTATUS NTAPI KexRtlPathRemoveExtension(
+	IN	PCUNICODE_STRING	Path,
+	OUT	PUNICODE_STRING		PathWithoutExtension) PROTECTED_FUNCTION
+{
+	NTSTATUS Status;
+	UNICODE_STRING Stops;
+	USHORT PrefixLength;
+	
+	if (!Path || !PathWithoutExtension || Path->Length == 0) {
+		return STATUS_INVALID_PARAMETER;
+	}
+
+	*PathWithoutExtension = *Path;
+
+	RtlInitConstantUnicodeString(&Stops, L".\\/");
+	Status = RtlFindCharInUnicodeString(
+		RTL_FIND_CHAR_IN_UNICODE_STRING_START_AT_END,
+		PathWithoutExtension,
+		&Stops,
+		&PrefixLength);
+
+	if (NT_SUCCESS(Status)) {
+		if (PathWithoutExtension->Buffer[PrefixLength / sizeof(WCHAR)] == '.') {
+			PathWithoutExtension->Length = PrefixLength;
+		}
+	}
+
+	return Status;
+} PROTECTED_FUNCTION_END
+
+KEXAPI BOOLEAN NTAPI KexRtlPathReplaceIllegalCharacters(
+	IN		PCUNICODE_STRING	Path,
+	OUT		PUNICODE_STRING		SanitizedPath,
+	IN		WCHAR				ReplacementCharacter OPTIONAL,
+	IN		BOOLEAN				AllowPathSeparators) PROTECTED_FUNCTION
+{
+	PCWSTR PathEnd;
+	BOOLEAN AtLeastOneCharacterWasReplaced;
+
+	ASSERT (Path != NULL);
+	ASSERT (Path->Length != 0);
+	ASSERT (Path->Buffer != NULL);
+	ASSERT (SanitizedPath != NULL);
+
+	if (!Path || !Path->Length || !Path->Buffer || !SanitizedPath) {
+		return FALSE;
+	}
+
+	if (!ReplacementCharacter) {
+		ReplacementCharacter = '_';
+	}
+
+	*SanitizedPath = *Path;
+	AtLeastOneCharacterWasReplaced = FALSE;
+	PathEnd = KexRtlEndOfUnicodeString(Path);
+
+	until (SanitizedPath->Buffer == PathEnd) {
+		switch (*SanitizedPath->Buffer) {
+		case '<':
+		case '>':
+		case ':':
+		case '"':
+		case '|':
+		case '?':
+		case '*':
+			*SanitizedPath->Buffer = ReplacementCharacter;
+			AtLeastOneCharacterWasReplaced = TRUE;
+			break;
+		case '/':
+		case '\\':
+			unless (AllowPathSeparators) {
+				*SanitizedPath->Buffer = ReplacementCharacter;
+				AtLeastOneCharacterWasReplaced = TRUE;
+			}
+			break;
+		}
+
+		SanitizedPath->Buffer++;
+	}
+
+	SanitizedPath->Buffer = Path->Buffer;
+
+	return AtLeastOneCharacterWasReplaced;
+} PROTECTED_FUNCTION_END_BOOLEAN
+
 KEXAPI NTSTATUS NTAPI KexRtlGetProcessImageBaseName(
 	OUT	PUNICODE_STRING	FileName) PROTECTED_FUNCTION
 {
@@ -322,7 +420,7 @@ KEXAPI BOOLEAN NTAPI KexRtlUnicodeStringEndsWith(
 // Returns the address of the character in Haystack where Needle starts,
 // or NULL if Needle could not be found.
 //
-PWCHAR NTAPI KexRtlFindUnicodeSubstring(
+KEXAPI PWCHAR NTAPI KexRtlFindUnicodeSubstring(
 	PCUNICODE_STRING	Haystack,
 	PCUNICODE_STRING	Needle,
 	BOOLEAN				CaseInsensitive) PROTECTED_FUNCTION
@@ -402,7 +500,7 @@ PWCHAR NTAPI KexRtlFindUnicodeSubstring(
 	}
 } PROTECTED_FUNCTION_END_BOOLEAN
 
-VOID NTAPI KexRtlAdvanceUnicodeString(
+KEXAPI VOID NTAPI KexRtlAdvanceUnicodeString(
 	OUT	PUNICODE_STRING	String,
 	IN	USHORT			AdvanceCb) PROTECTED_FUNCTION
 {
@@ -411,7 +509,7 @@ VOID NTAPI KexRtlAdvanceUnicodeString(
 	String->MaximumLength -= AdvanceCb;
 } PROTECTED_FUNCTION_END_VOID
 
-VOID NTAPI KexRtlRetreatUnicodeString(
+KEXAPI VOID NTAPI KexRtlRetreatUnicodeString(
 	OUT	PUNICODE_STRING	String,
 	IN	USHORT			RetreatCb) PROTECTED_FUNCTION
 {
@@ -420,7 +518,43 @@ VOID NTAPI KexRtlRetreatUnicodeString(
 	String->MaximumLength += RetreatCb;
 } PROTECTED_FUNCTION_END_VOID
 
-ULONG NTAPI KexRtlRemoteProcessBitness(
+KEXAPI NTSTATUS NTAPI KexRtlShiftUnicodeString(
+	IN OUT	PUNICODE_STRING	String,
+	IN		USHORT			ShiftCch,
+	IN		WCHAR			LeftFillCharacter OPTIONAL) PROTECTED_FUNCTION
+{
+	USHORT ShiftCb;
+	NTSTATUS Status;
+
+	if (!String || !ShiftCch) {
+		return STATUS_INVALID_PARAMETER;
+	}
+
+	ShiftCb = ShiftCch * sizeof(WCHAR);
+
+	if (ShiftCb > String->MaximumLength) {
+		return STATUS_BUFFER_TOO_SMALL;
+	}
+
+	if (!LeftFillCharacter) {
+		LeftFillCharacter = ' ';
+	}
+
+	Status = STATUS_SUCCESS;
+
+	if (String->Length + ShiftCb > String->MaximumLength) {
+		String->Length = String->MaximumLength - ShiftCb;
+		Status = STATUS_BUFFER_OVERFLOW;
+	}
+
+	RtlMoveMemory(String->Buffer + ShiftCch, String->Buffer, String->Length);
+	__stosw((PUSHORT) String->Buffer, LeftFillCharacter, ShiftCch);
+	String->Length += ShiftCb;
+
+	return Status;
+} PROTECTED_FUNCTION_END
+
+KEXAPI ULONG NTAPI KexRtlRemoteProcessBitness(
 	IN	HANDLE	ProcessHandle)
 {
 	NTSTATUS Status;
@@ -450,7 +584,7 @@ ULONG NTAPI KexRtlRemoteProcessBitness(
 //    are still restricted to the 32-bit address space if you are writing
 //    from a 32-bit process to a 64-bit process.)
 //
-NTSTATUS NTAPI KexRtlWriteProcessMemory(
+KEXAPI NTSTATUS NTAPI KexRtlWriteProcessMemory(
 	IN	HANDLE		ProcessHandle,
 	IN	ULONG_PTR	Destination,
 	IN	PVOID		Source,
@@ -488,6 +622,97 @@ NTSTATUS NTAPI KexRtlWriteProcessMemory(
 		&DestinationPageSize,
 		OldProtect,
 		&OldProtect);
+
+	return Status;
+} PROTECTED_FUNCTION_END
+
+//
+// Recursively create or open a directory.
+//
+KEXAPI NTSTATUS NTAPI KexRtlCreateDirectoryRecursive(
+	OUT	PHANDLE				DirectoryHandle,
+	IN	ACCESS_MASK			DesiredAccess,
+	IN	POBJECT_ATTRIBUTES	ObjectAttributes,
+	IN	ULONG				ShareAccess) PROTECTED_FUNCTION
+{
+	NTSTATUS Status;
+	IO_STATUS_BLOCK IoStatusBlock;
+	BOOLEAN AlreadyRetried;
+
+	AlreadyRetried = FALSE;
+
+	//
+	// Attempt to create the directory.
+	//
+
+Retry:
+	Status = NtCreateFile(
+		DirectoryHandle,
+		DesiredAccess | SYNCHRONIZE,
+		ObjectAttributes,
+		&IoStatusBlock,
+		NULL,
+		FILE_ATTRIBUTE_NORMAL,
+		ShareAccess,
+		FILE_OPEN_IF,
+		FILE_DIRECTORY_FILE | FILE_SYNCHRONOUS_IO_NONALERT,
+		NULL,
+		0);
+
+	if (!NT_SUCCESS(Status) && !AlreadyRetried) {
+		HANDLE TemporaryHandle;
+		OBJECT_ATTRIBUTES NewObjectAttributes;
+		UNICODE_STRING ShorterPath;
+		ULONG NewLength;
+
+		//
+		// If failed, chop off the last path element and try again.
+		//
+
+		NewObjectAttributes = *ObjectAttributes;
+		ShorterPath = *ObjectAttributes->ObjectName;
+		NewObjectAttributes.ObjectName = &ShorterPath;
+
+		if (!ShorterPath.Length) {
+			//
+			// Already chopped off all path elements, so that means the root
+			// of the path must not exist.
+			//
+
+			return STATUS_OBJECT_PATH_NOT_FOUND;
+		}
+
+		Status = RtlGetLengthWithoutLastFullDosOrNtPathElement(
+			0,
+			&ShorterPath,
+			&NewLength);
+
+		if (!NT_SUCCESS(Status)) {
+			return Status;
+		}
+
+		NewLength *= sizeof(WCHAR);
+		ASSERT (NewLength < ShorterPath.Length);
+
+		ShorterPath.Length = (USHORT) NewLength;
+
+		Status = KexRtlCreateDirectoryRecursive(
+			&TemporaryHandle,
+			0,
+			&NewObjectAttributes,
+			0);
+
+		if (NT_SUCCESS(Status)) {
+			//
+			// If we succeeded, now go back and retry creating the original
+			// directory again.
+			//
+
+			NtClose(TemporaryHandle);
+			AlreadyRetried = TRUE;
+			goto Retry;
+		}
+	}
 
 	return Status;
 } PROTECTED_FUNCTION_END

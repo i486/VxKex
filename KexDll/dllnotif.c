@@ -51,7 +51,7 @@ VOID NTAPI KexDllNotificationCallback(
 		L"(unknown)"
 	};
 
-	KexSrvLogDetailEvent(
+	KexLogDetailEvent(
 		L"The DLL %wZ was %s\r\n\r\n"
 		L"Full path to the DLL: \"%wZ\"\r\n"
 		L"Loaded at 0x%p (size: %I32u bytes)",

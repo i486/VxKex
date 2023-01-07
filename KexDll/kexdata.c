@@ -46,9 +46,11 @@ KEX_PROCESS_DATA _KexData = {
 	// is 260 wchars
 	RTL_CONSTANT_STRING(L"C:\\Windows                                                                                                                                                                                                                                                         "),
 	RTL_CONSTANT_STRING(L"C:\\Program Files\\VxKex                                                                                                                                                                                                                                            "),
+	RTL_CONSTANT_STRING(L"C:\\ProgramData\\VXsoft\\VxKex\\Logs                                                                                                                                                                                                                                "),
 	RTL_CONSTANT_STRING(L"UNKNOWN.EXE                                                                                                                                                                                                                                                         "),
 	
 	NULL,														// SrvChannel
+	NULL,														// LogHandle
 	NULL,														// KexDllBase
 	NULL														// SystemDllBase
 };
@@ -86,7 +88,8 @@ STATIC NTSTATUS KexpInitializeGlobalConfig(
 	ULONG QueryTableNumberOfElements;
 	KEX_RTL_QUERY_KEY_MULTIPLE_VARIABLE_TABLE_ENTRY QueryTable[] = {
 		GENERATE_QKMV_TABLE_ENTRY					(InstalledVersion, REG_RESTRICT_DWORD),
-		GENERATE_QKMV_TABLE_ENTRY_UNICODE_STRING	(KexDir)
+		GENERATE_QKMV_TABLE_ENTRY_UNICODE_STRING	(KexDir),
+		GENERATE_QKMV_TABLE_ENTRY_UNICODE_STRING	(LogDir)
 	};
 
 	//
@@ -121,6 +124,64 @@ STATIC NTSTATUS KexpInitializeGlobalConfig(
 	//
 
 	KexRtlUpdateNullTerminatedUnicodeStringLength(&_KexData.KexDir);
+	KexRtlUpdateNullTerminatedUnicodeStringLength(&_KexData.LogDir);
+
+	NtClose(KeyHandle);
+	return Status;
+} PROTECTED_FUNCTION_END
+
+//
+// Local configuration is read from HKCU and overrides global configuration.
+//
+
+STATIC NTSTATUS KexpInitializeLocalConfig(
+	VOID) PROTECTED_FUNCTION
+{
+	NTSTATUS Status;
+	HANDLE CurrentUserKeyHandle;
+	HANDLE KeyHandle;
+	UNICODE_STRING KeyName;
+	OBJECT_ATTRIBUTES ObjectAttributes;
+
+	ULONG QueryTableNumberOfElements;
+	KEX_RTL_QUERY_KEY_MULTIPLE_VARIABLE_TABLE_ENTRY QueryTable[] = {
+		GENERATE_QKMV_TABLE_ENTRY_UNICODE_STRING	(LogDir)
+	};
+
+	Status = RtlOpenCurrentUser(KEY_ENUMERATE_SUB_KEYS, &CurrentUserKeyHandle);
+
+	if (!NT_SUCCESS(Status)) {
+		return Status;
+	}
+
+	RtlInitConstantUnicodeString(&KeyName, L"Software\\VXsoft\\VxKex");
+
+	InitializeObjectAttributes(
+		&ObjectAttributes, 
+		&KeyName, 
+		OBJ_CASE_INSENSITIVE, 
+		CurrentUserKeyHandle, 
+		NULL);
+
+	Status = NtOpenKey(
+		&KeyHandle,
+		KEY_READ,
+		&ObjectAttributes);
+
+	NtClose(CurrentUserKeyHandle);
+
+	if (!NT_SUCCESS(Status)) {
+		return Status;
+	}
+
+	QueryTableNumberOfElements = ARRAYSIZE(QueryTable);
+	KexRtlQueryKeyMultipleValueData(
+		KeyHandle,
+		QueryTable,
+		&QueryTableNumberOfElements,
+		0);
+
+	KexRtlUpdateNullTerminatedUnicodeStringLength(&_KexData.LogDir);
 
 	NtClose(KeyHandle);
 	return Status;
@@ -194,8 +255,11 @@ KEXAPI NTSTATUS NTAPI KexDataInitialize(
 	Peb = NtCurrentPeb();
 
 	if (KexData) {
-		// Already initialized - fail
-		return STATUS_ACCESS_DENIED;
+		if (KexDataOut) {
+			*KexDataOut = KexData;
+		}
+
+		return STATUS_SUCCESS;
 	}
 
 	//
@@ -218,6 +282,7 @@ KEXAPI NTSTATUS NTAPI KexDataInitialize(
 	KexRtlGetProcessImageBaseName(&_KexData.ImageBaseName);
 	KexpInitializeIfeoParameters(&_KexData.IfeoParameters);
 	KexpInitializeGlobalConfig();
+	KexpInitializeLocalConfig();
 
 	//
 	// Get native NTDLL base address.

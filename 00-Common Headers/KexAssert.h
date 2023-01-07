@@ -65,7 +65,7 @@
 									if (ShouldRaiseException) __int2c(); \
 								}
 #  else
-#    define ASSERT(Condition)	if (!(Condition)) __int2c()
+#    define ASSERT(Condition)	do { if (!(Condition)) { DbgPrint("Assertion failure: %s (%s:%d in %s)\r\n", #Condition, __FILE__, __LINE__, __FUNCTION__);  __int2c(); } } while(0)
 #  endif
 #else
 #  define ASSERT(Condition)

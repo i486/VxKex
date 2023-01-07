@@ -50,24 +50,31 @@ ULONG KexDllProtectedFunctionExceptionFilter(
 			NOT_REACHED;
 		}
 
-		KexSrvLogErrorEvent(
-			L"UNHANDLED EXCEPTION in %s\r\n\r\n"
-			L"Exception code:                0x%08lx\r\n"
-			L"Exception address:             0x%p\r\n\r\n"
-			L"Attempt to %s the inaccessible location 0x%p.",
-			FunctionName,
-			ExceptionCode,
-			ExceptionRecord->ExceptionAddress,
-			AccessType,
-			ExceptionRecord->ExceptionInformation[1]);
+		// Logging here must be wrapped in more SEH because VxlWriteLogEx is itself
+		// a protected function - in case of failure inside that function, it will
+		// result in infinite recursion.
+		try {
+			KexLogErrorEvent(
+				L"UNHANDLED EXCEPTION in %s\r\n\r\n"
+				L"Exception code:                0x%08lx\r\n"
+				L"Exception address:             0x%p\r\n\r\n"
+				L"Attempt to %s the inaccessible location 0x%p.",
+				FunctionName,
+				ExceptionCode,
+				ExceptionRecord->ExceptionAddress,
+				AccessType,
+				ExceptionRecord->ExceptionInformation[1]);
+		} except (EXCEPTION_EXECUTE_HANDLER) {}
 	} else {
-		KexSrvLogErrorEvent(
-			L"UNHANDLED EXCEPTION in %s\r\n\r\n"
-			L"Exception code:                0x%08lx\r\n"
-			L"Exception address:             0x%p",
-			FunctionName,
-			ExceptionCode,
-			ExceptionRecord->ExceptionAddress);
+		try {
+			KexLogErrorEvent(
+				L"UNHANDLED EXCEPTION in %s\r\n\r\n"
+				L"Exception code:                0x%08lx\r\n"
+				L"Exception address:             0x%p",
+				FunctionName,
+				ExceptionCode,
+				ExceptionRecord->ExceptionAddress);
+		} except (EXCEPTION_EXECUTE_HANDLER) {}
 	}
 
 	return EXCEPTION_EXECUTE_HANDLER;

@@ -1,0 +1,4 @@
+LIBRARY kernel33
+EXPORTS
+	GetThreadDescription
+	SetThreadDescription

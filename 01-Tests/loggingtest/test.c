@@ -16,88 +16,149 @@
 // Revision History:
 //
 //     vxiiduu              14-Oct-2022  Initial creation.
+//     vxiiduu              05-Jan-2023  Convert to user friendly NTSTATUS.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
 #define KEX_TARGET_TYPE_EXE
+#define KEX_COMPONENT L"LoggingTest"
 #include <KexComm.h>
-#include <KexLog.h>
+#include <KexDll.h>
 
-PCWSTR TEST_LOG_FILE_NAME = L"C:\\Users\\vxiiduu\\Desktop\\Test.vxl";
-PCWSTR TEST_EXPORT_FILE_NAME = L"C:\\Users\\vxiiduu\\Desktop\\Test.log";
+#define TEST_LOG_FILE_NAME L"\\??\\C:\\Users\\vxiiduu\\Desktop\\Test.vxl"
 VXLHANDLE LogHandle;
 
-ULONG WINAPI ThreadProc(
+NTSTATUS NTAPI ThreadProc(
 	IN	PVOID	Parameter)
 {
-	VXLSTATUS Status;
+	NTSTATUS Status;
 	ULONG Index;
-	PCWSTR Object1 = L"monster condom";
-	PCWSTR Object2 = L"magnum dong";
-	PCWSTR SevString = VxlSeverityLookup((VXLSEVERITY) (ULONG) Parameter, FALSE);
+	VXLSEVERITY Severity;
 
-	for (Index = 1; Index <= 20000; Index++) {
-		Status = VxlLog(LogHandle, L"loggingtest", (VXLSEVERITY) (ULONG) Parameter,
-						L"WHOOPS I dropped my %lu'th %s %s that I use for my %s",
-						Index, SevString, Object1, Object2);
+	Severity = (VXLSEVERITY) (ULONG) Parameter;
 
-		if (VXL_FAILED(Status)) {
-			CriticalErrorBoxF(L"Failed to write log entry (threaded): %s.", VxlErrorLookup(Status));
+	for (Index = 0; Index < 100000; ++Index) {
+		Status = VxlWriteLog(
+			LogHandle,
+			KEX_COMPONENT,
+			Severity,
+			L"This is the %ld'th %s log entry.",
+			Index,
+			VxlSeverityToText(Severity, FALSE));
+
+		if (!NT_SUCCESS(Status)) {
+			DbgPrint("Failed to write log entry %ld of severity %ws: 0x%08lx\r\n",
+					 Index, VxlSeverityToText(Severity, FALSE), Status);
 		}
 	}
 
-	return 0;
+	return Status;
 }
 
-VOID EntryPoint(
-	VOID)
+NTSTATUS NTAPI EntryPoint(
+	IN	PVOID	Parameter)
 {
-	VXLSTATUS Status;
+	NTSTATUS Status;
+	HRESULT Result;
+	UNICODE_STRING SourceApplication;
+	UNICODE_STRING LogFileName;
+	OBJECT_ATTRIBUTES ObjectAttributes;
 	HANDLE ThreadHandles[6];
+	ULONG Index;
 
-	KexgApplicationFriendlyName = L"VXLL Test Application";
+	RtlInitConstantUnicodeString(&SourceApplication, L"VxKex");
+	RtlInitConstantUnicodeString(&LogFileName, TEST_LOG_FILE_NAME);
+	InitializeObjectAttributes(&ObjectAttributes, &LogFileName, OBJ_CASE_INSENSITIVE, NULL, NULL);
 
-	//
-	// Write test
-	//
-
-	Status = VxlOpenLogFileEx(
-		TEST_LOG_FILE_NAME,
+	Status = VxlOpenLog(
 		&LogHandle,
-		L"VxKex",
-		VXL_OPEN_WRITE_ONLY | VXL_OPEN_APPEND_IF_EXISTS | VXL_OPEN_CREATE_IF_NOT_EXISTS);
+		&SourceApplication,
+		&ObjectAttributes,
+		GENERIC_WRITE,
+		FILE_OPEN_IF);
 
-	if (VXL_FAILED(Status)) {
-		CriticalErrorBoxF(L"Failed to open log file: %s.", VxlErrorLookup(Status));
-	}
-
-	Status = VxlLog(LogHandle, L"loggingtest", LogSeverityInformation, L"Application Started!");
-	if (VXL_FAILED(Status)) {
-		CriticalErrorBoxF(L"Failed to write log entry: %s.", VxlErrorLookup(Status));
-	}
-
-	Status = VxlLog(LogHandle, L"loggingtest", LogSeverityDetail, L"Your mother is homosexual, by the way.\r\nThis is a very very very very very very very long long long line of text intended to test the edit control's word break abilities and also to let you know how fucking stupid you are. What's wrong with you? Were you dropped on your head as a baby?");
-	if (VXL_FAILED(Status)) {
-		CriticalErrorBoxF(L"Failed to write detail log entry: %s.", VxlErrorLookup(Status));
-	}
+	VxlWriteLog(
+		LogHandle,
+		KEX_COMPONENT,
+		LogSeverityInformation,
+		L"Logging Test application has been started\r\n\r\n"
+		L"This is a demonstration of multi-line log entries");
 
 	//
-	// Write test (multi-threaded)
+	// Test making a shitload of source files, source functions and source components
 	//
 
-	ThreadHandles[0] = CreateThread(NULL, 0, ThreadProc, (PVOID) LogSeverityCritical, 0, NULL);
-	ThreadHandles[1] = CreateThread(NULL, 0, ThreadProc, (PVOID) LogSeverityError, 0, NULL);
-	ThreadHandles[2] = CreateThread(NULL, 0, ThreadProc, (PVOID) LogSeverityWarning, 0, NULL);
-	ThreadHandles[3] = CreateThread(NULL, 0, ThreadProc, (PVOID) LogSeverityInformation, 0, NULL);
-	ThreadHandles[4] = CreateThread(NULL, 0, ThreadProc, (PVOID) LogSeverityDetail, 0, NULL);
-	ThreadHandles[5] = CreateThread(NULL, 0, ThreadProc, (PVOID) LogSeverityDebug, 0, NULL);
+	for (Index = 0; Index < 70; ++Index) {
+		WCHAR SourceFileString[64];
+		WCHAR SourceFunctionString[64];
+		WCHAR SourceComponentString[64];
 
-	WaitForMultipleObjects(ARRAYSIZE(ThreadHandles), ThreadHandles, TRUE, INFINITE);
+		Result = StringCchPrintf(
+			SourceFileString,
+			ARRAYSIZE(SourceFileString),
+			L"File%d", Index);
 
-	Status = VxlCloseLogFile(&LogHandle);
-	if (VXL_FAILED(Status)) {
-		CriticalErrorBoxF(L"Failed to close log file: %s.", VxlErrorLookup(Status));
+		Result = StringCchPrintf(
+			SourceFunctionString,
+			ARRAYSIZE(SourceFunctionString),
+			L"Function%d", Index);
+
+		Result = StringCchPrintf(
+			SourceComponentString,
+			ARRAYSIZE(SourceComponentString),
+			L"Component%d", Index);
+
+		Status = VxlWriteLogEx(
+			LogHandle,
+			SourceComponentString,
+			SourceFileString,
+			69420,
+			SourceFunctionString,
+			LogSeverityDebug,
+			L"Test source file/function/component exceeding limit");
+
+		if (!NT_SUCCESS(Status)) {
+			DbgPrint("VxlWriteLogEx failed at iteration %d NTSTATUS 0x%08lx\r\n", Index, Status);
+			break;
+		}
 	}
 
-	ExitProcess(0);
+	for (Index = 0; Index < 6; ++Index) {
+		Status = RtlCreateUserThread(
+			NtCurrentProcess(),
+			NULL,
+			FALSE,
+			0,
+			0,
+			0,
+			ThreadProc,
+			(PVOID) Index,
+			&ThreadHandles[Index],
+			NULL);
+
+		if (!NT_SUCCESS(Status)) {
+			DbgPrint("Failed to create thread #%d. NTSTATUS error code: %ws\r\n",
+				Index, KexRtlNtStatusToString(Status));
+			NtTerminateProcess(NtCurrentProcess(), Status);
+		}
+	}
+
+	Status = NtWaitForMultipleObjects(
+		ARRAYSIZE(ThreadHandles),
+		ThreadHandles,
+		WaitAllObject,
+		FALSE,
+		NULL);
+
+	if (!NT_SUCCESS(Status)) {
+		DbgPrint("Failed to wait for threads to exit. NTSTATUS error code: %ws\r\n",
+			KexRtlNtStatusToString(Status));
+		NtTerminateProcess(NtCurrentProcess(), Status);
+	}
+
+	Status = VxlCloseLog(&LogHandle);
+
+	// no need to bother closing thread handles
+	LdrShutdownProcess();
+	return NtTerminateProcess(NtCurrentProcess(), Status);
 }

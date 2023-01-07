@@ -126,6 +126,7 @@
 #  endif
 
 #  define STRICT
+#  define WIN32_NO_STATUS
 #  include <Windows.h>
 #  include <NtDll.h>
 #  include <StdArg.h>
@@ -156,7 +157,6 @@
 
 #  include <KexTypes.h>
 #  include <KexVer.h>
-#  include <KexData.h>
 
 #  ifdef KEX_TARGET_TYPE_EXE
 #    include <KexGui.h>
@@ -175,6 +175,7 @@
 #  define except __except
 #  define finally __finally
 #  define leave __leave
+#  define throw(Status) RtlRaiseStatus(Status)
 #  define asm __asm
 
 #  define until(Condition) while (!(Condition))
@@ -214,6 +215,14 @@
 //
 #  define CB_TO_CCH(Cb) ((Cb) >> 1)
 #  define CCH_TO_CB(Cch) ((Cch) << 1)
+
+//
+// Check that a kernel handle is not NULL or INVALID_HANDLE_VALUE.
+// Keep in mind that NtCurrentProcess() will not be valid if checked with
+// this macro, so you will have to special-case it in any code that uses
+// process handles.
+//
+#  define VALID_HANDLE(Handle) ((Handle != NULL) && (Handle != INVALID_HANDLE_VALUE))
 
 #  define InterlockedIncrement16 _InterlockedIncrement16
 #  define InterlockedDecrement16 _InterlockedDecrement16

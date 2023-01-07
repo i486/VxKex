@@ -80,6 +80,39 @@
     <ClCompile Include="kexldr.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="ntthread.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="vxlopcl.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="vxlquery.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="vxlerror.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="vxlindex.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="vxlread.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="vxlwrite.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="vxlsever.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="vxlpriv.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="logging.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="status.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="KexDll.def">

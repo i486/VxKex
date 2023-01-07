@@ -25,7 +25,7 @@
 #include "buildcfg.h"
 #include <KexComm.h>
 #include <KexSrv.h>
-#include <KexLog.h>
+#include <KexDll.h>
 #include "resource.h"
 
 HANDLE ChannelHandle = NULL;
@@ -57,7 +57,7 @@ VOID AddSeveritiesToComboBox(
 	ULONG Index;
 
 	for (Index = 0; Index < LogSeverityMaximumValue; ++Index) {
-		ComboBox_AddString(SeverityComboBoxWindow, VxlSeverityLookup((VXLSEVERITY) Index, FALSE));
+		ComboBox_AddString(SeverityComboBoxWindow, VxlSeverityToText((VXLSEVERITY) Index, FALSE));
 	}
 
 	ComboBox_SetCueBannerText(SeverityComboBoxWindow, L"Select log severity...");

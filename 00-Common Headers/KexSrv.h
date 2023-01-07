@@ -26,7 +26,7 @@
 #pragma once
 #include <KexTypes.h>
 
-#define KEXSRV_IPC_CHANNEL_NAME L"\\??\\pipe\\KexSrvIpcChannel"
+#define KEXSRV_IPC_CHANNEL_NAME L"\\Device\\NamedPipe\\KexSrvIpcChannel"
 
 typedef enum _KEX_IPC_MESSAGE_ID {
 	KexIpcKexProcessStart,

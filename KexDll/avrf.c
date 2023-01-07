@@ -15,6 +15,7 @@
 // Revision History:
 //
 //     vxiiduu              03-Nov-2022  Initial creation.
+//     vxiiduu              05-Jan-2023  Convert to user friendly NTSTATUS.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -58,7 +59,7 @@ NTSTATUS KexDisableAVrf(
 
 	if (NT_SUCCESS(Status) && VerifierDllMain != NULL) {
 		if (!VerifierDllMain(VerifierDllBase, DLL_PROCESS_DETACH, NULL)) {
-			KexSrvLogWarningEvent(L"Verifier.dll failed to de-initialize.");
+			KexLogWarningEvent(L"Verifier.dll failed to de-initialize.");
 		}
 	}
 
@@ -71,10 +72,10 @@ NTSTATUS KexDisableAVrf(
 		0);
 
 	if (!NT_SUCCESS(Status)) {
-		KexSrvLogWarningEvent(
+		KexLogWarningEvent(
 			L"Failed to disable process handle tracing.\r\n\r\n"
-			L"NTSTATUS error code: 0x%08lx",
-			Status);
+			L"NTSTATUS error code: %s",
+			KexRtlNtStatusToString(Status));
 	}
 
 	return STATUS_SUCCESS;
