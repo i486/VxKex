@@ -22,6 +22,11 @@ If you are a developer, source code is provided as a 7z file on the releases pag
 FAQ
 ===
 
+**Q: Does it work for games???**
+
+**A:** At the moment, VxKex is not intended for games, so you will probably have limited
+success. I hope to address this shortcoming in a future release.
+
 **Q: What applications are supported?**
 
 **A:** The list of compatible applications includes, but is not limited to:
