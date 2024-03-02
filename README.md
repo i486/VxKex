@@ -59,7 +59,7 @@ with VxKex, for more information.
 extremely minimal. No background services are used, no global hooks are
 installed, and the shell extensions and DLLs that are loaded have minimal
 impact and can be disabled if needed. You can rest assured that your Windows 7
-will remain as stable as always.
+will remain as stable as it always is.
 
 **Q: Do I need to have specific updates installed?**
 
