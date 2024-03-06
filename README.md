@@ -72,6 +72,11 @@ idea to install that one. The Windows 7 platform update also helps.
 
 **A:** Yes. There is no problem with ESUs.
 
+**Q: Do console applications work with VxKex?**
+
+**A:** Yes. After you have enabled VxKex for a program you can use it through the
+command prompt as normal.
+
 **Q: Can I use this with Windows 8 or 8.1?**
 
 **A:** VxKex is designed for use only with Windows 7. If you use Windows 8 or 8.1,
