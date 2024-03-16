@@ -32,26 +32,43 @@ success. I hope to address this shortcoming in a future release.
 **A:** The list of compatible applications includes, but is not limited to:
 - Bespoke Synth
 - Blender
-- Calibre (limited functionality)
+- Calibre
+- Chromium (including Ungoogled Chromium)
+- Citra
 - Commander Wars
+- Cygwin
+- Dasel
+- ElectronMail
+- Firefox
+- GIMP (2.99.18)
+- GitHub Desktop
 - HandBrake
 - Kodi
 - MKVToolNix
 - MongoDB
+- MPC-Qt
 - MPV
+- MPV.NET
+- Opera
+- osu!lazer
 - Python
 - qBittorrent
 - QMMP
 - Qt Creator
 - Rufus
 - Steel Bank Common Lisp
+- Spotify
 - Steinberg SpectraLayers
 - TeamTalk
+- WinDbg (classic from Windows 11 SDK, and preview)
 - Yuzu (gameplay was not tested)
 - Zig
 
 See the **Application Compatibility List.docx** file, which is installed together
 with VxKex, for more information.
+
+The majority of Qt6 applications will work, and many Electron applications will
+work as well.
 
 **Q: Does VxKex modify system files? Will it make my system unstable?**
 
@@ -65,8 +82,8 @@ will remain as stable as it always is.
 
 **A:** VxKex is only designed to work with Service Pack 1 installed. Users of
 Windows 7 RTM can try to use it, but I don't know if it will install or work.
-Many programs require the KB2533623 security update to run, so it is a good
-idea to install that one. The Windows 7 platform update also helps.
+Many programs require KB2533623 and KB2670838 in order to run. It is a good
+idea to install those two updates.
 
 **Q: If I have ESUs (Extended Security Updates) installed, can I use VxKex?**
 
@@ -95,3 +112,10 @@ API extension is accomplished by editing the program's DLL import table so that
 instead of importing from Windows 8/8.1/10 DLLs, it imports to VxKex DLLs instead.
 These VxKex DLLs contain implementations of Windows API functions which were introduced
 in newer versions of Windows.
+
+Donations
+=========
+
+If you would like to support development, consider making a donation.
+
+- https://paypal.me/vxiiduu
