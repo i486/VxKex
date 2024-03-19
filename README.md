@@ -32,12 +32,14 @@ success. I hope to address this shortcoming in a future release.
 **A:** The list of compatible applications includes, but is not limited to:
 - Bespoke Synth
 - Blender
+- Blockbench
 - Calibre
 - Chromium (including Ungoogled Chromium)
 - Citra
 - Commander Wars
 - Cygwin
 - Dasel
+- Discord Canary
 - ElectronMail
 - Firefox
 - GIMP (2.99.18)
@@ -60,6 +62,7 @@ success. I hope to address this shortcoming in a future release.
 - Spotify
 - Steinberg SpectraLayers
 - TeamTalk
+- VSCode and VSCodium
 - WinDbg (classic from Windows 11 SDK, and preview)
 - Yuzu (gameplay was not tested)
 - Zig
