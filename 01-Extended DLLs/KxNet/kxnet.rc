@@ -1,0 +1,30 @@
+#include "buildcfg.h"
+#include <Windows.h>
+#include <KexVer.h>
+
+1 VERSIONINFO
+	FILEVERSION KEX_VERSION_FV
+	FILEOS VOS_NT
+#if defined(KEX_TARGET_TYPE_EXE)
+	FILETYPE VFT_APP
+#elif defined(KEX_TARGET_TYPE_DLL)
+	FILETYPE VFT_DLL
+#endif
+BEGIN
+	BLOCK "StringFileInfo"
+	BEGIN
+		BLOCK "040904B0"
+		BEGIN
+			VALUE "LegalCopyright",				KEX_WEB_STR
+			VALUE "FileDescription",			"VxKex Network & Internet API Extension DLL"
+			VALUE "FileVersion",				KEX_VERSION_STR
+			VALUE "InternalName",				KEX_COMPONENT
+			VALUE "OriginalFilename",			"KXNET.DLL"
+		END
+	END
+
+	BLOCK "VarFileInfo"
+	BEGIN
+		VALUE "Translation", 0x0409 0x04B0
+	END
+END

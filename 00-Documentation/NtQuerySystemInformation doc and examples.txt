@@ -1,0 +1,2861 @@
+See Ntdll.h for prototype and structs definition.
+NtQuerySystemInformation, SystemModuleInformation, RTL_PROCESS_MODULES + RTL_PROCESS_MODULE_INFORMATION.
+
+Kernel mode modules are always listed before user mode modules.
+NTDLL is always the first user mode module listed, SMSS is always the second.
+
+NumberOfModules - don't trust this number unless NtQuerySystemInformation returns STATUS_SUCCESS.
+
+#define LDRP_STATIC_LINK                0x00000002
+#define LDRP_IMAGE_DLL                  0x00000004
+#define LDRP_LOAD_IN_PROGRESS           0x00001000
+#define LDRP_UNLOAD_IN_PROGRESS         0x00002000
+#define LDRP_ENTRY_PROCESSED            0x00004000
+#define LDRP_ENTRY_INSERTED             0x00008000
+#define LDRP_CURRENT_LOAD               0x00010000
+#define LDRP_FAILED_BUILTIN_LOAD        0x00020000
+#define LDRP_DONT_CALL_FOR_THREADS      0x00040000
+#define LDRP_PROCESS_ATTACH_CALLED      0x00080000
+#define LDRP_DEBUG_SYMBOLS_LOADED       0x00100000
+#define LDRP_IMAGE_NOT_AT_BASE          0x00200000
+#define LDRP_COR_IMAGE                  0x00400000
+#define LDRP_COR_OWNS_UNMAP             0x00800000
+#define LDRP_SYSTEM_MAPPED              0x01000000
+#define LDRP_IMAGE_VERIFYING            0x02000000
+#define LDRP_DRIVER_DEPENDENT_DLL       0x04000000
+#define LDRP_ENTRY_NATIVE               0x08000000
+#define LDRP_REDIRECTED                 0x10000000
+#define LDRP_NON_PAGED_DEBUG_INFO       0x20000000
+#define LDRP_MM_LOADED                  0x40000000
+#define LDRP_COMPAT_DATABASE_PROCESSED  0x80000000
+
+Section - Always uninitialized.
+MappedBase - Uninitialized for kernel mode DLLs/drivers, set to 0 for user mode DLLs.
+ImageBase - Base of the image. High bit (0x80000000 or 0x8000000000000000) is set for kernel mode images.
+ImageSize - Size in bytes of the image.
+Flags - Same as KLDR_DATA_TABLE_ENTRY.Flags. LDRP_*
+LoadOrderIndex - order which the module loaded in. starts at 0, ntoskrnl.exe is always 0.
+LoadCount - reference count of image.
+InitOrderIndex - 0 for kernel mode, same as LoadOrderIndex for user mode.
+FullPathName - Always null terminated. NT style path, or root drive relative path. Example \SystemRoot\... or \Windows\system32\...
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff80003611000
+ImageSize       = 6152192
+Flags           = 0x8004000
+LoadOrderIndex  = 0
+InitOrderIndex  = 0
+LoadCount       = 122
+OffsetToFileName= 21
+FullPathName    = "\SystemRoot\system32\ntoskrnl.exe"
+Base name       = "ntoskrnl.exe"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff80003bef000
+ImageSize       = 294912
+Flags           = 0x8004000
+LoadOrderIndex  = 1
+InitOrderIndex  = 0
+LoadCount       = 32
+OffsetToFileName= 21
+FullPathName    = "\SystemRoot\system32\hal.dll"
+Base name       = "hal.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff80000bb8000
+ImageSize       = 40960
+Flags           = 0x8004000
+LoadOrderIndex  = 2
+InitOrderIndex  = 0
+LoadCount       = 3
+OffsetToFileName= 21
+FullPathName    = "\SystemRoot\system32\kdcom.dll"
+Base name       = "kdcom.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88000c62000
+ImageSize       = 516096
+Flags           = 0x9104000
+LoadOrderIndex  = 3
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 21
+FullPathName    = "\SystemRoot\system32\mcupdate_GenuineIntel.dll"
+Base name       = "mcupdate_GenuineIntel.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88000ce0000
+ImageSize       = 81920
+Flags           = 0xd104000
+LoadOrderIndex  = 4
+InitOrderIndex  = 0
+LoadCount       = 3
+OffsetToFileName= 21
+FullPathName    = "\SystemRoot\system32\PSHED.dll"
+Base name       = "PSHED.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88000cf4000
+ImageSize       = 409600
+Flags           = 0x9104000
+LoadOrderIndex  = 5
+InitOrderIndex  = 0
+LoadCount       = 3
+OffsetToFileName= 21
+FullPathName    = "\SystemRoot\system32\CLFS.SYS"
+Base name       = "CLFS.SYS"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88000d58000
+ImageSize       = 475136
+Flags           = 0xd104000
+LoadOrderIndex  = 6
+InitOrderIndex  = 0
+LoadCount       = 2
+OffsetToFileName= 21
+FullPathName    = "\SystemRoot\system32\CI.dll"
+Base name       = "CI.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88000ec7000
+ImageSize       = 794624
+Flags           = 0x9104000
+LoadOrderIndex  = 7
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\drivers\Wdf01000.sys"
+Base name       = "Wdf01000.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88000f89000
+ImageSize       = 65536
+Flags           = 0xd104000
+LoadOrderIndex  = 8
+InitOrderIndex  = 0
+LoadCount       = 15
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\drivers\WDFLDR.SYS"
+Base name       = "WDFLDR.SYS"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88000f99000
+ImageSize       = 356352
+Flags           = 0x9104000
+LoadOrderIndex  = 9
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\drivers\ACPI.sys"
+Base name       = "ACPI.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88000ff0000
+ImageSize       = 36864
+Flags           = 0xd104000
+LoadOrderIndex  = 10
+InitOrderIndex  = 0
+LoadCount       = 18
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\drivers\WMILIB.SYS"
+Base name       = "WMILIB.SYS"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88000e00000
+ImageSize       = 40960
+Flags           = 0x9104000
+LoadOrderIndex  = 11
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\drivers\msisadrv.sys"
+Base name       = "msisadrv.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88000e0a000
+ImageSize       = 208896
+Flags           = 0x9104000
+LoadOrderIndex  = 12
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\drivers\pci.sys"
+Base name       = "pci.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88000e3d000
+ImageSize       = 53248
+Flags           = 0x9104000
+LoadOrderIndex  = 13
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\drivers\vdrvroot.sys"
+Base name       = "vdrvroot.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88000e4a000
+ImageSize       = 86016
+Flags           = 0x9104000
+LoadOrderIndex  = 14
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\System32\drivers\partmgr.sys"
+Base name       = "partmgr.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88000e5f000
+ImageSize       = 81920
+Flags           = 0x9104000
+LoadOrderIndex  = 15
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\drivers\volmgr.sys"
+Base name       = "volmgr.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88000c00000
+ImageSize       = 376832
+Flags           = 0x9104000
+LoadOrderIndex  = 16
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\System32\drivers\volmgrx.sys"
+Base name       = "volmgrx.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88000e73000
+ImageSize       = 102400
+Flags           = 0x9104000
+LoadOrderIndex  = 17
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\vmci.sys"
+Base name       = "vmci.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88000e8c000
+ImageSize       = 94208
+Flags           = 0x9104000
+LoadOrderIndex  = 18
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\vsock.sys"
+Base name       = "vsock.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88000ea3000
+ImageSize       = 106496
+Flags           = 0x9104000
+LoadOrderIndex  = 19
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\System32\drivers\mountmgr.sys"
+Base name       = "mountmgr.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88000ebd000
+ImageSize       = 36864
+Flags           = 0x9104000
+LoadOrderIndex  = 20
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\drivers\atapi.sys"
+Base name       = "atapi.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88000dcc000
+ImageSize       = 172032
+Flags           = 0xd104000
+LoadOrderIndex  = 21
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\drivers\ataport.SYS"
+Base name       = "ataport.SYS"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88001059000
+ImageSize       = 45056
+Flags           = 0x9104000
+LoadOrderIndex  = 22
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\drivers\msahci.sys"
+Base name       = "msahci.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88001064000
+ImageSize       = 65536
+Flags           = 0xd104000
+LoadOrderIndex  = 23
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\drivers\PCIIDEX.SYS"
+Base name       = "PCIIDEX.SYS"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88001074000
+ImageSize       = 61440
+Flags           = 0x9104000
+LoadOrderIndex  = 24
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\drivers\stornvme.sys"
+Base name       = "stornvme.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88001083000
+ImageSize       = 413696
+Flags           = 0xd104000
+LoadOrderIndex  = 25
+InitOrderIndex  = 0
+LoadCount       = 3
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\drivers\storport.sys"
+Base name       = "storport.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff880010e8000
+ImageSize       = 94208
+Flags           = 0x9104000
+LoadOrderIndex  = 26
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\secnvme.sys"
+Base name       = "secnvme.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff880010ff000
+ImageSize       = 45056
+Flags           = 0x9104000
+LoadOrderIndex  = 27
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\drivers\amdxata.sys"
+Base name       = "amdxata.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff8800110a000
+ImageSize       = 303104
+Flags           = 0x9104000
+LoadOrderIndex  = 28
+InitOrderIndex  = 0
+LoadCount       = 4
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\drivers\fltmgr.sys"
+Base name       = "fltmgr.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88001154000
+ImageSize       = 81920
+Flags           = 0x9104000
+LoadOrderIndex  = 29
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\drivers\fileinfo.sys"
+Base name       = "fileinfo.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88001219000
+ImageSize       = 1740800
+Flags           = 0x9104000
+LoadOrderIndex  = 30
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\System32\Drivers\Ntfs.sys"
+Base name       = "Ntfs.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88001168000
+ImageSize       = 380928
+Flags           = 0xd104000
+LoadOrderIndex  = 31
+InitOrderIndex  = 0
+LoadCount       = 10
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\System32\Drivers\msrpc.sys"
+Base name       = "msrpc.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff880013c2000
+ImageSize       = 110592
+Flags           = 0x9104000
+LoadOrderIndex  = 32
+InitOrderIndex  = 0
+LoadCount       = 21
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\System32\Drivers\ksecdd.sys"
+Base name       = "ksecdd.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff880014cb000
+ImageSize       = 479232
+Flags           = 0x9104000
+LoadOrderIndex  = 33
+InitOrderIndex  = 0
+LoadCount       = 3
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\System32\Drivers\cng.sys"
+Base name       = "cng.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88001540000
+ImageSize       = 73728
+Flags           = 0x9104020
+LoadOrderIndex  = 34
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\System32\drivers\pcw.sys"
+Base name       = "pcw.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88001552000
+ImageSize       = 40960
+Flags           = 0x9104000
+LoadOrderIndex  = 35
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\System32\Drivers\Fs_Rec.sys"
+Base name       = "Fs_Rec.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88001679000
+ImageSize       = 991232
+Flags           = 0x9104000
+LoadOrderIndex  = 36
+InitOrderIndex  = 0
+LoadCount       = 28
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\drivers\ndis.sys"
+Base name       = "ndis.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff8800176b000
+ImageSize       = 393216
+Flags           = 0xd104000
+LoadOrderIndex  = 37
+InitOrderIndex  = 0
+LoadCount       = 24
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\drivers\NETIO.SYS"
+Base name       = "NETIO.SYS"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff880017cb000
+ImageSize       = 176128
+Flags           = 0x9104000
+LoadOrderIndex  = 38
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\System32\Drivers\ksecpkg.sys"
+Base name       = "ksecpkg.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88001805000
+ImageSize       = 2072576
+Flags           = 0x9104020
+LoadOrderIndex  = 39
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\System32\drivers\tcpip.sys"
+Base name       = "tcpip.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88001600000
+ImageSize       = 299008
+Flags           = 0xd104000
+LoadOrderIndex  = 40
+InitOrderIndex  = 0
+LoadCount       = 8
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\System32\drivers\fwpkclnt.sys"
+Base name       = "fwpkclnt.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88001649000
+ImageSize       = 36864
+Flags           = 0x9104000
+LoadOrderIndex  = 41
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\wfplwf.sys"
+Base name       = "wfplwf.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88001652000
+ImageSize       = 65536
+Flags           = 0x9104000
+LoadOrderIndex  = 42
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\drivers\vmstorfl.sys"
+Base name       = "vmstorfl.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff8800155c000
+ImageSize       = 311296
+Flags           = 0x9104000
+LoadOrderIndex  = 43
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\drivers\volsnap.sys"
+Base name       = "volsnap.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88001662000
+ImageSize       = 32768
+Flags           = 0x9104000
+LoadOrderIndex  = 44
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\System32\Drivers\spldr.sys"
+Base name       = "spldr.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff8800166a000
+ImageSize       = 45056
+Flags           = 0x9104000
+LoadOrderIndex  = 45
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\secnvmeF.sys"
+Base name       = "secnvmeF.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff880015a8000
+ImageSize       = 237568
+Flags           = 0x9104000
+LoadOrderIndex  = 46
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\System32\drivers\rdyboost.sys"
+Base name       = "rdyboost.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88001400000
+ImageSize       = 126976
+Flags           = 0x9104000
+LoadOrderIndex  = 47
+InitOrderIndex  = 0
+LoadCount       = 4
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\System32\Drivers\mup.sys"
+Base name       = "mup.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff880017f6000
+ImageSize       = 36864
+Flags           = 0x9104000
+LoadOrderIndex  = 48
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\System32\drivers\hwpolicy.sys"
+Base name       = "hwpolicy.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff8800141f000
+ImageSize       = 208896
+Flags           = 0x9104000
+LoadOrderIndex  = 49
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\System32\DRIVERS\fvevol.sys"
+Base name       = "fvevol.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88001452000
+ImageSize       = 86016
+Flags           = 0x9104000
+LoadOrderIndex  = 50
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\drivers\disk.sys"
+Base name       = "disk.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88001467000
+ImageSize       = 204800
+Flags           = 0xd104000
+LoadOrderIndex  = 51
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\drivers\CLASSPNP.SYS"
+Base name       = "CLASSPNP.SYS"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff880015f5000
+ImageSize       = 36864
+Flags           = 0x49104000
+LoadOrderIndex  = 52
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\System32\Drivers\Null.SYS"
+Base name       = "Null.SYS"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff880013dd000
+ImageSize       = 28672
+Flags           = 0x49104000
+LoadOrderIndex  = 53
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\System32\Drivers\Beep.SYS"
+Base name       = "Beep.SYS"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff880013e4000
+ImageSize       = 57344
+Flags           = 0x49104000
+LoadOrderIndex  = 54
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\System32\drivers\vga.sys"
+Base name       = "vga.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88001000000
+ImageSize       = 151552
+Flags           = 0x4d104000
+LoadOrderIndex  = 55
+InitOrderIndex  = 0
+LoadCount       = 5
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\System32\drivers\VIDEOPRT.SYS"
+Base name       = "VIDEOPRT.SYS"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88001200000
+ImageSize       = 65536
+Flags           = 0x4d104000
+LoadOrderIndex  = 56
+InitOrderIndex  = 0
+LoadCount       = 5
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\System32\drivers\watchdog.sys"
+Base name       = "watchdog.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88001210000
+ImageSize       = 36864
+Flags           = 0x49104000
+LoadOrderIndex  = 57
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\System32\DRIVERS\RDPCDD.sys"
+Base name       = "RDPCDD.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff880013f2000
+ImageSize       = 36864
+Flags           = 0x49104000
+LoadOrderIndex  = 58
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\drivers\rdpencdd.sys"
+Base name       = "rdpencdd.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88001025000
+ImageSize       = 36864
+Flags           = 0x49104000
+LoadOrderIndex  = 59
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\drivers\rdprefmp.sys"
+Base name       = "rdprefmp.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff8800102e000
+ImageSize       = 45056
+Flags           = 0x49104000
+LoadOrderIndex  = 60
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\System32\Drivers\Msfs.SYS"
+Base name       = "Msfs.SYS"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88001039000
+ImageSize       = 69632
+Flags           = 0x49104000
+LoadOrderIndex  = 61
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\System32\Drivers\Npfs.SYS"
+Base name       = "Npfs.SYS"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff880011c5000
+ImageSize       = 139264
+Flags           = 0x49104000
+LoadOrderIndex  = 62
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\tdx.sys"
+Base name       = "tdx.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff880011e7000
+ImageSize       = 53248
+Flags           = 0x4d104000
+LoadOrderIndex  = 63
+InitOrderIndex  = 0
+LoadCount       = 7
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\TDI.SYS"
+Base name       = "TDI.SYS"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88002caf000
+ImageSize       = 557056
+Flags           = 0x49104000
+LoadOrderIndex  = 64
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\drivers\afd.sys"
+Base name       = "afd.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88002d37000
+ImageSize       = 282624
+Flags           = 0x49104000
+LoadOrderIndex  = 65
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\System32\DRIVERS\netbt.sys"
+Base name       = "netbt.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88002d7c000
+ImageSize       = 49152
+Flags           = 0x49104000
+LoadOrderIndex  = 66
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\drivers\ws2ifsl.sys"
+Base name       = "ws2ifsl.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88002d88000
+ImageSize       = 155648
+Flags           = 0x49104000
+LoadOrderIndex  = 67
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\pacer.sys"
+Base name       = "pacer.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88002dae000
+ImageSize       = 61440
+Flags           = 0x49104000
+LoadOrderIndex  = 68
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\nm3.sys"
+Base name       = "nm3.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88002dbd000
+ImageSize       = 65536
+Flags           = 0x49104000
+LoadOrderIndex  = 69
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\netbios.sys"
+Base name       = "netbios.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88002dcd000
+ImageSize       = 110592
+Flags           = 0x49104000
+LoadOrderIndex  = 70
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\wanarp.sys"
+Base name       = "wanarp.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88002de8000
+ImageSize       = 81920
+Flags           = 0x49104000
+LoadOrderIndex  = 71
+InitOrderIndex  = 0
+LoadCount       = 4
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\termdd.sys"
+Base name       = "termdd.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88002c00000
+ImageSize       = 339968
+Flags           = 0x49104000
+LoadOrderIndex  = 72
+InitOrderIndex  = 0
+LoadCount       = 6
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\rdbss.sys"
+Base name       = "rdbss.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88002c53000
+ImageSize       = 49152
+Flags           = 0x49104000
+LoadOrderIndex  = 73
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\drivers\nsiproxy.sys"
+Base name       = "nsiproxy.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88002c5f000
+ImageSize       = 45056
+Flags           = 0x49104000
+LoadOrderIndex  = 74
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\mssmbios.sys"
+Base name       = "mssmbios.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88002c6a000
+ImageSize       = 61440
+Flags           = 0x49104000
+LoadOrderIndex  = 75
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\System32\drivers\discache.sys"
+Base name       = "discache.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff8800445f000
+ImageSize       = 544768
+Flags           = 0x49104000
+LoadOrderIndex  = 76
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\drivers\csc.sys"
+Base name       = "csc.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff880044e4000
+ImageSize       = 135168
+Flags           = 0x49104000
+LoadOrderIndex  = 77
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\System32\Drivers\dfsc.sys"
+Base name       = "dfsc.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88004505000
+ImageSize       = 69632
+Flags           = 0x49104000
+LoadOrderIndex  = 78
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\blbdrive.sys"
+Base name       = "blbdrive.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88004516000
+ImageSize       = 155648
+Flags           = 0x49104000
+LoadOrderIndex  = 79
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\tunnel.sys"
+Base name       = "tunnel.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff8800729d000
+ImageSize       = 11145216
+Flags           = 0x49104000
+LoadOrderIndex  = 80
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\igdkmd64.sys"
+Base name       = "igdkmd64.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88004ca8000
+ImageSize       = 1003520
+Flags           = 0x49104000
+LoadOrderIndex  = 81
+InitOrderIndex  = 0
+LoadCount       = 2
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\System32\drivers\dxgkrnl.sys"
+Base name       = "dxgkrnl.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88004d9d000
+ImageSize       = 286720
+Flags           = 0x49104000
+LoadOrderIndex  = 82
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\System32\drivers\dxgmms1.sys"
+Base name       = "dxgmms1.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88004c00000
+ImageSize       = 356352
+Flags           = 0x49104000
+LoadOrderIndex  = 83
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\USBXHCI.SYS"
+Base name       = "USBXHCI.SYS"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88004c57000
+ImageSize       = 229376
+Flags           = 0x49104000
+LoadOrderIndex  = 84
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\ucx01000.sys"
+Base name       = "ucx01000.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88007d3e000
+ImageSize       = 262144
+Flags           = 0x49104000
+LoadOrderIndex  = 85
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\TeeDriverx64.sys"
+Base name       = "TeeDriverx64.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff8800529a000
+ImageSize       = 937984
+Flags           = 0x49104000
+LoadOrderIndex  = 86
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\RtsPer.sys"
+Base name       = "RtsPer.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff8800537f000
+ImageSize       = 147456
+Flags           = 0x49104000
+LoadOrderIndex  = 87
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\HDAudBus.sys"
+Base name       = "HDAudBus.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88005200000
+ImageSize       = 540672
+Flags           = 0x49104000
+LoadOrderIndex  = 88
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\e1d62x64.sys"
+Base name       = "e1d62x64.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88005284000
+ImageSize       = 90112
+Flags           = 0x49104000
+LoadOrderIndex  = 89
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\intelppm.sys"
+Base name       = "intelppm.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff880053a3000
+ImageSize       = 40960
+Flags           = 0x49104000
+LoadOrderIndex  = 90
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\acpipmi.sys"
+Base name       = "acpipmi.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff880053ad000
+ImageSize       = 36864
+Flags           = 0x49104000
+LoadOrderIndex  = 91
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\wmiacpi.sys"
+Base name       = "wmiacpi.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff880053b6000
+ImageSize       = 65536
+Flags           = 0x49104000
+LoadOrderIndex  = 92
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\CompositeBus.sys"
+Base name       = "CompositeBus.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff880053c6000
+ImageSize       = 90112
+Flags           = 0x49104000
+LoadOrderIndex  = 93
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\AgileVpn.sys"
+Base name       = "AgileVpn.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88007d7e000
+ImageSize       = 151552
+Flags           = 0x49104000
+LoadOrderIndex  = 94
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\rasl2tp.sys"
+Base name       = "rasl2tp.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff880053dc000
+ImageSize       = 49152
+Flags           = 0x49104000
+LoadOrderIndex  = 95
+InitOrderIndex  = 0
+LoadCount       = 2
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\ndistapi.sys"
+Base name       = "ndistapi.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88007da3000
+ImageSize       = 192512
+Flags           = 0x49104000
+LoadOrderIndex  = 96
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\ndiswan.sys"
+Base name       = "ndiswan.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88004de3000
+ImageSize       = 110592
+Flags           = 0x49104000
+LoadOrderIndex  = 97
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\raspppoe.sys"
+Base name       = "raspppoe.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88007dd2000
+ImageSize       = 135168
+Flags           = 0x49104000
+LoadOrderIndex  = 98
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\raspptp.sys"
+Base name       = "raspptp.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88007200000
+ImageSize       = 106496
+Flags           = 0x49104000
+LoadOrderIndex  = 99
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\rassstp.sys"
+Base name       = "rassstp.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff880053e8000
+ImageSize       = 45056
+Flags           = 0x49104000
+LoadOrderIndex  = 100
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\rdpbus.sys"
+Base name       = "rdpbus.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88004c8f000
+ImageSize       = 61440
+Flags           = 0x49104000
+LoadOrderIndex  = 101
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\kbdclass.sys"
+Base name       = "kbdclass.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff8800721a000
+ImageSize       = 61440
+Flags           = 0x49104000
+LoadOrderIndex  = 102
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\mouclass.sys"
+Base name       = "mouclass.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88007229000
+ImageSize       = 192512
+Flags           = 0x41104000
+LoadOrderIndex  = 103
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\BazisVirtualCDBus.sys"
+Base name       = "BazisVirtualCDBus.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff880053f3000
+ImageSize       = 8192
+Flags           = 0x49104000
+LoadOrderIndex  = 104
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\swenum.sys"
+Base name       = "swenum.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88007258000
+ImageSize       = 274432
+Flags           = 0x4d104000
+LoadOrderIndex  = 105
+InitOrderIndex  = 0
+LoadCount       = 4
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\ks.sys"
+Base name       = "ks.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff880053f5000
+ImageSize       = 45056
+Flags           = 0x49104000
+LoadOrderIndex  = 106
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\drivers\logi_joy_bus_enum.sys"
+Base name       = "logi_joy_bus_enum.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff8800453c000
+ImageSize       = 73728
+Flags           = 0x49104000
+LoadOrderIndex  = 107
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\drivers\logi_joy_xlcore.sys"
+Base name       = "logi_joy_xlcore.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff8800454e000
+ImageSize       = 73728
+Flags           = 0x49104000
+LoadOrderIndex  = 108
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\umbus.sys"
+Base name       = "umbus.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88007df3000
+ImageSize       = 45056
+Flags           = 0x49104000
+LoadOrderIndex  = 109
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\vmnetadapter.sys"
+Base name       = "vmnetadapter.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88004560000
+ImageSize       = 49152
+Flags           = 0x4d104000
+LoadOrderIndex  = 110
+InitOrderIndex  = 0
+LoadCount       = 3
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\VMNET.SYS"
+Base name       = "VMNET.SYS"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff8800456c000
+ImageSize       = 86016
+Flags           = 0x49104000
+LoadOrderIndex  = 111
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\System32\Drivers\NDProxy.SYS"
+Base name       = "NDProxy.SYS"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88004581000
+ImageSize       = 475136
+Flags           = 0x49104000
+LoadOrderIndex  = 112
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\UsbHub3.sys"
+Base name       = "UsbHub3.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff880045f5000
+ImageSize       = 45056
+Flags           = 0x4d104000
+LoadOrderIndex  = 113
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\USBD8.SYS"
+Base name       = "USBD8.SYS"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88004400000
+ImageSize       = 376832
+Flags           = 0x49104000
+LoadOrderIndex  = 114
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\drivers\HdAudio.sys"
+Base name       = "HdAudio.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88006ee0000
+ImageSize       = 249856
+Flags           = 0x4d104000
+LoadOrderIndex  = 115
+InitOrderIndex  = 0
+LoadCount       = 2
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\drivers\portcls.sys"
+Base name       = "portcls.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88006f1d000
+ImageSize       = 139264
+Flags           = 0x4d104000
+LoadOrderIndex  = 116
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\drivers\drmk.sys"
+Base name       = "drmk.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88006f3f000
+ImageSize       = 24576
+Flags           = 0x49104000
+LoadOrderIndex  = 117
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\drivers\ksthunk.sys"
+Base name       = "ksthunk.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88006f45000
+ImageSize       = 487424
+Flags           = 0x49104000
+LoadOrderIndex  = 118
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\IntcDAud.sys"
+Base name       = "IntcDAud.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88006fbc000
+ImageSize       = 110592
+Flags           = 0x49104000
+LoadOrderIndex  = 119
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\uaspstor.sys"
+Base name       = "uaspstor.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88006fd7000
+ImageSize       = 8192
+Flags           = 0x4d104000
+LoadOrderIndex  = 120
+InitOrderIndex  = 0
+LoadCount       = 3
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\USBD.SYS"
+Base name       = "USBD.SYS"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88006fd9000
+ImageSize       = 57344
+Flags           = 0x49104000
+LoadOrderIndex  = 121
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\hidusb.sys"
+Base name       = "hidusb.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88006fe7000
+ImageSize       = 102400
+Flags           = 0x4d104000
+LoadOrderIndex  = 122
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\HIDCLASS.SYS"
+Base name       = "HIDCLASS.SYS"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88006e00000
+ImageSize       = 36864
+Flags           = 0x4d104000
+LoadOrderIndex  = 123
+InitOrderIndex  = 0
+LoadCount       = 3
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\HIDPARSE.SYS"
+Base name       = "HIDPARSE.SYS"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff96000000000
+ImageSize       = 3321856
+Flags           = 0x69104000
+LoadOrderIndex  = 124
+InitOrderIndex  = 0
+LoadCount       = 5
+OffsetToFileName= 21
+FullPathName    = "\SystemRoot\System32\win32k.sys"
+Base name       = "win32k.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88006e09000
+ImageSize       = 49152
+Flags           = 0x4d104000
+LoadOrderIndex  = 125
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\System32\drivers\Dxapi.sys"
+Base name       = "Dxapi.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88006e15000
+ImageSize       = 118784
+Flags           = 0x49104000
+LoadOrderIndex  = 126
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\usbccgp.sys"
+Base name       = "usbccgp.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88006e32000
+ImageSize       = 57344
+Flags           = 0x49104000
+LoadOrderIndex  = 127
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\kbdhid.sys"
+Base name       = "kbdhid.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88006e40000
+ImageSize       = 53248
+Flags           = 0x49104000
+LoadOrderIndex  = 128
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\mouhid.sys"
+Base name       = "mouhid.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88006e4d000
+ImageSize       = 57344
+Flags           = 0x49104000
+LoadOrderIndex  = 129
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\monitor.sys"
+Base name       = "monitor.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88006e5b000
+ImageSize       = 57344
+Flags           = 0x49104000
+LoadOrderIndex  = 130
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\System32\Drivers\crashdmp.sys"
+Base name       = "crashdmp.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88006e69000
+ImageSize       = 40960
+Flags           = 0x49104000
+LoadOrderIndex  = 131
+InitOrderIndex  = 0
+LoadCount       = 2
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\System32\Drivers\dump_diskdump.sys"
+Base name       = "dump_diskdump.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88006e73000
+ImageSize       = 94208
+Flags           = 0x49104000
+LoadOrderIndex  = 132
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\System32\Drivers\dump_secnvme.sys"
+Base name       = "dump_secnvme.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88006e8a000
+ImageSize       = 77824
+Flags           = 0x49104020
+LoadOrderIndex  = 133
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\System32\Drivers\dump_dumpfve.sys"
+Base name       = "dump_dumpfve.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff96000430000
+ImageSize       = 40960
+Flags           = 0x69104000
+LoadOrderIndex  = 134
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 21
+FullPathName    = "\SystemRoot\System32\TSDDD.dll"
+Base name       = "TSDDD.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff960006c0000
+ImageSize       = 159744
+Flags           = 0x69104000
+LoadOrderIndex  = 135
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 21
+FullPathName    = "\SystemRoot\System32\cdd.dll"
+Base name       = "cdd.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88006e9d000
+ImageSize       = 143360
+Flags           = 0x49104000
+LoadOrderIndex  = 136
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\drivers\luafv.sys"
+Base name       = "luafv.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88006ec0000
+ImageSize       = 73728
+Flags           = 0x49104000
+LoadOrderIndex  = 137
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\vmnetbridge.sys"
+Base name       = "vmnetbridge.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88002c79000
+ImageSize       = 86016
+Flags           = 0x49104000
+LoadOrderIndex  = 138
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\lltdio.sys"
+Base name       = "lltdio.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88002c8e000
+ImageSize       = 98304
+Flags           = 0x49104000
+LoadOrderIndex  = 139
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\rspndr.sys"
+Base name       = "rspndr.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88006ed2000
+ImageSize       = 45056
+Flags           = 0x49104000
+LoadOrderIndex  = 140
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\vmnetuserif.sys"
+Base name       = "vmnetuserif.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff880028d9000
+ImageSize       = 823296
+Flags           = 0x49104000
+LoadOrderIndex  = 141
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\drivers\HTTP.sys"
+Base name       = "HTTP.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff880029a2000
+ImageSize       = 122880
+Flags           = 0x49104000
+LoadOrderIndex  = 142
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\bowser.sys"
+Base name       = "bowser.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff880029c0000
+ImageSize       = 98304
+Flags           = 0x49104000
+LoadOrderIndex  = 143
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\System32\drivers\mpsdrv.sys"
+Base name       = "mpsdrv.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88002800000
+ImageSize       = 188416
+Flags           = 0x49104000
+LoadOrderIndex  = 144
+InitOrderIndex  = 0
+LoadCount       = 3
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\mrxsmb.sys"
+Base name       = "mrxsmb.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff8800282e000
+ImageSize       = 319488
+Flags           = 0x49104000
+LoadOrderIndex  = 145
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\mrxsmb10.sys"
+Base name       = "mrxsmb10.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff8800287c000
+ImageSize       = 147456
+Flags           = 0x49104000
+LoadOrderIndex  = 146
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\mrxsmb20.sys"
+Base name       = "mrxsmb20.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff880028a0000
+ImageSize       = 131072
+Flags           = 0x49104000
+LoadOrderIndex  = 147
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\vmx86.sys"
+Base name       = "vmx86.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff880028c0000
+ImageSize       = 86016
+Flags           = 0x49104000
+LoadOrderIndex  = 148
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\hcmon.sys"
+Base name       = "hcmon.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff880029d8000
+ImageSize       = 32768
+Flags           = 0x49104000
+LoadOrderIndex  = 149
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 27
+FullPathName    = "\??\C:\Program Files\LGHUB\logi_core_temp.sys"
+Base name       = "logi_core_temp.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88002ac0000
+ImageSize       = 696320
+Flags           = 0x49104000
+LoadOrderIndex  = 150
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\drivers\peauth.sys"
+Base name       = "peauth.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88002b6a000
+ImageSize       = 200704
+Flags           = 0x49104000
+LoadOrderIndex  = 151
+InitOrderIndex  = 0
+LoadCount       = 3
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\System32\DRIVERS\srvnet.sys"
+Base name       = "srvnet.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88002b9b000
+ImageSize       = 73728
+Flags           = 0x49104000
+LoadOrderIndex  = 152
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\System32\drivers\tcpipreg.sys"
+Base name       = "tcpipreg.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88002bad000
+ImageSize       = 49152
+Flags           = 0x49104020
+LoadOrderIndex  = 153
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\SysWOW64\drivers\vstor2-x64.sys"
+Base name       = "vstor2-x64.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88002a00000
+ImageSize       = 425984
+Flags           = 0x49104000
+LoadOrderIndex  = 154
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\System32\DRIVERS\srv2.sys"
+Base name       = "srv2.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88003843000
+ImageSize       = 618496
+Flags           = 0x49104000
+LoadOrderIndex  = 155
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\System32\DRIVERS\srv.sys"
+Base name       = "srv.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff880038da000
+ImageSize       = 188416
+Flags           = 0x49104000
+LoadOrderIndex  = 156
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\System32\drivers\rdpdr.sys"
+Base name       = "rdpdr.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88003908000
+ImageSize       = 45056
+Flags           = 0x49104000
+LoadOrderIndex  = 157
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\drivers\tdtcp.sys"
+Base name       = "tdtcp.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88003913000
+ImageSize       = 65536
+Flags           = 0x49104000
+LoadOrderIndex  = 158
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\System32\DRIVERS\tssecsrv.sys"
+Base name       = "tssecsrv.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff88003923000
+ImageSize       = 237568
+Flags           = 0x49104000
+LoadOrderIndex  = 159
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\System32\Drivers\RDPWD.SYS"
+Base name       = "RDPWD.SYS"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff96000950000
+ImageSize       = 409600
+Flags           = 0x69104000
+LoadOrderIndex  = 160
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 21
+FullPathName    = "\SystemRoot\System32\ATMFD.DLL"
+Base name       = "ATMFD.DLL"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff880039ce000
+ImageSize       = 45056
+Flags           = 0x49104000
+LoadOrderIndex  = 161
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\asyncmac.sys"
+Base name       = "asyncmac.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0xbaadf00dbaadf00d
+ImageBase       = 0xfffff8800395d000
+ImageSize       = 348160
+Flags           = 0x49104000
+LoadOrderIndex  = 162
+InitOrderIndex  = 0
+LoadCount       = 1
+OffsetToFileName= 29
+FullPathName    = "\SystemRoot\system32\DRIVERS\udfs.sys"
+Base name       = "udfs.sys"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x76e60000
+ImageSize       = 1699840
+Flags           = 0x0
+LoadOrderIndex  = 163
+InitOrderIndex  = 163
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\ntdll.dll"
+Base name       = "ntdll.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x47fe0000
+ImageSize       = 131072
+Flags           = 0x0
+LoadOrderIndex  = 164
+InitOrderIndex  = 164
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\smss.exe"
+Base name       = "smss.exe"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7feff160000
+ImageSize       = 327680
+Flags           = 0x0
+LoadOrderIndex  = 165
+InitOrderIndex  = 165
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\apisetschema.dll"
+Base name       = "apisetschema.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0xff9a0000
+ImageSize       = 790528
+Flags           = 0x0
+LoadOrderIndex  = 166
+InitOrderIndex  = 166
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\autochk.exe"
+Base name       = "autochk.exe"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7feff020000
+ImageSize       = 1216512
+Flags           = 0x0
+LoadOrderIndex  = 167
+InitOrderIndex  = 167
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\rpcrt4.dll"
+Base name       = "rpcrt4.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7feff000000
+ImageSize       = 102400
+Flags           = 0x0
+LoadOrderIndex  = 168
+InitOrderIndex  = 168
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\imagehlp.dll"
+Base name       = "imagehlp.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7fefefa0000
+ImageSize       = 335872
+Flags           = 0x0
+LoadOrderIndex  = 169
+InitOrderIndex  = 169
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\Wldap32.dll"
+Base name       = "Wldap32.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7fefef00000
+ImageSize       = 618496
+Flags           = 0x0
+LoadOrderIndex  = 170
+InitOrderIndex  = 170
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\comdlg32.dll"
+Base name       = "comdlg32.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7fefed70000
+ImageSize       = 1613824
+Flags           = 0x0
+LoadOrderIndex  = 171
+InitOrderIndex  = 171
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\urlmon.dll"
+Base name       = "urlmon.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7fefecf0000
+ImageSize       = 524288
+Flags           = 0x0
+LoadOrderIndex  = 172
+InitOrderIndex  = 172
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\difxapi.dll"
+Base name       = "difxapi.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x76d60000
+ImageSize       = 1028096
+Flags           = 0x0
+LoadOrderIndex  = 173
+InitOrderIndex  = 173
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\user32.dll"
+Base name       = "user32.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7fefecd0000
+ImageSize       = 126976
+Flags           = 0x0
+LoadOrderIndex  = 174
+InitOrderIndex  = 174
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\sechost.dll"
+Base name       = "sechost.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7fefec30000
+ImageSize       = 651264
+Flags           = 0x0
+LoadOrderIndex  = 175
+InitOrderIndex  = 175
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\msvcrt.dll"
+Base name       = "msvcrt.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7fefea50000
+ImageSize       = 1929216
+Flags           = 0x0
+LoadOrderIndex  = 176
+InitOrderIndex  = 176
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\setupapi.dll"
+Base name       = "setupapi.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x77010000
+ImageSize       = 28672
+Flags           = 0x0
+LoadOrderIndex  = 177
+InitOrderIndex  = 177
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\psapi.dll"
+Base name       = "psapi.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7fefe970000
+ImageSize       = 901120
+Flags           = 0x0
+LoadOrderIndex  = 178
+InitOrderIndex  = 178
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\oleaut32.dll"
+Base name       = "oleaut32.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7fefe4c0000
+ImageSize       = 4898816
+Flags           = 0x0
+LoadOrderIndex  = 179
+InitOrderIndex  = 179
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\wininet.dll"
+Base name       = "wininet.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7fefe420000
+ImageSize       = 626688
+Flags           = 0x0
+LoadOrderIndex  = 180
+InitOrderIndex  = 180
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\clbcatq.dll"
+Base name       = "clbcatq.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7fefd690000
+ImageSize       = 14204928
+Flags           = 0x0
+LoadOrderIndex  = 181
+InitOrderIndex  = 181
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\shell32.dll"
+Base name       = "shell32.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7fefd620000
+ImageSize       = 430080
+Flags           = 0x0
+LoadOrderIndex  = 182
+InitOrderIndex  = 182
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\gdi32.dll"
+Base name       = "gdi32.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7fefd540000
+ImageSize       = 913408
+Flags           = 0x0
+LoadOrderIndex  = 183
+InitOrderIndex  = 183
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\advapi32.dll"
+Base name       = "advapi32.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7fefd510000
+ImageSize       = 188416
+Flags           = 0x0
+LoadOrderIndex  = 184
+InitOrderIndex  = 184
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\imm32.dll"
+Base name       = "imm32.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7fefd490000
+ImageSize       = 462848
+Flags           = 0x0
+LoadOrderIndex  = 185
+InitOrderIndex  = 185
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\shlwapi.dll"
+Base name       = "shlwapi.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x77000000
+ImageSize       = 12288
+Flags           = 0x0
+LoadOrderIndex  = 186
+InitOrderIndex  = 186
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\normaliz.dll"
+Base name       = "normaliz.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7fefd1c0000
+ImageSize       = 2940928
+Flags           = 0x0
+LoadOrderIndex  = 187
+InitOrderIndex  = 187
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\iertutil.dll"
+Base name       = "iertutil.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7fefcfc0000
+ImageSize       = 2097152
+Flags           = 0x0
+LoadOrderIndex  = 188
+InitOrderIndex  = 188
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\ole32.dll"
+Base name       = "ole32.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7fefcf70000
+ImageSize       = 315392
+Flags           = 0x0
+LoadOrderIndex  = 189
+InitOrderIndex  = 189
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\ws2_32.dll"
+Base name       = "ws2_32.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x76c40000
+ImageSize       = 1175552
+Flags           = 0x0
+LoadOrderIndex  = 190
+InitOrderIndex  = 190
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\kernel32.dll"
+Base name       = "kernel32.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7fefcea0000
+ImageSize       = 831488
+Flags           = 0x0
+LoadOrderIndex  = 191
+InitOrderIndex  = 191
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\usp10.dll"
+Base name       = "usp10.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7fefcd90000
+ImageSize       = 1093632
+Flags           = 0x0
+LoadOrderIndex  = 192
+InitOrderIndex  = 192
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\msctf.dll"
+Base name       = "msctf.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7fefcd80000
+ImageSize       = 57344
+Flags           = 0x0
+LoadOrderIndex  = 193
+InitOrderIndex  = 193
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\lpk.dll"
+Base name       = "lpk.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7fefcd70000
+ImageSize       = 32768
+Flags           = 0x0
+LoadOrderIndex  = 194
+InitOrderIndex  = 194
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\nsi.dll"
+Base name       = "nsi.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7fefcd60000
+ImageSize       = 16384
+Flags           = 0x0
+LoadOrderIndex  = 195
+InitOrderIndex  = 195
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\api-ms-win-downlevel-version-l1-1-0.dll"
+Base name       = "api-ms-win-downlevel-version-l1-1-0.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7fefcd50000
+ImageSize       = 20480
+Flags           = 0x0
+LoadOrderIndex  = 196
+InitOrderIndex  = 196
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\api-ms-win-downlevel-advapi32-l1-1-0.dll"
+Base name       = "api-ms-win-downlevel-advapi32-l1-1-0.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7fefcd10000
+ImageSize       = 221184
+Flags           = 0x0
+LoadOrderIndex  = 197
+InitOrderIndex  = 197
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\cfgmgr32.dll"
+Base name       = "cfgmgr32.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7fefccf0000
+ImageSize       = 131072
+Flags           = 0x0
+LoadOrderIndex  = 198
+InitOrderIndex  = 198
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\userenv.dll"
+Base name       = "userenv.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7fefcce0000
+ImageSize       = 16384
+Flags           = 0x0
+LoadOrderIndex  = 199
+InitOrderIndex  = 199
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\api-ms-win-downlevel-shlwapi-l1-1-0.dll"
+Base name       = "api-ms-win-downlevel-shlwapi-l1-1-0.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7fefccd0000
+ImageSize       = 12288
+Flags           = 0x0
+LoadOrderIndex  = 200
+InitOrderIndex  = 200
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\api-ms-win-downlevel-normaliz-l1-1-0.dll"
+Base name       = "api-ms-win-downlevel-normaliz-l1-1-0.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7fefcc30000
+ImageSize       = 655360
+Flags           = 0x0
+LoadOrderIndex  = 201
+InitOrderIndex  = 201
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\comctl32.dll"
+Base name       = "comctl32.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7fefcc10000
+ImageSize       = 94208
+Flags           = 0x0
+LoadOrderIndex  = 202
+InitOrderIndex  = 202
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\netapi32.dll"
+Base name       = "netapi32.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7fefcc00000
+ImageSize       = 16384
+Flags           = 0x0
+LoadOrderIndex  = 203
+InitOrderIndex  = 203
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\api-ms-win-downlevel-shell32-l1-1-0.dll"
+Base name       = "api-ms-win-downlevel-shell32-l1-1-0.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7fefcbf0000
+ImageSize       = 16384
+Flags           = 0x0
+LoadOrderIndex  = 204
+InitOrderIndex  = 204
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\api-ms-win-downlevel-ole32-l1-1-0.dll"
+Base name       = "api-ms-win-downlevel-ole32-l1-1-0.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7fefcb80000
+ImageSize       = 421888
+Flags           = 0x0
+LoadOrderIndex  = 205
+InitOrderIndex  = 205
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\KernelBase.dll"
+Base name       = "KernelBase.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7fefcb60000
+ImageSize       = 106496
+Flags           = 0x0
+LoadOrderIndex  = 206
+InitOrderIndex  = 206
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\devobj.dll"
+Base name       = "devobj.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7fefcb50000
+ImageSize       = 16384
+Flags           = 0x0
+LoadOrderIndex  = 207
+InitOrderIndex  = 207
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\api-ms-win-downlevel-user32-l1-1-0.dll"
+Base name       = "api-ms-win-downlevel-user32-l1-1-0.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7fefcb10000
+ImageSize       = 245760
+Flags           = 0x0
+LoadOrderIndex  = 208
+InitOrderIndex  = 208
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\wintrust.dll"
+Base name       = "wintrust.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7fefc910000
+ImageSize       = 2039808
+Flags           = 0x0
+LoadOrderIndex  = 209
+InitOrderIndex  = 209
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\crypt32.dll"
+Base name       = "crypt32.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7fefc8e0000
+ImageSize       = 143360
+Flags           = 0x0
+LoadOrderIndex  = 210
+InitOrderIndex  = 210
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\srvcli.dll"
+Base name       = "srvcli.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7fefc8d0000
+ImageSize       = 61440
+Flags           = 0x0
+LoadOrderIndex  = 211
+InitOrderIndex  = 211
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\profapi.dll"
+Base name       = "profapi.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7fefc8c0000
+ImageSize       = 49152
+Flags           = 0x0
+LoadOrderIndex  = 212
+InitOrderIndex  = 212
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\netutils.dll"
+Base name       = "netutils.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7fefc8b0000
+ImageSize       = 61440
+Flags           = 0x0
+LoadOrderIndex  = 213
+InitOrderIndex  = 213
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\msasn1.dll"
+Base name       = "msasn1.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7fefc890000
+ImageSize       = 98304
+Flags           = 0x0
+LoadOrderIndex  = 214
+InitOrderIndex  = 214
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\wkscli.dll"
+Base name       = "wkscli.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x7fefc860000
+ImageSize       = 139264
+Flags           = 0x0
+LoadOrderIndex  = 215
+InitOrderIndex  = 215
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\System32\bcrypt.dll"
+Base name       = "bcrypt.dll"
+
+=== MODULE ===
+Section         = 0xbaadf00dbaadf00d
+MappedBase      = 0x0
+ImageBase       = 0x75160000
+ImageSize       = 12288
+Flags           = 0x0
+LoadOrderIndex  = 216
+InitOrderIndex  = 216
+LoadCount       = 1
+OffsetToFileName= 18
+FullPathName    = "\Windows\SysWOW64\normaliz.dll"
+Base name       = "normaliz.dll"

@@ -1,0 +1,46 @@
+LIBRARY KxCom
+EXPORTS
+
+	CoCreateInstanceFromApp						= ole32.CoCreateInstanceEx
+
+	RoInitialize
+	RoUninitialize
+	RoGetActivationFactory
+	RoActivateInstance
+	RoOriginateError
+	RoOriginateErrorW
+	RoTransformError
+	RoTransformErrorW
+	RoGetAgileReference
+	RoOriginateLanguageException
+	RoGetBufferMarshaler
+
+	GetRestrictedErrorInfo
+	SetRestrictedErrorInfo
+
+	;;
+	;; mta.c
+	;;
+
+	CoIncrementMTAUsage
+	CoDecrementMTAUsage
+
+	;;
+	;; winrt.c
+	;;
+
+	WindowsCompareStringOrdinal
+	WindowsCreateString
+	WindowsCreateStringReference
+	WindowsDeleteString
+	WindowsDuplicateString
+	WindowsGetStringLen
+	WindowsGetStringRawBuffer
+	WindowsIsStringEmpty
+	WindowsStringHasEmbeddedNull
+	WindowsSubstring
+	WindowsSubstringWithSpecifiedLength
+	WindowsConcatString
+	WindowsPreallocateStringBuffer
+	WindowsDeleteStringBuffer
+	WindowsPromoteStringBuffer

@@ -1,0 +1,19 @@
+LIBRARY KxMi
+EXPORTS
+	;; powrprof.c
+	PowerDeterminePlatformRoleEx
+	PowerRegisterSuspendResumeNotification
+	PowerUnregisterSuspendResumeNotification
+
+	;; userenv.c
+	CreateAppContainerProfile
+	DeleteAppContainerProfile
+	DeriveAppContainerSidFromAppContainerName
+	GetAppContainerFolderPath
+	GetAppContainerRegistryLocation
+
+	;; verspoof.c
+	GetFileVersionInfoW							= Ext_GetFileVersionInfoW
+
+	;; wldp.c
+	WldpQueryWindowsLockdownMode

@@ -1,0 +1,107 @@
+LIBRARY "KexDll.dll"
+EXPORTS
+	KexDataInitialize
+	KexInitializePropagation
+	KexDllProtectedFunctionExceptionFilter
+
+	KexRtlPathFindFileName
+	KexRtlPathRemoveExtension
+	KexRtlPathReplaceIllegalCharacters
+	KexRtlGetProcessImageBaseName
+	KexRtlQueryKeyValueData
+	KexRtlQueryKeyMultipleValueData
+	KexRtlUnicodeStringEndsWith
+	KexRtlFindUnicodeSubstring
+	KexRtlAdvanceUnicodeString
+	KexRtlRetreatUnicodeString
+	KexRtlShiftUnicodeString
+	KexRtlWriteProcessMemory
+	KexRtlCreateDirectoryRecursive
+	KexRtlNtStatusToString
+	KexRtlCreateStringMapper
+	KexRtlDeleteStringMapper
+	KexRtlInsertEntryStringMapper
+	KexRtlLookupEntryStringMapper
+	KexRtlRemoveEntryStringMapper
+	KexRtlApplyStringMapper
+	KexRtlInsertMultipleEntriesStringMapper
+	KexRtlLookupMultipleEntriesStringMapper
+	KexRtlBatchApplyStringMapper
+	KexRtlSectionTableFromRva
+	KexRtlNullTerminateUnicodeString
+	KexRtlCreateUntrustedDirectoryObject
+
+	KexRtlWow64GetProcessMachines
+	KexRtlSetBit
+	KexRtlClearBit
+	KexRtlQueryPackageIdentity
+	KexRtlQueryPackageIdentityEx
+	KexRtlCheckPortableOperatingSystem
+	KexRtlUnsubscribeWnfStateChangeNotification
+	KexRtlQueryWnfStateData
+	KexRtlPublishWnfStateData
+	KexRtlSubscribeWnfStateChangeNotification
+	KexRtlAddGrowableFunctionTable
+
+	KexRtlWaitOnAddress
+	KexRtlWakeAddressSingle
+	KexRtlWakeAddressAll
+
+	KexEtwEventSetInformation
+
+	KexLdrGetSystemDllBase
+	KexLdrGetRemoteSystemDllBase
+	KexLdrGetNativeSystemDllBase
+	KexLdrMiniGetProcedureAddress
+	KexLdrFindDllInitRoutine
+	KexLdrGetDllFullName
+	KexLdrGetDllFullNameFromAddress
+	KexLdrProtectImageImportSection
+
+	KexLdrLoadDll
+	KexLdrGetDllHandle
+	KexLdrGetDllHandleEx
+	KexLdrGetProcedureAddress
+	KexLdrGetProcedureAddressEx
+
+	KexLdrResolveDelayLoadedAPI
+
+	ApiSetQueryApiSetPresence
+
+	KexHkInstallBasicHook
+	KexHkRemoveBasicHook
+
+	KexMessageBox
+	KexMessageBoxF
+	KexRewriteDllPath
+	KexPatchCpiwSubsystemVersionCheck
+
+	AshExeBaseNameIs
+	AshModuleBaseNameIs
+	AshModuleIsWindowsModule
+
+	VxlOpenLog
+	VxlCloseLog
+	VxlQueryInformationLog
+	VxlWriteLogEx
+	VxlReadLog
+	VxlReadMultipleEntriesLog
+	VxlSeverityToText
+
+	KexNtQuerySystemTime
+	KexNtCreateUserProcess
+	KexNtProtectVirtualMemory
+	KexNtAllocateVirtualMemory
+	KexNtQueryVirtualMemory
+	KexNtFreeVirtualMemory
+	KexNtOpenKeyEx
+	KexNtQueryObject
+	KexNtOpenFile
+	KexNtWriteFile
+	KexNtRaiseHardError
+	KexNtQueryInformationThread
+	KexNtSetInformationThread
+	KexNtNotifyChangeKey
+	KexNtNotifyChangeMultipleKeys
+	KexNtCreateSection
+	KexNtAssignProcessToJobObject

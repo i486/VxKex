@@ -1,0 +1,31 @@
+The program which installs VxKex on user computers is called KexSetup and its
+source code can be found in the main solution. The responsibilities of this
+program include:
+
+  - creating an installation folder inside Program files (or another user
+    selected location)
+
+  - creating registry keys and values:
+
+      \Registry\Machine\Software\VXsoft\VxKex
+	    InstalledVersion (REG_DWORD)
+		KexDir (REG_SZ)
+		LogDir (REG_SZ)
+
+	  \Registry\User\Software\VXsoft\VxKex
+	    LogDir (REG_SZ) (overrides the HKLM value, if present)
+
+  - placing KexDll into system32
+
+  - placing auxiliary files and programs, such as the log viewer, the
+    configuration helper program KexCfg, and the shell extension KexShlEx
+	into the VxKex installation folder (known as KexDir within the code)
+
+  - placing the system extension DLLs (kxbase, kxuser, etc.) into KexDir
+
+  - registering the VxKex property sheet page shell extension
+
+  - associating .vxl file extension with VxlView
+
+Of course, the program can also uninstall VxKex and must reverse all the above
+procedures when doing so.

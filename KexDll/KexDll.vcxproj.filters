@@ -1,0 +1,162 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="buildcfg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\00-Common Headers\KexDll.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="kexdllp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="redirects.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="dllmain.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="kexrtl.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="dllnotif.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="dllrewrt.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="kexdata.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="strmap.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ntpriv.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="kexhk.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="kexhe.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="except.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="dllpath.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="propagte.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="syscal32.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="avrf.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="verspoof.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="kexldr.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ntthread.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="vxlopcl.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="vxlquery.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="vxlread.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="vxlwrite.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="vxlsever.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="vxlpriv.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="logging.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="status.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="rtlwoa.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="rtlwow64.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="dload.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ash.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="apiset.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="cpiwbypa.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ntreg.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ntsect.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ntps.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="etw.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ashcrsup.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ashselec.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ntjob.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="KexDll.def">
+      <Filter>Source Files</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="KexDll.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <MASM Include="syscal64.asm">
+      <Filter>Source Files</Filter>
+    </MASM>
+  </ItemGroup>
+</Project>

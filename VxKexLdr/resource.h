@@ -1,0 +1,18 @@
+#pragma once
+
+#define IDSTATIC -1
+
+#define IDI_APPICON			501
+
+#define IDD_MAINWINDOW		100
+#define IDC_FILEPATH		101
+#define IDC_BROWSE			102
+#define IDC_ARGUMENTS		103
+#define IDC_MOREOPTIONS		104
+
+#define IDD_MOREOPTIONS		200
+#define IDC_ENABLESPOOF		201
+#define IDC_WINVER			202
+#define IDC_STRONGSPOOF		203
+#define IDC_DISABLEASH		204
+#define IDC_DISABLEFORCHILD	205

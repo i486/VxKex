@@ -1,0 +1,30 @@
+LIBRARY KxNt
+EXPORTS
+
+	LdrResolveDelayLoadedAPI					= KexDll.KexLdrResolveDelayLoadedAPI
+	LdrGetDllFullName							= KexDll.KexLdrGetDllFullName
+
+	LdrLoadDll									= KexDll.KexLdrLoadDll
+	LdrGetDllHandle								= KexDll.KexLdrGetDllHandle
+	LdrGetDllHandleEx							= KexDll.KexLdrGetDllHandleEx
+	LdrGetProcedureAddress						= KexDll.KexLdrGetProcedureAddress
+	LdrGetProcedureAddressEx					= KexDll.KexLdrGetProcedureAddressEx
+
+	RtlWaitOnAddress							= KexDll.KexRtlWaitOnAddress
+	RtlWakeAddressAll							= KexDll.KexRtlWakeAddressAll
+	RtlWakeAddressSingle						= KexDll.KexRtlWakeAddressSingle
+	RtlWow64GetProcessMachines					= KexDll.KexRtlWow64GetProcessMachines
+	RtlSetBit									= KexDll.KexRtlSetBit
+	RtlClearBit									= KexDll.KexRtlClearBit
+	RtlQueryPackageIdentity						= KexDll.KexRtlQueryPackageIdentity
+	RtlQueryPackageIdentityEx					= KexDll.KexRtlQueryPackageIdentityEx
+	RtlCheckPortableOperatingSystem				= KexDll.KexRtlCheckPortableOperatingSystem
+	RtlUnsubscribeWnfStateChangeNotification	= KexDll.KexRtlUnsubscribeWnfStateChangeNotification
+	RtlQueryWnfStateData						= KexDll.KexRtlQueryWnfStateData
+	RtlPublishWnfStateData						= KexDll.KexRtlPublishWnfStateData
+	RtlSubscribeWnfStateChangeNotification		= KexDll.KexRtlSubscribeWnfStateChangeNotification
+	RtlAddGrowableFunctionTable					= KexDll.KexRtlAddGrowableFunctionTable
+
+	ApiSetQueryApiSetPresence					= KexDll.ApiSetQueryApiSetPresence
+
+	EtwEventSetInformation						= KexDll.KexEtwEventSetInformation
