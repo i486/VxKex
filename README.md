@@ -4,7 +4,7 @@ Introduction
 VxKex is a set of API extensions for Windows 7 that allow some Windows 8,
 8.1 and 10-exclusive applications to run on Windows 7.
 
-To download and install, see the [releases page](https://github.com/vxiiduu/VxKex/releases).
+To download and install, see the [releases page](https://github.com/VxKex/VxKex/releases).
 
 After installation, usage is easy: just right click on a program (.exe or .msi),
 open the Properties dialog, and select the VxKex tab. Then, check the check box
@@ -115,10 +115,3 @@ API extension is accomplished by editing the program's DLL import table so that
 instead of importing from Windows 8/8.1/10 DLLs, it imports to VxKex DLLs instead.
 These VxKex DLLs contain implementations of Windows API functions which were introduced
 in newer versions of Windows.
-
-Donations
-=========
-
-If you would like to support development, consider making a donation.
-
-- https://paypal.me/vxiiduu
