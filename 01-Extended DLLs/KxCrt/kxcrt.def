@@ -1,5 +1,0 @@
-LIBRARY KxCrt
-EXPORTS
-	_W_Getdays
-	_W_Getmonths
-	_W_Gettnames
