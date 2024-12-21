@@ -46,6 +46,7 @@ success. I hope to address this shortcoming in a future release.
 - GitHub Desktop
 - HandBrake
 - Kodi
+- Life is Strange: True Colors 4.25
 - MKVToolNix
 - MongoDB
 - MPC-Qt
