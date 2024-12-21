@@ -440,6 +440,10 @@ VOID KexSetupInstallFiles(
 	KexSetupFormatPath(TargetPath, L"%s\\Kex32\\dnsw8.dll", KexDir);
 	KexSetupDeleteFile(TargetPath);
 
+	// remove dcow8, which is no longer included
+	KexSetupFormatPath(TargetPath, L"%s\\Kex32\\dcow8.dll", KexDir);
+	KexSetupDeleteFile(TargetPath);
+
 	// remove msvw10, which is no longer included
 	KexSetupFormatPath(TargetPath, L"%s\\Kex32\\msvw10.dll", KexDir);
 	KexSetupDeleteFile(TargetPath);
@@ -457,6 +461,10 @@ VOID KexSetupInstallFiles(
 
 		// remove dnsw8
 		KexSetupFormatPath(TargetPath, L"%s\\Kex64\\dnsw8.dll", KexDir);
+		KexSetupDeleteFile(TargetPath);
+
+		// remove dcow8
+		KexSetupFormatPath(TargetPath, L"%s\\Kex64\\dcow8.dll", KexDir);
 		KexSetupDeleteFile(TargetPath);
 
 		// remove msvw10

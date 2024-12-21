@@ -303,6 +303,7 @@ typedef struct _KEX_PROCESS_DATA {
 	PVOID					BaseDllBase;				// Kernel32 base address
 	HANDLE					BaseNamedObjects;			// object directory handle
 	HANDLE					UntrustedNamedObjects;
+	HANDLE					KsecDD;						// handle to \Device\KsecDD
 } TYPEDEF_TYPE_NAME(KEX_PROCESS_DATA);
 
 #pragma endregion
@@ -466,6 +467,10 @@ KEXAPI NTSTATUS NTAPI KexRtlCreateUntrustedDirectoryObject(
 	OUT	PHANDLE				DirectoryHandle,
 	IN	ACCESS_MASK			DesiredAccess,
 	IN	POBJECT_ATTRIBUTES	ObjectAttributes);
+
+KEXAPI NTSTATUS NTAPI KexRtlGenerateRandomData(
+	OUT	PVOID	RandomBuffer,
+	IN	ULONG	NumberOfBytesToGenerate);
 
 #ifdef KEX_ARCH_X64
 #  define KexRtlCurrentProcessBitness() (64)

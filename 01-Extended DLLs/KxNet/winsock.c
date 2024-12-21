@@ -1,6 +1,6 @@
 #include "buildcfg.h"
 #include "kxnetp.h"
-#include <WinSock.h>
+#include <WS2tcpip.h>
 
 //
 // libuv (which is used by some random node.js package that a lot of electron
@@ -41,4 +41,36 @@ KXNETAPI INT WINAPI GetHostNameW(
 	}
 
 	return ReturnValue;
+}
+
+//
+// Used for app-specific hack.
+//
+KXNETAPI INT WINAPI Ext_getaddrinfo(
+	IN	PCSTR					NodeName,
+	IN	PCSTR					ServerName,
+	IN	const struct addrinfo	*Hints,
+	OUT	struct addrinfo			**Results)
+{
+	unless (KexData->IfeoParameters.DisableAppSpecific) {
+		//
+		// APPSPECIFICHACK: The game "Life is Strange: True Colors" attempts to connect
+		// to a server and send some telemetry data. On Windows 7, the gathering of this
+		// telemetry data fails. The error handling code in the game is faulty and will
+		// cause a crash.
+		//
+		// As a workaround, we will simply fail "getaddrinfo" calls coming from the game, to
+		// simulate the lack of an internet connection.
+		//
+		// For reference, the actual module that calls getaddrinfo with the game's
+		// telemetry server is "osdk.dll", and the host name requested is
+		// "see-siren.os.eidos.com".
+		//
+
+		if (AshExeBaseNameIs(L"Siren-Win64-Shipping.exe")) {
+			return WSANO_DATA;
+		}
+	}
+
+	return getaddrinfo(NodeName, ServerName, Hints, Results);
 }

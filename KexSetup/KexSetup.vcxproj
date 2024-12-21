@@ -84,7 +84,7 @@
       <Command>"$(SolutionDir)\01-Development Utilities\7zSfx\makesfx.bat" /$(Configuration)</Command>
       <Message>Building Self-Extracting Executable (SFX)</Message>
       <Outputs>$(SolutionDir)\KexSetup_$(Configuration).exe</Outputs>
-      <Inputs>"$(SolutionDir)\01-Development Utilities\7zSfx\makesfx.bat";$(SolutionDir)\00-Documentation\Changelog.txt</Inputs>
+      <Inputs>"$(SolutionDir)\01-Development Utilities\7zSfx\makesfx.bat"</Inputs>
     </CustomBuildStep>
     <PreBuildEvent>
       <Command>

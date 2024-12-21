@@ -142,16 +142,16 @@ VOID AshApplyQBittorrentEnvironmentVariableHacks(
 	UNICODE_STRING VariableName;
 	UNICODE_STRING VariableValue;
 
+	ASSERT (AshExeBaseNameIs(L"qbittorrent.exe"));
+
 	//
 	// APPSPECIFICHACK: Applying the environment variable below will eliminate
 	// the problem of bad kerning from qBittorrent. If more Qt apps are found
 	// which have bad kerning, this may help fix those too.
 	//
 
-	if (AshExeBaseNameIs(L"qbittorrent.exe")) {
-		KexLogInformationEvent(L"App-Specific Hack applied for qBittorrent");
-		RtlInitConstantUnicodeString(&VariableName, L"QT_SCALE_FACTOR");
-		RtlInitConstantUnicodeString(&VariableValue, L"1.0000001");
-		RtlSetEnvironmentVariable(NULL, &VariableName, &VariableValue);
-	}
+	KexLogInformationEvent(L"App-Specific Hack applied for qBittorrent");
+	RtlInitConstantUnicodeString(&VariableName, L"QT_SCALE_FACTOR");
+	RtlInitConstantUnicodeString(&VariableValue, L"1.0000001");
+	RtlSetEnvironmentVariable(NULL, &VariableName, &VariableValue);
 }

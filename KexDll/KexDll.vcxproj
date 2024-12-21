@@ -294,6 +294,7 @@
     <ClCompile Include="ntsect.c" />
     <ClCompile Include="ntthread.c" />
     <ClCompile Include="propagte.c" />
+    <ClCompile Include="rtlrng.c" />
     <ClCompile Include="rtlwoa.c" />
     <ClCompile Include="rtlwow64.c" />
     <ClCompile Include="status.c" />

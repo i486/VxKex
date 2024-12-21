@@ -221,12 +221,12 @@
     <ClInclude Include="kxdxp.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="dcmpstub.c" />
     <ClCompile Include="dllmain.c" />
     <ClCompile Include="dx12stub.c" />
     <ClCompile Include="factory.c" />
     <ClCompile Include="forwards.c" />
     <ClCompile Include="iid.c" />
-    <ClCompile Include="mfdevmgr.c" />
   </ItemGroup>
   <ItemGroup>
     <None Include="kxdx.def" />

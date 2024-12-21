@@ -178,6 +178,13 @@ NTSTATUS KexOpenVxlLogForCurrentApplication(
 	OUT	PVXLHANDLE	LogHandle);
 
 //
+// rtlrng.c
+//
+
+NTSTATUS KexRtlInitializeRandomNumberGenerator(
+	VOID);
+
+//
 // verspoof.c
 //
 

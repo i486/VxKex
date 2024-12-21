@@ -412,7 +412,7 @@
 #pragma comment(linker, "/EXPORT:closesocket=ws2_32.closesocket,@3")
 #pragma comment(linker, "/EXPORT:connect=ws2_32.connect,@4")
 #pragma comment(linker, "/EXPORT:freeaddrinfo=ws2_32.freeaddrinfo,@177")
-#pragma comment(linker, "/EXPORT:getaddrinfo=ws2_32.getaddrinfo,@178")
+//#pragma comment(linker, "/EXPORT:getaddrinfo=ws2_32.getaddrinfo,@178")
 #pragma comment(linker, "/EXPORT:gethostbyaddr=ws2_32.gethostbyaddr,@51")
 #pragma comment(linker, "/EXPORT:gethostbyname=ws2_32.gethostbyname,@52")
 #pragma comment(linker, "/EXPORT:gethostname=ws2_32.gethostname,@57")

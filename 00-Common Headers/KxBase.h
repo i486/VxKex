@@ -555,6 +555,14 @@ typedef enum _APP_POLICY_THREAD_INITIALIZATION_TYPE {
 	AppPolicyThreadInitializationType_InitializeWinRT
 } TYPEDEF_TYPE_NAME(APP_POLICY_THREAD_INITIALIZATION_TYPE);
 
+typedef enum _FILE_INFO_BY_NAME_CLASS {
+	FileStatByNameInfo,
+	FileStatLxByNameInfo,
+	FileCaseSensitiveByNameInfo,
+	FileStatBasicByNameInfo,
+	MaximumFileInfoByNameClass
+} TYPEDEF_TYPE_NAME(FILE_INFO_BY_NAME_CLASS);
+
 #pragma endregion
 
 #if defined(KEX_ENV_WIN32)
