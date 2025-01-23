@@ -1,7 +1,7 @@
 ---
-name: X" app doesn't work with VxKex!
+name: '"X" app doesn''t work with VxKex!'
 about: Use this template when an app is not functioning correctly with VxKex enabled.
-title: "[Bug Report] SomeProgram v1.xx fails on Windows 7"
+title: "[Bug Report] *InsertProgramName v1.x* fails on Windows 7"
 labels: bug
 assignees: ''
 
@@ -12,21 +12,14 @@ assignees: ''
 - **Application**: [Insert name and Version]
 - **Download Link**: [Provide direct link to download]
 
----
-
 ## Description
 
 A brief overview of the problem you're encountering, including any specific details about the issue.
 
----
+## Problem
 
-## Steps to Reproduce
-
-Please provide a **clear and concise description** of the steps that lead to the issue, including:
-1. Step-by-step instructions to reproduce the bug.
-2. Attach any **screenshots** or **error messages** related to the issue.
-
----
+1. Step-by-step instructions to reproduce the bug/error.
+2. Attach **screenshots** or **error messages** related to the issue.
 
 ## Logs
 
@@ -46,15 +39,31 @@ To help developers investigate the issue, please follow the steps below to colle
 
 4. **Attach the zip file** with the logs to your issue report.
 
----
+## Optional: Collect Additional Logs with YY-Thunks  
+
+To provide more detailed information about APIs used by the application, you can use **YY-Thunks**:  
+
+1. Download **YY-Thunks** from the [official release page](https://github.com/Chuyu-Team/YY-Thunks/releases).  
+2. Run the following command in a terminal, replacing `D:\Tool\SomeProgram.exe` with the path to your application:  
+   ```  
+   YY.Depends.Analyzer.exe "D:\Tool\SomeProgram.exe" /IgnoreReady /ReportView:Table /Target:6.1.7600  
+   ```  
+3. This will generate a Markdown file named `SomeProgram.exe.md` in the same directory as the analyzer. The file contains a list of APIs that the application might use and is available only on Windows 8 or higher.  
+
+4. Open the `.md` file, copy its entire contents, and paste it into the collapsible section below.
+
+<details>
+  <summary>Click here to see YY-Thunks report</summary>
+
+PASTE THE ENTIRE MD CONTENT HERE
+
+</details>
 
 ## Environment Details
 
 Please provide the following details about your environment:
 
-- **Operating System**: (e.g., Windows 7, 32-bit, English, with ESU updates)
+- **Operating System**: (e.g., Windows 7 SP1 English, 64bit, with ESU updates)
 - **VxKex Version**: (e.g., 1.1.2.1428; if using a custom fork, provide the fork repository link)
-
----
 
 Feel free to add any other details or context that might be helpful for reproducing the issue or understanding the behavior.
