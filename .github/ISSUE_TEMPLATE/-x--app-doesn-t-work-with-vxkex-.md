@@ -7,22 +7,33 @@ assignees: ''
 
 ---
 
-### Application Information
+### Application Information:
 
 - **Application**: [Insert name and Version]
 - **Download Link**: [Provide direct link to download]
 
-### Description
-
+### Description:
+<!--
 A brief overview of the problem you're encountering, including any specific details about the issue.
+-->
 
-### Problem
 
-1. Step-by-step instructions to reproduce the bug/error.
-2. Attach **screenshots** or **error messages** related to the issue.
+### Problem:
+<!--
+- Step-by-step instructions to reproduce the bug/error.
+- Attach **screenshots** or **error messages** related to the issue.
+-->
 
-### Logs
 
+### Environment:
+<!--
+Please provide the following details about your environment:
+-->
+- **Operating System**: (e.g., Windows 7 SP1 English, 64bit, with ESU updates)
+- **VxKex Version**: (e.g., 1.1.2.1428; if using a custom fork, provide the fork repository link)
+
+### VxKex Logs (Required):
+<!--
 To help developers investigate the issue, please follow the steps below to collect and share the logs:
 
 1. **Clear existing logs**:
@@ -37,9 +48,12 @@ To help developers investigate the issue, please follow the steps below to colle
    - Close the application (or close the error window).
    - Go back to `%LOCALAPPDATA%\Local\VxKex\Logs` and **zip** all newly created log files.
 
-4. **Attach the zipped log file here.**
+4. **Attach the zipped log file below.**
+-->
 
-### Optional: Collect Additional Logs with YY-Thunks  
+
+<!--
+### Collect Additional Logs with YY-Thunks (Optional) 
 
 To provide more detailed information about APIs used by the application, you can use **YY-Thunks**:  
 
@@ -51,19 +65,12 @@ To provide more detailed information about APIs used by the application, you can
 3. This will generate a Markdown file named `SomeProgram.exe.md` in the same directory as the analyzer. The file contains a list of API/s that the application might use and is available only on Windows 8 or higher.  
 
 4. Open the `.md` file, copy its entire contents, and paste it into the collapsible section below.
-
+-->
 <details>
-  <summary>Click here to see YY-Thunks report</summary>
+  <summary><b>Click here to see YY-Thunks report</b></summary>
 
 PASTE THE ENTIRE .MD CONTENT HERE
 
 </details>
 
-### Environment Details
-
-Please provide the following details about your environment:
-
-- **Operating System**: (e.g., Windows 7 SP1 English, 64bit, with ESU updates)
-- **VxKex Version**: (e.g., 1.1.2.1428; if using a custom fork, provide the fork repository link)
-
-Feel free to add any other details or context that might be helpful for reproducing the issue or understanding the behavior.
+<!--Feel free to add any other details or context that might be helpful for reproducing the issue or understanding the behavior.-->
