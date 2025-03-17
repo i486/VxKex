@@ -84,10 +84,10 @@ will remain as stable as it always is.
 
 **Q: Do I need to have specific updates installed?**
 
-**A:** VxKex is only designed to work with Service Pack 1 installed. Users of
-Windows 7 RTM can try to use it, but I don't know if it will install or work.
+**A:** VxKex is only designed to work with Service Pack 1 installed.
 Many programs require KB2533623 and KB2670838 in order to run. It is a good
 idea to install those two updates.
+
 VxKex installs on Windows 7 RTM, but nothing actually works.
 The only way you can get VxKex working on a computer with Windows 7 RTM, is erasing all your data to do a clean install with  installation media for Windows 7 SP1.
 
