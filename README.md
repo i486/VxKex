@@ -88,6 +88,8 @@ will remain as stable as it always is.
 Windows 7 RTM can try to use it, but I don't know if it will install or work.
 Many programs require KB2533623 and KB2670838 in order to run. It is a good
 idea to install those two updates.
+VxKex installs on Windows 7 RTM, but nothing actually works.
+The only way you can get VxKex working on a computer with Windows 7 RTM, is erasing all your data to do a clean install with  installation media for Windows 7 SP1.
 
 **Q: If I have ESUs (Extended Security Updates) installed, can I use VxKex?**
 
