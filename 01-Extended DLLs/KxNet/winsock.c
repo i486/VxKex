@@ -74,3 +74,20 @@ KXNETAPI INT WINAPI Ext_getaddrinfo(
 
 	return getaddrinfo(NodeName, ServerName, Hints, Results);
 }
+
+KXNETAPI INT WINAPI GetAddrInfoExCancel(
+	IN	PHANDLE	Handle)
+{
+	if (Handle == NULL || *Handle == NULL) {
+		return WSA_INVALID_HANDLE;
+	}
+
+	// Should we just pretend we succeeded here, or return an error code?
+	return WSAEINVAL;
+}
+
+KXNETAPI INT WINAPI GetAddrInfoExOverlappedResult(
+	IN	LPOVERLAPPED lpOverlapped)
+{
+	return WSAEINVAL;
+}

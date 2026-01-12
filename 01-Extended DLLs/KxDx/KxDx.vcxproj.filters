@@ -21,6 +21,9 @@
     <ClInclude Include="kxdxp.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\00-Common Headers\KxDx.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.c">
@@ -39,6 +42,18 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="dcmpstub.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="mfplat.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="direct2d.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="rptnoint.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="dxgi.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

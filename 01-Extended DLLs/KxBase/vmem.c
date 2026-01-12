@@ -451,3 +451,200 @@ KXBASEAPI PVOID WINAPI MapViewOfFile3FromApp(
 		ExtendedParameters,
 		ParameterCount);
 }
+
+//
+// TODO: Implement NtAllocateVirtualMemoryEx and move most of the extended
+// parameter handling logic into that.
+//
+KXBASEAPI PVOID WINAPI VirtualAlloc2(
+	IN		HANDLE					ProcessHandle OPTIONAL,
+	IN		PVOID					BaseAddress OPTIONAL,
+	IN		SIZE_T					Size,
+	IN		ULONG					AllocationType,
+	IN		ULONG					PageProtection,
+	IN OUT	PMEM_EXTENDED_PARAMETER	ExtendedParameters OPTIONAL,
+	IN		ULONG					ParameterCount)
+{
+	NTSTATUS Status;
+	MEM_ADDRESS_REQUIREMENTS AddressRequirements;
+	ULONG NumaNode;
+
+	if (ProcessHandle == NULL) {
+		ProcessHandle = NtCurrentProcess();
+	}
+
+	ASSERT (ProcessHandle == NtCurrentProcess() || VALID_HANDLE(ProcessHandle));
+
+	// 0x10000 is the hard-coded allocation granularity. It is always the same
+	// for all x86 and x64 Windows 7 systems, so there is no need to call
+	// GetSystemInfo.
+	if (BaseAddress != NULL && (ULONG_PTR) BaseAddress < ALLOCATION_GRANULARITY) {
+		RtlSetLastWin32Error(ERROR_INVALID_PARAMETER);
+		return NULL;
+	}
+
+	// A zeroed-out AddressRequirements structure is the default behavior of a
+	// standard memory allocation.
+	RtlZeroMemory(&AddressRequirements, sizeof(AddressRequirements));
+
+	// -1 is a marker value which indicates there is no NUMA node requirement.
+	NumaNode = -1;
+
+	//
+	// Handle extended parameters
+	//
+
+	if (ExtendedParameters) {
+		ULONG Index;
+
+		for (Index = 0; Index < ParameterCount; ++Index) {
+			switch(ExtendedParameters[Index].Type) {
+			case MemExtendedParameterAddressRequirements:
+				AddressRequirements = *((PMEM_ADDRESS_REQUIREMENTS) ExtendedParameters[Index].Pointer);
+				break;
+
+			case MemExtendedParameterNumaNode:
+				NumaNode = ExtendedParameters[Index].ULong;
+				break;
+
+			case MemExtendedParameterAttributeFlags:
+				// We will ignore requests to allocate non-paged, large,
+				// or huge pages. Hopefully the application is ok with us
+				// just making a normal allocation here, otherwise - crash.
+
+				if ((ExtendedParameters[Index].ULong64 &
+					 ~(MEM_EXTENDED_PARAMETER_NONPAGED |
+					   MEM_EXTENDED_PARAMETER_NONPAGED_LARGE |
+					   MEM_EXTENDED_PARAMETER_NONPAGED_HUGE)) == 0) {
+
+					KexLogWarningEvent(
+						L"An attempt to allocate non-paged memory was ignored\r\n\r\n"
+						L"ULong64 = 0x%016llx", ExtendedParameters[Index].ULong64);
+
+					break;
+				} else {
+					// fall through
+				}
+
+			default:
+				KexLogWarningEvent(
+					L"Unimplemented extended parameters passed to VirtualAlloc2\r\n\r\n"
+					L"Type = %llu\r\n"
+					L"ULong64/Pointer/Size/Handle/ULong = 0x%016llx",
+					ExtendedParameters[Index].Type,
+					ExtendedParameters[Index].ULong64);
+
+				KexDebugCheckpoint();
+
+				BaseSetLastNTError(STATUS_INVALID_PARAMETER);
+				return NULL;
+			}
+		}
+	}
+	
+	//
+	// Clear out any bits from AllocationType which might interfere with the NUMA
+	// code below. (This is what Win7 VirtualAlloc(Ex(Numa)) does, btw, even though
+	// WinXP doesn't. I assume these bits were ignored by the kernel on XP.)
+	//
+
+	AllocationType &= ~0x3F;
+
+	//
+	// Please note that all code related to NUMA nodes is, of course, untested because
+	// I don't have a system with multiple NUMA nodes. However it matches up with
+	// a decompilation of Win7 VirtualAllocExNuma.
+	//
+
+	if (NumaNode != -1) {
+		ULONG MaxNumaNode;
+
+		if (KexRtlCurrentProcessBitness() == 64) {
+			MaxNumaNode = 0x3F;
+		} else {
+			MaxNumaNode = 0x0F;
+		}
+
+		if (NumaNode > MaxNumaNode) {
+			RtlSetLastWin32Error(ERROR_INVALID_PARAMETER);
+			return NULL;
+		}
+
+		AllocationType |= NumaNode + 1;
+	}
+
+	//
+	// If a lower and/or upper bound was specified then we need to try
+	// and screw around to see if we can find a free memory block of the
+	// correct size which lies within the specified bounds.
+	//
+	// I have not implemented that logic because I'm not aware of an application
+	// which actually uses MemExtendedParameterAddressRequirements. For example, a
+	// search on Github for this term yields very few applications which use it.
+	//
+
+	if (AddressRequirements.LowestStartingAddress != 0 ||
+		AddressRequirements.HighestEndingAddress != 0) {
+
+		KexLogWarningEvent(
+			L"Address requirements were rejected\r\n\r\n"
+			L"LowestStartingAddress = 0x%p\r\n"
+			L"HighestEndingAddress = 0x%p\r\n",
+			AddressRequirements.LowestStartingAddress,
+			AddressRequirements.HighestEndingAddress);
+
+		KexDebugCheckpoint();
+
+		BaseSetLastNTError(STATUS_NOT_SUPPORTED);
+		return NULL;
+	}
+
+	//
+	// Actually allocate the memory now.
+	//
+
+	try {
+		Status = NtAllocateVirtualMemory(
+			ProcessHandle,
+			&BaseAddress,
+			AddressRequirements.Alignment,
+			&Size,
+			AllocationType,
+			PageProtection);
+	} except (EXCEPTION_EXECUTE_HANDLER) {
+		Status = GetExceptionCode();
+	}
+
+	if (!NT_SUCCESS(Status)) {
+		BaseSetLastNTError(Status);
+		return NULL;
+	}
+
+	return BaseAddress;
+}
+
+KXBASEAPI PVOID WINAPI VirtualAlloc2FromApp(
+	IN		HANDLE					ProcessHandle OPTIONAL,
+	IN		PVOID					BaseAddress OPTIONAL,
+	IN		SIZE_T					Size,
+	IN		ULONG					AllocationType,
+	IN		ULONG					PageProtection,
+	IN OUT	PMEM_EXTENDED_PARAMETER	ExtendedParameters OPTIONAL,
+	IN		ULONG					ParameterCount)
+{
+	if (PageProtection & (PAGE_EXECUTE | PAGE_EXECUTE_READ |
+						  PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY)) {
+
+		RtlSetLastWin32Error(ERROR_INVALID_PARAMETER);
+		return NULL;
+	}
+
+	return VirtualAlloc2(
+		ProcessHandle,
+		BaseAddress,
+		Size,
+		AllocationType,
+		PageProtection,
+		ExtendedParameters,
+		ParameterCount);
+}

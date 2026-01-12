@@ -37,6 +37,7 @@
 #define _UXTHEME_H_
 
 #define KXBASEAPI
+#define KEXGDECLSPEC
 
 #ifdef _M_X64
 #  pragma comment(lib, "cfgmgr32_x64.lib")

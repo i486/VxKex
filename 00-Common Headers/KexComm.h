@@ -65,14 +65,6 @@
 #  define KexIsReleaseBuild TRUE
 #endif
 
-#ifdef KEX_ARCH_X64
-#  define KexIs32BitBuild FALSE
-#  define KexIs64BitBuild TRUE
-#else
-#  define KexIs32BitBuild TRUE
-#  define KexIs64BitBuild FALSE
-#endif
-
 #pragma region Header Includes
 // these two must be included before other headers (esp. KexStrSafe.h), or
 // undefined symbol errors can occur
@@ -138,6 +130,7 @@
 // attempt to make vxkex build with newer sdk's as well.
 // no guarantees. if you install the win10 sdk and it doesn't build, tough luck.
 // don't ask me to make shit build on your windows 11 with newest SDK.
+// This software is designed for win7 sdk only.
 #  define _WIN32_WINNT 0x0601
 
 #  include <Windows.h>
@@ -181,10 +174,11 @@
 #    include <Intrin.h>
 #  pragma warning(pop)
 
+#  include <KexStatus.h>
 #  include <KexTypes.h>
 #  include <KexVer.h>
 
-#  if defined(KEX_ENV_WIN32) && !defined(KEX_TARGET_TYPE_LIB)
+#  if defined(KEX_ENV_WIN32) && !defined(KEX_TARGET_TYPE_LIB) && !defined(KEX_NO_EXTRA_LIBS)
 #    include <KexGui.h>
 #    include <KexW32ML.h>
 #    include <KxCfgHlp.h>

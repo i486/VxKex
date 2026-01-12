@@ -29,7 +29,10 @@
 //
 // Revision History:
 //
-//     Author               DD-MMM-YYYY  Initial creation.
+//     vxiiduu               DD-MMM-YYYY  Initial creation.
+//     vxiiduu               13-May-2025  Correct resource leak in the rare case
+//                                        that KexDll is loaded but we could not
+//                                        find a routine within it.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -96,6 +99,7 @@ BOOL WINAPI DllMain(
 		"KexPatchCpiwSubsystemVersionCheck");
 
 	if (!pKexPatchCpiwSubsystemVersionCheck) {
+		FreeLibrary(KexDll);
 		return FALSE;
 	}
 

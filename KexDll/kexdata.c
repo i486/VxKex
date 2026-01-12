@@ -19,6 +19,10 @@
 //     vxiiduu              06-Nov-2022  Add IFEO parameter reading.
 //     vxiiduu              07-Nov-2022  Remove spurious range check.
 //     vxiiduu              23-Feb-2024  Add setting to disable logging.
+//     vxiiduu              05-Jan-2026  Ensure MSIEXEC support works on WOW64
+//                                       (system32 -> syswow64). Also, enable
+//                                       VxKex and version spoofing for the
+//                                       Windows Installer service.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -215,24 +219,51 @@ STATIC NTSTATUS KexpInitializeIfeoParameters(
 
 	RtlInitEmptyUnicodeStringFromTeb(&MsiexecFullPath);
 	RtlAppendUnicodeStringToString(&MsiexecFullPath, &Data->WinDir);
-	RtlAppendUnicodeToString(&MsiexecFullPath, L"\\system32\\msiexec.exe");
+
+	if (KexRtlOperatingSystemBitness() == 64 && KexRtlCurrentProcessBitness() == 32) {
+		// WOW64 - use SysWOW64 instead of system32
+		RtlAppendUnicodeToString(&MsiexecFullPath, L"\\syswow64\\msiexec.exe");
+	} else {
+		RtlAppendUnicodeToString(&MsiexecFullPath, L"\\system32\\msiexec.exe");
+	}
 
 	if (RtlEqualUnicodeString(&Peb->ProcessParameters->ImagePathName, &MsiexecFullPath, TRUE)) {
 		UNICODE_STRING CommandLine;
 		UNICODE_STRING MsiFullPath;
 		UNICODE_STRING DotMsi;
+		UNICODE_STRING SlashV;
 		PWCHAR DotMsiLocation;
 
 		Data->Flags |= KEXDATA_FLAG_MSIEXEC;
 		Status = STATUS_OBJECT_NAME_NOT_FOUND;
 
+		CommandLine = Peb->ProcessParameters->CommandLine;
+
 		//
-		// We are currently loaded into %SystemRoot%\system32\msiexec.exe.
+		// We are currently loaded into msiexec.exe.
+		//
+		// First check if we are running as the Windows Installer service.
+		// If so, we set Windows version spoofing to the maximum.
+		// We do this because the Windows Installer service can sometimes check versions
+		// on behalf of a .msi file being installed in a non-service msiexec process
+		// and we have no good way of knowing what .msi file we're dealing with, so we just
+		// have to set the highest version and hope that works out.
+		//
+
+		RtlInitConstantUnicodeString(&SlashV, L"/V");
+
+		if (KexRtlUnicodeStringEndsWith(&CommandLine, &SlashV, FALSE)) {
+			Data->Flags |= KEXDATA_FLAG_ENABLED_FOR_MSI;
+			IfeoParameters->WinVerSpoof = (KEX_WIN_VER_SPOOF) WinVerSpoofMax - 1;
+			goto Exit;
+		}
+
+		//
+		// See if we're installing a .msi file.
 		// Open the IFEO key for the .msi file, not the one for msiexec.exe itself.
 		// This is going to require us to parse command line arguments.
 		//
-
-		CommandLine = Peb->ProcessParameters->CommandLine;
+		
 		RtlInitConstantUnicodeString(&DotMsi, L".MSI\"");
 
 		DotMsiLocation = KexRtlFindUnicodeSubstring(&CommandLine, &DotMsi, TRUE);
@@ -351,7 +382,7 @@ KEXAPI NTSTATUS NTAPI KexDataInitialize(
 
 	RtlCopyUnicodeString(&_KexData.Kex3264DirPath, &_KexData.KexDir);
 
-	if (KexIs64BitBuild) {
+	if (KexRtlCurrentProcessBitness() == 64) {
 		Status = RtlAppendUnicodeToString(&_KexData.Kex3264DirPath, L"\\Kex64;");
 	} else {
 		Status = RtlAppendUnicodeToString(&_KexData.Kex3264DirPath, L"\\Kex32;");

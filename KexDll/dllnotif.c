@@ -78,6 +78,14 @@ VOID NTAPI KexDllNotificationCallback(
 					//
 					AshPerformChromiumDetectionFromLoadedDll(NotificationData);
 				}
+
+				if (!(KexData->Flags & KEXDATA_FLAG_QT6)) {
+					//
+					// APPSPECIFICHACK: Newer versions of Qt6 require Windows 10 DWrite.
+					// Otherwise, text is displayed as blank boxes.
+					//
+					AshPerformQt6DetectionFromLoadedDll(NotificationData);
+				}
 			}
 		}
 

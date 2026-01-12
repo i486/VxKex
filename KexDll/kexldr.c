@@ -22,6 +22,12 @@
 //     vxiiduu              29-Feb-2024  Revert previous change (wrong assumption).
 //     vxiiduu              21-Mar-2024  Properly handle situations where an empty
 //                                       DLL name is passed to KexLdrLoadDll
+//     vxiiduu              30-May-2025  Change KexLdrProtectImageImportSection to
+//                                       make it work with PE images where the
+//                                       import DLL names are placed in a different
+//                                       location to standard images.
+//     vxiiduu              15-Dec-2025  Replace KexLdrProtectImageImportSection
+//                                       with KexLdrGetImageImportSection.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -432,26 +438,26 @@ KEXAPI PVOID NTAPI KexLdrGetNativeSystemDllBase(
 }
 
 //
-// This function changes the page protections on the entire section which
-// contains the import directory.
+// Get the allocation base and region size for a memory region which contains import
+// descriptors for the given PE image.
 //
 
-KEXAPI NTSTATUS NTAPI KexLdrProtectImageImportSection(
+KEXAPI NTSTATUS NTAPI KexLdrGetImageImportSection(
 	IN	PVOID	ImageBase,
-	IN	ULONG	PageProtection,
-	OUT	PULONG	OldProtection)
+	OUT	PPVOID	ImportSectionBase,
+	OUT	PSIZE_T	ImportSectionSize)
 {
 	NTSTATUS Status;
 	PIMAGE_NT_HEADERS NtHeaders;
 	PIMAGE_FILE_HEADER CoffHeader;
 	PIMAGE_OPTIONAL_HEADER OptionalHeader;
 	PIMAGE_DATA_DIRECTORY ImportDirectory;
-	PIMAGE_SECTION_HEADER ImportSectionHeader;
-	PVOID ImportSectionAddress;
-	SIZE_T ImportSectionSize;
+	PIMAGE_IMPORT_DESCRIPTOR ImportDescriptor;
+	MEMORY_BASIC_INFORMATION BasicInformation;
 
 	ASSERT (ImageBase != NULL);
-	ASSERT (OldProtection != NULL);
+	ASSERT (ImportSectionBase != NULL);
+	ASSERT (ImportSectionSize != NULL);
 
 	Status = RtlImageNtHeaderEx(
 		RTL_IMAGE_NT_HEADER_EX_FLAG_NO_RANGE_CHECK,
@@ -475,39 +481,39 @@ KEXAPI NTSTATUS NTAPI KexLdrProtectImageImportSection(
 	CoffHeader = &NtHeaders->FileHeader;
 	OptionalHeader = &NtHeaders->OptionalHeader;
 	ImportDirectory = &OptionalHeader->DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
-
-	//
-	// Find the section that contains the import directory.
-	//
+	ImportDescriptor = (PIMAGE_IMPORT_DESCRIPTOR) RVA_TO_VA(ImageBase, ImportDirectory->VirtualAddress);
 	
-	ImportSectionHeader = KexRtlSectionTableFromRva(
-		NtHeaders,
-		ImportDirectory->VirtualAddress);
-
-	if (!ImportSectionHeader) {
-		return STATUS_IMAGE_SECTION_NOT_FOUND;
+	if (ImportDescriptor->Name == 0) {
+		return STATUS_INVALID_IMAGE_FORMAT;
 	}
 
-	ImportSectionAddress = RVA_TO_VA(ImageBase, ImportSectionHeader->VirtualAddress);
-	ImportSectionSize = ImportSectionHeader->Misc.VirtualSize;
-
-	ASSERT (ImportSectionAddress != ImageBase);
-	ASSERT (ImportSectionSize != 0);
-
 	//
-	// Set our page protections.
+	// ImportDescriptor now points to the first import descriptor.
+	// Use NtQueryVirtualMemory to find the size of the memory zone which contains
+	// all the import descriptors.
 	//
 
-	Status = NtProtectVirtualMemory(
+	Status = NtQueryVirtualMemory(
 		NtCurrentProcess(),
-		&ImportSectionAddress,
-		&ImportSectionSize,
-		PageProtection,
-		OldProtection);
+		RVA_TO_VA(ImageBase, ImportDescriptor->Name),
+		MemoryBasicInformation,
+		&BasicInformation,
+		sizeof(BasicInformation),
+		NULL);
 
 	ASSERT (NT_SUCCESS(Status));
 
-	return Status;
+	if (!NT_SUCCESS(Status)) {
+		return Status;
+	}
+
+	ASSERT (BasicInformation.State == MEM_COMMIT);
+	ASSERT (BasicInformation.Type == MEM_IMAGE);
+
+	*ImportSectionBase = BasicInformation.BaseAddress;
+	*ImportSectionSize = BasicInformation.RegionSize;
+
+	return STATUS_SUCCESS;
 }
 
 //
@@ -724,6 +730,31 @@ KEXAPI NTSTATUS NTAPI KexLdrGetProcedureAddressEx(
 	IN	ULONG				Flags)
 {
 	NTSTATUS Status;
+
+	unless (KexData->IfeoParameters.DisableAppSpecific) {
+		if (KexData->Flags & KEXDATA_FLAG_CHROMIUM) {
+			//
+			// APPSPECIFICHACK: Hide VirtualAlloc2 from Chromium-based processes
+			// in order to force Chromium into using compatibility code for pre-win10
+			// systems.
+			//
+			// Pitfall: this workaround applies to all code in the process, not just
+			// Chromium. If any applications include Chromium AND require VirtualAlloc2
+			// for something else, then we will have to figure out another solution.
+			//
+
+			if (ProcedureName != NULL) {
+				ANSI_STRING VirtualAlloc2ProcName;
+
+				RtlInitConstantAnsiString(&VirtualAlloc2ProcName, "VirtualAlloc2");
+
+				if (RtlEqualString(ProcedureName, &VirtualAlloc2ProcName, FALSE)) {
+					KexLogDebugEvent(L"VirtualAlloc2 hidden from Chromium process");
+					return STATUS_PROCEDURE_NOT_FOUND;
+				}
+			}
+		}
+	}
 
 	Status = LdrGetProcedureAddressEx(
 		DllHandle,

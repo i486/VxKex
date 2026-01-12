@@ -17,3 +17,7 @@ EXPORTS
 
 	;; wldp.c
 	WldpQueryWindowsLockdownMode
+	WldpGetLockdownPolicy
+
+	;; uia.c
+	UiaRaiseNotificationEvent

@@ -25,6 +25,7 @@
 //
 //     vxiiduu               26-Mar-2022  Initial creation.
 //     vxiiduu               26-Sep-2022  Add header.
+//     vxiiduu               04-Jul-2025  Correct SpareBytes[0x24] to SpareBytes[24]
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -51,6 +52,7 @@
 #define HARDERROR_OVERRIDE_ERRORMODE		0x10000000L
 
 #define PAGE_SIZE 0x1000
+#define ALLOCATION_GRANULARITY 0x10000
 
 #define RTL_MAX_DRIVE_LETTERS 32
 #define PROCESSOR_FEATURE_MAX 64
@@ -521,7 +523,7 @@ typedef struct DECLSPEC_ALIGN(8) _MEM_EXTENDED_PARAMETER {
 
 typedef struct _MEM_ADDRESS_REQUIREMENTS {
 	PVOID	LowestStartingAddress;
-	PVOID	HighestStartingAddress;
+	PVOID	HighestEndingAddress;
 	SIZE_T	Alignment;
 } TYPEDEF_TYPE_NAME(MEM_ADDRESS_REQUIREMENTS);
 
@@ -639,6 +641,9 @@ typedef struct _MEM_ADDRESS_REQUIREMENTS {
 #define DOMAIN_GROUP_RID_PROTECTED_USERS		(0x0000020DL)
 #define DOMAIN_GROUP_RID_KEY_ADMINS				(0x0000020EL)
 #define DOMAIN_GROUP_RID_ENTERPRISE_KEY_ADMINS	(0x0000020FL)
+
+// extra NTSTATUS values - not in Windows 7
+#define STATUS_NOT_SAME_OBJECT ((NTSTATUS) 0xC00001AC)
 
 #pragma endregion
 
@@ -1602,7 +1607,12 @@ typedef struct _TEB {
 	// to me and there were shitloads of structures to copy so I gave up.
 	PVOID								ActivationContextStackPointer;
 
-	UCHAR								SpareBytes[0x24];
+#ifdef _M_X64
+	UCHAR								SpareBytes[24];
+#else
+	UCHAR								SpareBytes[36];
+#endif
+
 	ULONG								TxFsContext;
 	
 	GDI_TEB_BATCH						GdiTebBatch;
@@ -1662,7 +1672,11 @@ typedef struct _TEB {
 
 	ULONG								GuaranteedStackBytes;
 	PVOID								ReservedForPerf;
+
+	// ReservedForOle's real data type is (SOleTlsData *).
+	// Definition for the SOleTlsData structure is in KxCom.h
 	PVOID								ReservedForOle;
+
 	ULONG								WaitingOnLoaderLock;
 
 	PVOID								SavedPriorityState;
@@ -2921,6 +2935,15 @@ typedef enum _WELL_KNOWN_SID_TYPE {
     WinBuiltinDeviceOwnersSid						= 119,
 } TYPEDEF_TYPE_NAME(WELL_KNOWN_SID_TYPE);
 
+typedef enum {
+    EventBasicInformation
+} EVENT_INFORMATION_CLASS;
+
+typedef struct {
+	EVENT_TYPE EventType;
+	LONG EventState;
+} TYPEDEF_TYPE_NAME(EVENT_BASIC_INFORMATION);
+
 #pragma endregion
 
 STATIC PKUSER_SHARED_DATA SharedUserData = (PKUSER_SHARED_DATA) 0x7FFE0000;
@@ -3774,6 +3797,25 @@ NTSYSCALLAPI NTSTATUS NTAPI NtAssignProcessToJobObject(
 	IN		HANDLE		JobHandle,
 	IN		HANDLE		ProcessHandle);
 
+NTSYSCALLAPI NTSTATUS NTAPI NtQueryDefaultUILanguage(
+	OUT		PLANGID	LanguageId);
+
+NTSYSCALLAPI NTSTATUS NTAPI NtQueryDefaultLocale(
+	IN		BOOLEAN	UserProfile,
+	OUT		PLCID	DefaultLocaleId);
+
+NTSYSCALLAPI NTSTATUS NTAPI NtQueryEvent(
+	IN		HANDLE					EventHandle,
+	IN		EVENT_INFORMATION_CLASS	EventInformationClass,
+	OUT		PVOID					EventInformation,
+	IN		ULONG					EventInformationLength,
+	OUT		PULONG					ReturnLength OPTIONAL);
+
+NTSYSCALLAPI NTSTATUS NTAPI NtSetTimerResolution(
+	IN		ULONG		DesiredResolution,
+	IN		BOOLEAN		SetResolution,
+	OUT		PULONG		CurrentResolution);
+
 #pragma endregion
 
 #pragma region Nt* function declarations (not in Windows 7)
@@ -3928,6 +3970,11 @@ NTSYSAPI NTSTATUS NTAPI RtlDowncaseUnicodeString(
 
 NTSYSAPI VOID NTAPI RtlFreeUnicodeString(
 	IN OUT	PUNICODE_STRING	UnicodeString);
+
+NTSYSAPI BOOLEAN NTAPI RtlEqualString(
+	IN	PCANSI_STRING	String1,
+	IN	PCANSI_STRING	String2,
+	IN	BOOLEAN			CaseInsensitive);
 
 NTSYSAPI BOOLEAN NTAPI RtlEqualUnicodeString(
 	IN	PCUNICODE_STRING	String1,
@@ -4558,6 +4605,18 @@ NTSYSAPI NTSTATUS NTAPI LdrEnumerateLoadedModules(
 	IN	PLDR_LOADED_MODULE_ENUMERATION_CALLBACK_FUNCTION	CallbackFunction,
 	IN	PVOID												Context OPTIONAL);
 
+NTSYSAPI NTSTATUS NTAPI LdrFindResource_U(
+	IN	PVOID						DllHandle,
+	IN	CONST ULONG_PTR				*ResourceIdPath,
+	IN	ULONG						ResourceIdPathLength,
+	OUT	PIMAGE_RESOURCE_DATA_ENTRY	*ResourceDataEntry);
+
+NTSYSAPI NTSTATUS NTAPI LdrAccessResource(
+	IN	PVOID							DllHandle,
+	IN	CONST IMAGE_RESOURCE_DATA_ENTRY	*ResourceDataEntry,
+	OUT	PPVOID							Address OPTIONAL,
+	OUT	PULONG							Size OPTIONAL);
+
 //
 // Non-Exported Functions - Must manually find, or reimplement.
 //
@@ -4581,6 +4640,13 @@ NTSYSAPI NTSTATUS NTAPI DbgUiDebugActiveProcess(
 NTSYSAPI ULONG NTAPI DbgPrint(
 	IN	PCSTR	Format,
 	IN	...);
+
+// DbgPrompt only works with kernel debuggers. WinDbg seems to treat it
+// as a breakpoint and Visual Studio's debugger just ignores it by default.
+NTSYSAPI ULONG NTAPI DbgPrompt(
+	IN	PCSTR	Prompt,
+	OUT	PSTR	Buffer,
+	IN	ULONG	BufferCch);
 
 NTSYSAPI ULONG NTAPI DbgPrintEx(
 	IN	ULONG	ComponentId,
@@ -4627,8 +4693,8 @@ NTSYSAPI ULONG NTAPI DbgPrintEx(
 #define GetProcessHeap RtlProcessHeap
 #define HeapAlloc RtlAllocateHeap
 #define HeapFree RtlFreeHeap
-#define NtCurrentProcess() ((HANDLE) -1)
-#define NtCurrentThread() ((HANDLE) -2)
+#define NtCurrentProcess() ((HANDLE) -1)	// Pseudo-handle to the current process.
+#define NtCurrentThread() ((HANDLE) -2)		// Pseudo-handle to the current thread.
 #define GetCurrentProcess NtCurrentProcess
 
 #define RtlAnsiStringToUnicodeSize(AnsiString) (((AnsiString)->Length + sizeof(ANSI_NULL)) * sizeof(WCHAR))

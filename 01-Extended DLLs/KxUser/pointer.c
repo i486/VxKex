@@ -1,7 +1,7 @@
 #include "buildcfg.h"
 #include "kxuserp.h"
 
-BOOL WINAPI GetPointerDevices(
+KXUSERAPI BOOL WINAPI GetPointerDevices(
 	IN OUT	UINT32				*DeviceCount,
 	OUT		POINTER_DEVICE_INFO	*PointerDevices)
 {
@@ -9,7 +9,7 @@ BOOL WINAPI GetPointerDevices(
 	return TRUE;
 }
 
-BOOL WINAPI GetPointerType(
+KXUSERAPI BOOL WINAPI GetPointerType(
 	IN	DWORD				PointerId,
 	OUT	POINTER_INPUT_TYPE	*PointerType)
 {
@@ -17,7 +17,7 @@ BOOL WINAPI GetPointerType(
 	return TRUE;
 }
 
-BOOL WINAPI GetPointerInfo(
+KXUSERAPI BOOL WINAPI GetPointerInfo(
 	IN	DWORD			PointerId,
 	OUT	POINTER_INFO	*PointerInfo)
 {
@@ -41,52 +41,57 @@ BOOL WINAPI GetPointerInfo(
 	return TRUE;
 }
 
-BOOL WINAPI GetPointerTouchInfo(
+KXUSERAPI BOOL WINAPI GetPointerTouchInfo(
 	IN	DWORD	PointerId,
 	OUT	LPVOID	TouchInfo)
 {
+	RtlSetLastWin32Error(ERROR_NOT_SUPPORTED);
 	return FALSE;
 }
 
-BOOL WINAPI GetPointerFrameTouchInfo(
+KXUSERAPI BOOL WINAPI GetPointerFrameTouchInfo(
 	IN		DWORD	PointerId,
 	IN OUT	LPDWORD PointerCount,
 	OUT		LPVOID	TouchInfo)
 {
+	RtlSetLastWin32Error(ERROR_NOT_SUPPORTED);
 	return FALSE;
 }
 
-BOOL WINAPI GetPointerFrameTouchInfoHistory(
+KXUSERAPI BOOL WINAPI GetPointerFrameTouchInfoHistory(
 	IN		DWORD	PointerId,
 	IN OUT	DWORD	EntriesCount,
 	IN OUT	LPDWORD PointerCount,
 	OUT		LPVOID	TouchInfo)
 {
+	RtlSetLastWin32Error(ERROR_NOT_SUPPORTED);
 	return FALSE;
 }
 
-BOOL WINAPI GetPointerPenInfo(
+KXUSERAPI BOOL WINAPI GetPointerPenInfo(
 	IN	DWORD	PointerId,
 	OUT	LPVOID	PenInfo)
 {
+	RtlSetLastWin32Error(ERROR_NOT_SUPPORTED);
 	return FALSE;
 }
 
-BOOL WINAPI GetPointerPenInfoHistory(
+KXUSERAPI BOOL WINAPI GetPointerPenInfoHistory(
 	IN		DWORD	PointerId,
 	IN OUT	LPDWORD	EntriesCount,
 	OUT		LPVOID	PenInfo)
 {
+	RtlSetLastWin32Error(ERROR_NOT_SUPPORTED);
 	return FALSE;
 }
 
-BOOL WINAPI SkipPointerFrameMessages(
+KXUSERAPI BOOL WINAPI SkipPointerFrameMessages(
 	IN	DWORD	PointerId)
 {
 	return TRUE;
 }
 
-BOOL WINAPI GetPointerDeviceRects(
+KXUSERAPI BOOL WINAPI GetPointerDeviceRects(
 	IN	HANDLE	Device,
 	OUT	LPRECT	PointerDeviceRect,
 	OUT	LPRECT	DisplayRect)
@@ -104,8 +109,78 @@ BOOL WINAPI GetPointerDeviceRects(
 	return TRUE;
 }
 
-BOOL WINAPI EnableMouseInPointer(
+KXUSERAPI BOOL WINAPI EnableMouseInPointer(
 	IN	BOOL	Enable)
 {
+	RtlSetLastWin32Error(ERROR_NOT_SUPPORTED);
+	return FALSE;
+}
+
+KXUSERAPI BOOL WINAPI RegisterPointerDeviceNotifications(
+	IN	HWND	Window,
+	IN	BOOL	NotifyRange)
+{
+	if (!IsWindow(Window)) {
+		RtlSetLastWin32Error(ERROR_INVALID_PARAMETER);
+		return FALSE;
+	}
+
+	RtlSetLastWin32Error(ERROR_NOT_SUPPORTED);
+	return FALSE;
+}
+
+KXUSERAPI BOOL WINAPI GetWindowFeedbackSetting(
+	IN		HWND			Window,
+	IN		FEEDBACK_TYPE	FeedbackType,
+	IN		ULONG			Flags,
+	IN OUT	PULONG			ConfigurationSize,
+	IN		PCVOID			Configuration OPTIONAL)
+{
+	if (!IsWindow(Window)) {
+		RtlSetLastWin32Error(ERROR_INVALID_WINDOW_HANDLE);
+		return FALSE;
+	}
+
+	if (FeedbackType == 0 ||
+		FeedbackType > 12 ||
+		ConfigurationSize == NULL ||
+		(Flags & ~GWFS_INCLUDE_ANCESTORS) != 0) {
+
+		RtlSetLastWin32Error(ERROR_INVALID_PARAMETER);
+		return FALSE;
+	}
+
+	RtlSetLastWin32Error(ERROR_NOT_SUPPORTED);
+	return FALSE;
+}
+
+KXUSERAPI BOOL WINAPI SetWindowFeedbackSetting(
+	IN	HWND			Window,
+	IN	FEEDBACK_TYPE	FeedbackType,
+	IN	ULONG			Flags,
+	IN	ULONG			ConfigurationSize,
+	IN	PCVOID			Configuration OPTIONAL)
+{
+	if (!IsWindow(Window)) {
+		RtlSetLastWin32Error(ERROR_INVALID_WINDOW_HANDLE);
+		return FALSE;
+	}
+
+	if (FeedbackType == 0 ||
+		FeedbackType > 12 ||
+		(ConfigurationSize != 0 && Configuration != NULL) ||
+		Flags != 0 ||
+		(ConfigurationSize != 0 && ConfigurationSize != 4)) {
+
+		RtlSetLastWin32Error(ERROR_INVALID_PARAMETER);
+		return FALSE;
+	}
+
+	// In Windows 8 the feedback settings are stored in a window property
+	// (i.e. GetProp/SetProp). The property is an atom named "SysFeedbackSettings".
+	// Of course, we won't bother actually doing that, since the window feedback
+	// stuff is only relevant for touch screens and pens.
+
+	RtlSetLastWin32Error(ERROR_NOT_SUPPORTED);
 	return FALSE;
 }

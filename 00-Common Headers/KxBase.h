@@ -2,7 +2,7 @@
 //
 // Module Name:
 //
-//     BaseDll.h
+//     KxBase.h
 //
 // Abstract:
 //
@@ -52,6 +52,7 @@
 												 LOAD_LIBRARY_SEARCH_SYSTEM32 | \
 												 LOAD_LIBRARY_SEARCH_DEFAULT_DIRS)
 
+#define ERROR_NOT_SAME_OBJECT					1656L
 #define APPMODEL_ERROR_NO_PACKAGE				15700L
 #define APPMODEL_ERROR_NO_APPLICATION			15703L
 
@@ -400,6 +401,8 @@ typedef struct _PROCESS_MITIGATION_DEP_POLICY {
 	BOOLEAN			Permanent;
 } TYPEDEF_TYPE_NAME(PROCESS_MITIGATION_DEP_POLICY);
 
+
+
 DECLARE_HANDLE(HPSS);
 DECLARE_HANDLE(HPSSWALK);
 GEN_STD_TYPEDEFS(HPSS);
@@ -623,6 +626,19 @@ KXBASEAPI BOOL WINAPI GetThreadSelectedCpuSetMasks(
 	IN	ULONG			CpuSetMaskArraySize,
 	OUT	PULONG			ReturnCount);
 
+KXBASEAPI BOOL WINAPI SetThreadpoolTimerEx(
+	IN OUT	PTP_TIMER	pti,
+	IN		PFILETIME	pftDueTime OPTIONAL,
+	IN		DWORD		msPeriod,
+	IN		DWORD		msWindowLength OPTIONAL);
+
+KXBASEAPI BOOL WINAPI GetSystemCpuSetInformation(
+	PVOID	Information,
+	ULONG	BufferLength,
+	PULONG	ReturnedLength,
+	HANDLE	Process,
+	ULONG	Flags);
+
 //
 // process.c
 //
@@ -763,6 +779,17 @@ KXBASEAPI HRESULT WINAPI GetAppContainerRegistryLocation(
 	IN	REGSAM	DesiredAccess,
 	OUT	PHKEY	AppContainerKey);
 
+KXBASEAPI LONG WINAPI GetPackagePathByFullName(
+	IN		PCWSTR	PackageFullName,
+	IN OUT	PULONG	PathLength,
+	OUT		PWSTR	Path OPTIONAL);
+
+KXBASEAPI LONG WINAPI GetPackagePathByFullName2(
+	IN		PCWSTR	PackageFullName,
+	IN		ULONG	PackagePathType,
+	IN OUT	PULONG	PathLength,
+	OUT		PWSTR	Path OPTIONAL);
+
 //
 // vmem.c
 //
@@ -785,6 +812,24 @@ KXBASEAPI BOOL WINAPI PrefetchVirtualMemory(
 	IN	ULONG_PTR					NumberOfEntries,
 	IN	PWIN32_MEMORY_RANGE_ENTRY	VirtualAddresses,
 	IN	ULONG						Flags);
+
+KXBASEAPI PVOID WINAPI VirtualAlloc2(
+	IN		HANDLE					Process OPTIONAL,
+	IN		PVOID					BaseAddress OPTIONAL,
+	IN		SIZE_T					Size,
+	IN		ULONG					AllocationType,
+	IN		ULONG					PageProtection,
+	IN OUT	PMEM_EXTENDED_PARAMETER	ExtendedParameters OPTIONAL,
+	IN		ULONG					ParameterCount);
+
+KXBASEAPI PVOID WINAPI VirtualAlloc2FromApp(
+	IN		HANDLE					ProcessHandle OPTIONAL,
+	IN		PVOID					BaseAddress OPTIONAL,
+	IN		SIZE_T					Size,
+	IN		ULONG					AllocationType,
+	IN		ULONG					PageProtection,
+	IN OUT	PMEM_EXTENDED_PARAMETER	ExtendedParameters OPTIONAL,
+	IN		ULONG					ParameterCount);
 
 //
 // misc.c

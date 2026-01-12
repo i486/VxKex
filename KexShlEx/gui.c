@@ -135,7 +135,7 @@ INT_PTR CALLBACK DialogProc(
 			L"For some applications, VxKex may use application-specific workarounds or patches. "
 			L"This option disables that behavior. Using this option may degrade application "
 			L"compatibility.");
-		ToolTip(Window, IDREPORTBUG, _L(KEX_BUGREPORT_STR));
+		//ToolTip(Window, IDREPORTBUG, _L(KEX_BUGREPORT_STR));
 
 		SetFocus(GetDlgItem(Window, IDUSEVXKEX));
 		return FALSE;

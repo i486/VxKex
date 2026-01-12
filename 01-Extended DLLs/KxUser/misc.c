@@ -88,3 +88,20 @@ KXUSERAPI BOOL WINAPI IsImmersiveProcess(
 	SetLastError(ERROR_SUCCESS);
 	return FALSE;
 }
+
+KXUSERAPI BOOL WINAPI IsWindowArranged(
+	IN	HWND	Window)
+{
+	// This is a simplified stub that will probably work for all apps
+	// which call this function. However, in the case that apps actually
+	// require a proper determination of whether the window is Aero Snapped
+	// to the left or right hand side of the screen, it might be possible
+	// to compare WINDOWPLACEMENT.rcNormalPosition with the result returned
+	// by GetWindowRect - or something like that. Haven't tried.
+	//
+	// Any attempt to "properly" implement this function also needs to take
+	// into account multi-monitor configurations and docking the taskbar to
+	// places other than the standard bottom position.
+
+	return FALSE;
+}

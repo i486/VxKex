@@ -195,21 +195,23 @@ KXBASEAPI BOOL WINAPI Ext_IsProcessInJob(
 	// This function should only be called in one place.
 	//
 
-	if ((KexData->Flags & KEXDATA_FLAG_CHROMIUM) &&
-		AshModuleBaseNameIs(ReturnAddress(), L"chrome.dll")) {
+	unless (KexData->IfeoParameters.DisableAppSpecific) {
+		if ((KexData->Flags & KEXDATA_FLAG_CHROMIUM) &&
+			AshModuleBaseNameIs(ReturnAddress(), L"chrome.dll")) {
 
-		ASSERT (ProcessHandle == NtCurrentProcess());
-		ASSERT (JobHandle == NULL);
-		ASSERT (IsInJob != NULL);
+			ASSERT (ProcessHandle == NtCurrentProcess());
+			ASSERT (JobHandle == NULL);
+			ASSERT (IsInJob != NULL);
 
-		KexLogDebugEvent(L"Returning fake IsProcessInJob return value for Chrome compatibility");
+			KexLogDebugEvent(L"Returning fake IsProcessInJob return value for Chrome compatibility");
 
-		if (ProcessHandle == NtCurrentProcess() &&
-			JobHandle == NULL &&
-			IsInJob != NULL) {
+			if (ProcessHandle == NtCurrentProcess() &&
+				JobHandle == NULL &&
+				IsInJob != NULL) {
 
-			*IsInJob = TRUE;
-			return TRUE;
+				*IsInJob = TRUE;
+				return TRUE;
+			}
 		}
 	}
 

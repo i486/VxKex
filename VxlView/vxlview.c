@@ -29,7 +29,7 @@ NTSTATUS NTAPI EntryPoint(
 	}
 
 	LdrShutdownProcess();
-	return NtTerminateProcess(NtCurrentProcess(), STATUS_SUCCESS);
+	return STATUS_SUCCESS;
 }
 
 INT_PTR CALLBACK MainWndProc(

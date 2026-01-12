@@ -44,7 +44,7 @@ VOID KexCfgHandleCommandLine(
 
 	ExeFullPath[0] = '\0';
 
-	if (StringSearchI(CommandLine, L"/HELP") || StringSearchI(CommandLine, L"/?")) {
+	if (StringSearchI(CommandLine, L"/HELP") || StringSearch(CommandLine, L"/?")) {
 		DisplayHelpMessage();
 		ExitProcess(STATUS_SUCCESS);
 	}

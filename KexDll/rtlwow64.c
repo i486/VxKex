@@ -26,7 +26,7 @@ KEXAPI NTSTATUS NTAPI KexRtlWow64GetProcessMachines(
 			// There is no need to ask the kernel.
 			//
 
-			if (KexIs64BitBuild) {
+			if (KexRtlCurrentProcessBitness() == 64) {
 				*ProcessMachine = IMAGE_FILE_MACHINE_AMD64;
 			} else {
 				*ProcessMachine = IMAGE_FILE_MACHINE_I386;

@@ -2,7 +2,7 @@
 //
 // Module Name:
 //
-//     file.ext
+//     stubs.c
 //
 // Abstract:
 //

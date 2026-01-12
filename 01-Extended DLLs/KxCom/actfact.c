@@ -37,8 +37,16 @@ KXCOMAPI HRESULT STDMETHODCALLTYPE CActivationFactory_QueryInterface(
 		*Object = &CUIViewSettings;
 	} else if (IsEqualIID(RefIID, &IID_IUISettings)) {
 		*Object = &CUISettings;
+	} else if (IsEqualIID(RefIID, &IID_IUISettings2)) {
+		*Object = &CUISettings2;
 	} else if (IsEqualIID(RefIID, &IID_IUISettings3)) {
 		*Object = &CUISettings3;
+	} else if (IsEqualIID(RefIID, &IID_IUISettings4)) {
+		*Object = &CUISettings4;
+	} else if (IsEqualIID(RefIID, &IID_IUISettings5)) {
+		*Object = &CUISettings5;
+	} else if (IsEqualIID(RefIID, &IID_IUISettings6)) {
+		*Object = &CUISettings6;
 	} else if (IsEqualIID(RefIID, &IID_IUriRuntimeClassFactory)) {
 		*Object = &CUriRuntimeClassFactory;
 	} else if (IsEqualIID(RefIID, &IID_ILauncherStatics)) {

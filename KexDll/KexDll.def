@@ -14,23 +14,38 @@ EXPORTS
 	KexRtlFindUnicodeSubstring
 	KexRtlAdvanceUnicodeString
 	KexRtlRetreatUnicodeString
+	KexRtlSetUnicodeStringBufferEnd
 	KexRtlShiftUnicodeString
 	KexRtlWriteProcessMemory
 	KexRtlCreateDirectoryRecursive
 	KexRtlNtStatusToString
-	KexRtlCreateStringMapper
-	KexRtlDeleteStringMapper
-	KexRtlInsertEntryStringMapper
-	KexRtlLookupEntryStringMapper
-	KexRtlRemoveEntryStringMapper
-	KexRtlApplyStringMapper
-	KexRtlInsertMultipleEntriesStringMapper
-	KexRtlLookupMultipleEntriesStringMapper
-	KexRtlBatchApplyStringMapper
 	KexRtlSectionTableFromRva
 	KexRtlNullTerminateUnicodeString
+	KexRtlUnicodeStringContainsEmbeddedNull
 	KexRtlCreateUntrustedDirectoryObject
 	KexRtlGenerateRandomData
+
+	; String Mapper APIs - we will continue exporting them by their old names in
+	; addition to their new names just in case anyone is using them
+	KexRtlCreateStringMapper				= SmpCreateStringMapper
+	KexRtlDeleteStringMapper				= SmpDeleteStringMapper
+	KexRtlInsertEntryStringMapper			= SmpInsertEntryStringMapper
+	KexRtlLookupEntryStringMapper			= SmpLookupEntryStringMapper
+	KexRtlRemoveEntryStringMapper			= SmpRemoveEntryStringMapper
+	KexRtlApplyStringMapper					= SmpApplyStringMapper
+	KexRtlInsertMultipleEntriesStringMapper	= SmpInsertMultipleEntriesStringMapper
+	KexRtlLookupMultipleEntriesStringMapper	= SmpLookupMultipleEntriesStringMapper
+	KexRtlBatchApplyStringMapper			= SmpBatchApplyStringMapper
+
+	SmpCreateStringMapper
+	SmpDeleteStringMapper
+	SmpInsertEntryStringMapper
+	SmpLookupEntryStringMapper
+	SmpRemoveEntryStringMapper
+	SmpApplyStringMapper
+	SmpInsertMultipleEntriesStringMapper
+	SmpLookupMultipleEntriesStringMapper
+	SmpBatchApplyStringMapper
 
 	KexRtlWow64GetProcessMachines
 	KexRtlSetBit
@@ -57,7 +72,7 @@ EXPORTS
 	KexLdrFindDllInitRoutine
 	KexLdrGetDllFullName
 	KexLdrGetDllFullNameFromAddress
-	KexLdrProtectImageImportSection
+	KexLdrGetImageImportSection
 
 	KexLdrLoadDll
 	KexLdrGetDllHandle
@@ -88,6 +103,8 @@ EXPORTS
 	VxlReadLog
 	VxlReadMultipleEntriesLog
 	VxlSeverityToText
+
+	NtCompareObjects
 
 	Ext_NtQueryInformationThread
 	Ext_NtSetInformationThread

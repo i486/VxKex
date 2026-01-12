@@ -1,7 +1,10 @@
 LIBRARY KxCom
 EXPORTS
 
-	CoCreateInstanceFromApp						= ole32.CoCreateInstanceEx
+	CoCreateInstance							= Ext_CoCreateInstance
+	CoCreateInstanceEx							= Ext_CoCreateInstanceEx
+	CoCreateInstanceFromApp						= Ext_CoCreateInstanceEx
+	CoGetClassObject							= Ext_CoGetClassObject
 
 	RoInitialize
 	RoUninitialize

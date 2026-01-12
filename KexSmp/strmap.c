@@ -30,7 +30,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "buildcfg.h"
-#include "kexdllp.h"
+#include <KexSmp.h>
 
 //
 // Create a new string mapper.
@@ -40,14 +40,14 @@
 //     mapper object.
 //
 //   Flags
-//     May contain any of the KEX_RTL_STRING_MAPPER_* flags.
+//     May contain any of the KEX_SMP_STRING_MAPPER_* flags.
 //     Invalid flags will cause STATUS_INVALID_PARAMETER_2.
 //
-KEXAPI NTSTATUS NTAPI KexRtlCreateStringMapper(
-	OUT		PPKEX_RTL_STRING_MAPPER		StringMapper,
+SMPAPI NTSTATUS NTAPI SmpCreateStringMapper(
+	OUT		PPKEX_SMP_STRING_MAPPER		StringMapper,
 	IN		ULONG						Flags OPTIONAL)
 {
-	PKEX_RTL_STRING_MAPPER Mapper;
+	PKEX_SMP_STRING_MAPPER Mapper;
 	PRTL_DYNAMIC_HASH_TABLE HashTable;
 	BOOLEAN Success;
 
@@ -57,11 +57,11 @@ KEXAPI NTSTATUS NTAPI KexRtlCreateStringMapper(
 
 	*StringMapper = NULL;
 
-	if (Flags & ~(KEX_RTL_STRING_MAPPER_FLAGS_VALID_MASK)) {
+	if (Flags & ~(KEX_SMP_STRING_MAPPER_FLAGS_VALID_MASK)) {
 		return STATUS_INVALID_PARAMETER_2;
 	}
 
-	Mapper = SafeAlloc(KEX_RTL_STRING_MAPPER, 1);
+	Mapper = SafeAlloc(KEX_SMP_STRING_MAPPER, 1);
 	if (!Mapper) {
 		return STATUS_NO_MEMORY;
 	}
@@ -87,10 +87,10 @@ KEXAPI NTSTATUS NTAPI KexRtlCreateStringMapper(
 //   StringMapper
 //     Pointer to the opaque string mapper object.
 //
-KEXAPI NTSTATUS NTAPI KexRtlDeleteStringMapper(
-	IN		PPKEX_RTL_STRING_MAPPER		StringMapper)
+SMPAPI NTSTATUS NTAPI SmpDeleteStringMapper(
+	IN		PPKEX_SMP_STRING_MAPPER		StringMapper)
 {
-	PKEX_RTL_STRING_MAPPER Mapper;
+	PKEX_SMP_STRING_MAPPER Mapper;
 	RTL_DYNAMIC_HASH_TABLE_ENUMERATOR Enumerator;
 	PRTL_DYNAMIC_HASH_TABLE_ENTRY Entry;
 
@@ -142,14 +142,14 @@ KEXAPI NTSTATUS NTAPI KexRtlDeleteStringMapper(
 //
 //   Value
 //     Pointer to an uninterpreted UNICODE_STRING which can be retrieved
-//     if you know the Key, using the KexRtlLookupEntryStringMapper API.
+//     if you know the Key, using the SmpLookupEntryStringMapper API.
 //
-KEXAPI NTSTATUS NTAPI KexRtlInsertEntryStringMapper(
-	IN		PKEX_RTL_STRING_MAPPER		StringMapper,
+SMPAPI NTSTATUS NTAPI SmpInsertEntryStringMapper(
+	IN		PKEX_SMP_STRING_MAPPER		StringMapper,
 	IN		PCUNICODE_STRING			Key,
 	IN		PCUNICODE_STRING			Value)
 {
-	PKEX_RTL_STRING_MAPPER_HASH_TABLE_ENTRY Entry;
+	PKEX_SMP_STRING_MAPPER_HASH_TABLE_ENTRY Entry;
 	ULONG KeySignature;
 
 	if (!StringMapper) {
@@ -164,7 +164,7 @@ KEXAPI NTSTATUS NTAPI KexRtlInsertEntryStringMapper(
 		return STATUS_INVALID_PARAMETER_3;
 	}
 
-	Entry = SafeAlloc(KEX_RTL_STRING_MAPPER_HASH_TABLE_ENTRY, 1);
+	Entry = SafeAlloc(KEX_SMP_STRING_MAPPER_HASH_TABLE_ENTRY, 1);
 	if (!Entry) {
 		return STATUS_NO_MEMORY;
 	}
@@ -176,7 +176,7 @@ KEXAPI NTSTATUS NTAPI KexRtlInsertEntryStringMapper(
 	//
 	RtlHashUnicodeString(
 		Key,
-		(StringMapper->Flags & KEX_RTL_STRING_MAPPER_CASE_INSENSITIVE_KEYS),
+		(StringMapper->Flags & KEX_SMP_STRING_MAPPER_CASE_INSENSITIVE_KEYS),
 		HASH_STRING_ALGORITHM_DEFAULT,
 		&KeySignature);
 
@@ -192,14 +192,14 @@ KEXAPI NTSTATUS NTAPI KexRtlInsertEntryStringMapper(
 	return STATUS_SUCCESS;
 }
 
-STATIC NTSTATUS NTAPI KexRtlpLookupRawEntryStringMapper(
-	IN		PKEX_RTL_STRING_MAPPER						StringMapper,
+STATIC NTSTATUS NTAPI SmppLookupRawEntryStringMapper(
+	IN		PKEX_SMP_STRING_MAPPER						StringMapper,
 	IN		PCUNICODE_STRING							Key,
-	OUT		PPKEX_RTL_STRING_MAPPER_HASH_TABLE_ENTRY	EntryOut)
+	OUT		PPKEX_SMP_STRING_MAPPER_HASH_TABLE_ENTRY	EntryOut)
 {
 	BOOLEAN Success;
 	BOOLEAN CaseInsensitive;
-	PKEX_RTL_STRING_MAPPER_HASH_TABLE_ENTRY Entry;
+	PKEX_SMP_STRING_MAPPER_HASH_TABLE_ENTRY Entry;
 	RTL_DYNAMIC_HASH_TABLE_CONTEXT Context;
 	ULONG KeySignature;
 
@@ -215,7 +215,7 @@ STATIC NTSTATUS NTAPI KexRtlpLookupRawEntryStringMapper(
 		return STATUS_INTERNAL_ERROR;
 	}
 
-	CaseInsensitive = (StringMapper->Flags & KEX_RTL_STRING_MAPPER_CASE_INSENSITIVE_KEYS);
+	CaseInsensitive = (StringMapper->Flags & KEX_SMP_STRING_MAPPER_CASE_INSENSITIVE_KEYS);
 
 	RtlHashUnicodeString(
 		Key,
@@ -223,7 +223,7 @@ STATIC NTSTATUS NTAPI KexRtlpLookupRawEntryStringMapper(
 		HASH_STRING_ALGORITHM_DEFAULT,
 		&KeySignature);
 
-	Entry = (PKEX_RTL_STRING_MAPPER_HASH_TABLE_ENTRY) RtlLookupEntryHashTable(
+	Entry = (PKEX_SMP_STRING_MAPPER_HASH_TABLE_ENTRY) RtlLookupEntryHashTable(
 		&StringMapper->HashTable,
 		KeySignature,
 		&Context);
@@ -251,7 +251,7 @@ STATIC NTSTATUS NTAPI KexRtlpLookupRawEntryStringMapper(
 		// With a decent hash function, this code should very rarely be executed.
 		//
 
-		Entry = (PKEX_RTL_STRING_MAPPER_HASH_TABLE_ENTRY) RtlGetNextEntryHashTable(
+		Entry = (PKEX_SMP_STRING_MAPPER_HASH_TABLE_ENTRY) RtlGetNextEntryHashTable(
 			&StringMapper->HashTable,
 			&Context);
 	}
@@ -275,15 +275,15 @@ STATIC NTSTATUS NTAPI KexRtlpLookupRawEntryStringMapper(
 //   Value
 //     Pointer to a structure which will receive the retrieved value data.
 //
-KEXAPI NTSTATUS NTAPI KexRtlLookupEntryStringMapper(
-	IN		PKEX_RTL_STRING_MAPPER			StringMapper,
+SMPAPI NTSTATUS NTAPI SmpLookupEntryStringMapper(
+	IN		PKEX_SMP_STRING_MAPPER			StringMapper,
 	IN		PCUNICODE_STRING				Key,
 	OUT		PUNICODE_STRING					Value OPTIONAL)
 {
 	NTSTATUS Status;
-	PKEX_RTL_STRING_MAPPER_HASH_TABLE_ENTRY Entry;
+	PKEX_SMP_STRING_MAPPER_HASH_TABLE_ENTRY Entry;
 
-	Status = KexRtlpLookupRawEntryStringMapper(
+	Status = SmppLookupRawEntryStringMapper(
 		StringMapper,
 		Key,
 		&Entry);
@@ -310,15 +310,15 @@ KEXAPI NTSTATUS NTAPI KexRtlLookupEntryStringMapper(
 //     If no value with the specified key is found, this function will return
 //     the STATUS_STRING_MAPPER_ENTRY_NOT_FOUND error code.
 //
-KEXAPI NTSTATUS NTAPI KexRtlRemoveEntryStringMapper(
-	IN		PKEX_RTL_STRING_MAPPER			StringMapper,
+SMPAPI NTSTATUS NTAPI SmpRemoveEntryStringMapper(
+	IN		PKEX_SMP_STRING_MAPPER			StringMapper,
 	IN		PCUNICODE_STRING				Key)
 {
 	NTSTATUS Status;
 	BOOLEAN Success;
-	PKEX_RTL_STRING_MAPPER_HASH_TABLE_ENTRY Entry;
+	PKEX_SMP_STRING_MAPPER_HASH_TABLE_ENTRY Entry;
 
-	Status = KexRtlpLookupRawEntryStringMapper(
+	Status = SmppLookupRawEntryStringMapper(
 		StringMapper,
 		Key,
 		&Entry);
@@ -344,23 +344,23 @@ KEXAPI NTSTATUS NTAPI KexRtlRemoveEntryStringMapper(
 //
 // This is a convenience function which takes input and returns output
 // from a single UNICODE_STRING structure. It is equivalent to calling
-// KexRtlLookupEntryStringMapper with the Key and Value parameters pointing
+// SmpLookupEntryStringMapper with the Key and Value parameters pointing
 // to the same UNICODE_STRING.
 //
-KEXAPI NTSTATUS NTAPI KexRtlApplyStringMapper(
-	IN		PKEX_RTL_STRING_MAPPER			StringMapper,
+SMPAPI NTSTATUS NTAPI SmpApplyStringMapper(
+	IN		PKEX_SMP_STRING_MAPPER			StringMapper,
 	IN OUT	PUNICODE_STRING					KeyToValue)
 {
-	return KexRtlLookupEntryStringMapper(StringMapper, KeyToValue, KeyToValue);
+	return SmpLookupEntryStringMapper(StringMapper, KeyToValue, KeyToValue);
 }
 
 //
 // This is a convenience function which inserts many entries into the
 // mapper with a single call. It is intended to be used with static arrays.
 //
-KEXAPI NTSTATUS NTAPI KexRtlInsertMultipleEntriesStringMapper(
-	IN		PKEX_RTL_STRING_MAPPER				StringMapper,
-	IN		CONST KEX_RTL_STRING_MAPPER_ENTRY	Entries[],
+SMPAPI NTSTATUS NTAPI SmpInsertMultipleEntriesStringMapper(
+	IN		PKEX_SMP_STRING_MAPPER				StringMapper,
+	IN		CONST KEX_SMP_STRING_MAPPER_ENTRY	Entries[],
 	IN		ULONG								EntryCount)
 {
 	NTSTATUS FailureStatus;
@@ -382,7 +382,7 @@ KEXAPI NTSTATUS NTAPI KexRtlInsertMultipleEntriesStringMapper(
 	do {
 		NTSTATUS Status;
 
-		Status = KexRtlInsertEntryStringMapper(
+		Status = SmpInsertEntryStringMapper(
 			StringMapper,
 			&Entries[EntryCount-1].Key,
 			&Entries[EntryCount-1].Value);
@@ -395,9 +395,9 @@ KEXAPI NTSTATUS NTAPI KexRtlInsertMultipleEntriesStringMapper(
 	return FailureStatus;
 }
 
-KEXAPI NTSTATUS NTAPI KexRtlLookupMultipleEntriesStringMapper(
-	IN		PKEX_RTL_STRING_MAPPER			StringMapper,
-	IN OUT	KEX_RTL_STRING_MAPPER_ENTRY		Entries[],
+SMPAPI NTSTATUS NTAPI SmpLookupMultipleEntriesStringMapper(
+	IN		PKEX_SMP_STRING_MAPPER			StringMapper,
+	IN OUT	KEX_SMP_STRING_MAPPER_ENTRY		Entries[],
 	IN		ULONG							EntryCount)
 {
 	NTSTATUS FailureStatus;
@@ -419,7 +419,7 @@ KEXAPI NTSTATUS NTAPI KexRtlLookupMultipleEntriesStringMapper(
 	do {
 		NTSTATUS Status;
 
-		Status = KexRtlLookupEntryStringMapper(
+		Status = SmpLookupEntryStringMapper(
 			StringMapper,
 			&Entries[EntryCount-1].Key,
 			&Entries[EntryCount-1].Value);
@@ -432,8 +432,8 @@ KEXAPI NTSTATUS NTAPI KexRtlLookupMultipleEntriesStringMapper(
 	return FailureStatus;
 }
 
-KEXAPI NTSTATUS NTAPI KexRtlBatchApplyStringMapper(
-	IN		PKEX_RTL_STRING_MAPPER			StringMapper,
+SMPAPI NTSTATUS NTAPI SmpBatchApplyStringMapper(
+	IN		PKEX_SMP_STRING_MAPPER			StringMapper,
 	IN OUT	UNICODE_STRING					KeyToValue[],
 	IN		ULONG							KeyToValueCount)
 {
@@ -456,7 +456,7 @@ KEXAPI NTSTATUS NTAPI KexRtlBatchApplyStringMapper(
 	do {
 		NTSTATUS Status;
 
-		Status = KexRtlApplyStringMapper(
+		Status = SmpApplyStringMapper(
 			StringMapper,
 			&KeyToValue[KeyToValueCount-1]);
 

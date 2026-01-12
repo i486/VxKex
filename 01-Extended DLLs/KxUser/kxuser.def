@@ -35,6 +35,7 @@ EXPORTS
 	GetProcessUIContextInformation @2521 NONAME
 	GetCurrentInputMessageSource
 	IsImmersiveProcess
+	IsWindowArranged
 
 	;;
 	;; pointer.c
@@ -51,6 +52,9 @@ EXPORTS
 	SkipPointerFrameMessages
 	GetPointerDeviceRects
 	EnableMouseInPointer
+	RegisterPointerDeviceNotifications
+	GetWindowFeedbackSetting
+	SetWindowFeedbackSetting
 
 	;;
 	;; pwrnotfy.c

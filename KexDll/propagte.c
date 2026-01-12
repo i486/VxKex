@@ -68,6 +68,58 @@ STATIC CONST BYTE KexpNtOpenKeyHook32[] = {
 	0x00, 0x00, 0x00, 0x83, 0xC4, 0x04, 0xC2, 0x0C, 0x00
 };
 
+//
+// KexpNtOpenKeyHook64:
+//		cmp			[.AlreadyRewritten], 0				; Check if already rewrote key name
+//		jnz			.DontRewrite						; If so, just syscall
+//
+//		; Clear RTL_USER_PROCESS_PARAMETERS_IMAGE_KEY_MISSING flag in ProcessParameters.
+//		; The flag is set by the kernel to indicate that there is no IFEO key, and if it
+//		; is set, the NTDLL loader won't try to open the IFEO key and won't call this hook
+//		; in the right way to cause proper VxKex initialization.
+//		mov			rax, gs:0x60						; rax = PEB address
+//		mov			rax, [rax+0x20]						; rax = Peb->ProcessParmameters
+//		and			dword [rax+8], ~0x4000				; ProcessParameters->Flags &= ~RTL_USER_PROCESS_PARAMETERS_IMAGE_KEY_MISSING
+//
+//		mov			rax, [r8+0x08]						; r8 = ObjectAttributes->RootDirectory
+//		test		eax, eax							; if RootDirectory == NULL
+//		jz			.DontRewrite						; then don't rewrite (because it isn't the call
+//														; that we want to rewrite)
+//		; Now we are definitely rewriting.
+//		inc			[.AlreadyRewritten]					; flag to future calls of this hook
+//		lea			rax, [.PropagationVirtualKeyName]	; rax = &PropagationVirtualKeyName
+//		mov			[rax+0x08], rax						; |
+//		add			qword [rax+0x08], 16				; PropagationVirtualKeyName->Buffer = &PropagationVirtualKeyString
+//		mov			[r8+0x10], rax						; ObjectAttributes->ObjectName = &PropagationVirtualKeyName
+//
+// .DontRewrite:
+//		; This is just the NtOpenKey syscall as usual.
+//		mov			r10, rcx
+//		mov			eax, 0x0F
+//		syscall
+//		ret
+//
+// .AlreadyRewritten: db 0
+//
+//		; NOPs for alignment of the UNICODE_STRING structure
+//		nop
+//		nop
+//		nop
+//		nop
+//		nop
+//
+// ; UNICODE_STRING structure
+// .PropagationVirtualKeyName:
+//		dw			0x38	; Length
+//		dw			0x3A	; MaximumLength
+//		dd			0		; (padding)
+//		dq			0		; pointer, gets filled out by code
+// .PropagationVirtualKeyString
+// ; {VxKexPropagationVirtualKey}
+//		dw			'{','V','x','K','e','x','P','r','o','p','a','g','a','t'
+//		dw			'i','o','n','V','i','r','t','u','a','l','K','e','y','}',0
+//
+
 STATIC CONST BYTE KexpNtOpenKeyHook64[] = {
 	0x80, 0x3D, 0x43, 0x00, 0x00, 0x00, 0x00, 0x75, 0x36, 0x65, 0x48, 0x8B, 0x04, 0x25, 0x60, 0x00,
 	0x00, 0x00, 0x48, 0x8B, 0x40, 0x20, 0x81, 0x60, 0x08, 0xFF, 0xBF, 0xFF, 0xFF, 0x49, 0x8B, 0x40,
@@ -1062,8 +1114,8 @@ BailOut:
 		if (!NT_SUCCESS(Status)) {
 			KexLogWarningEvent(
 				L"Failed to resume the initial thread of the remote process.\r\n\r\n"
-				L"NTSTATUS error code: %s",
-				KexRtlNtStatusToString(Status));
+				L"NTSTATUS error code: %s (0x%08lx)",
+				KexRtlNtStatusToString(Status), Status);
 		}
 	}
 

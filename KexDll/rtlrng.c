@@ -21,6 +21,8 @@
 // Revision History:
 //
 //     vxiiduu              21-Mar-2024   Initial creation.
+//     vxiiduu              05-Sep-2025   Add check for NumberOfBytesToGenerate
+//                                        is zero in KexRtlGenerateRandomData.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -93,6 +95,14 @@ KEXAPI NTSTATUS NTAPI KexRtlGenerateRandomData(
 {
 	NTSTATUS Status;
 	IO_STATUS_BLOCK IoStatusBlock;
+
+	if (NumberOfBytesToGenerate == 0) {
+		// NumberOfBytesToGenerate can be zero sometimes (when called from ProcessPrng).
+		// In this case we should just return without doing anything, because apparently
+		// ProcessPrng accepts an argument of zero and at least one application
+		// (cloudflared) does this.
+		return STATUS_SUCCESS;
+	}
 
 	ASSUME (RandomBuffer != NULL);
 	ASSUME (KexData != NULL);

@@ -36,6 +36,7 @@ EXPORTS
 	NtNotifyChangeMultipleKeys					= KexDll.Ext_NtNotifyChangeMultipleKeys
 	NtCreateSection								= KexDll.Ext_NtCreateSection
 	NtAssignProcessToJobObject					= KexDll.Ext_NtAssignProcessToJobObject
+	NtCompareObjects							= KexDll.NtCompareObjects
 
 	ZwQueryInformationThread					= KexDll.Ext_NtQueryInformationThread
 	ZwSetInformationThread						= KexDll.Ext_NtSetInformationThread
@@ -44,3 +45,4 @@ EXPORTS
 	ZwNotifyChangeMultipleKeys					= KexDll.Ext_NtNotifyChangeMultipleKeys
 	ZwCreateSection								= KexDll.Ext_NtCreateSection
 	ZwAssignProcessToJobObject					= KexDll.Ext_NtAssignProcessToJobObject
+	ZwCompareObjects                            = KexDll.NtCompareObjects

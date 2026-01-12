@@ -21,10 +21,17 @@
 
 #pragma once
 #include <KexComm.h>
+#include <KexSmp.h>
 
 #ifndef KEXAPI
-#  pragma comment(lib, "KexDll.lib")
-#  define KEXAPI DECLSPEC_IMPORT
+// Define NO_KEXDLL_LIB if your application must not import from KexDll.
+// For example, KexSetup can't import from KexDll.
+#  ifndef NO_KEXDLL_LIB
+#    pragma comment(lib, "KexDll.lib")
+#    define KEXAPI DECLSPEC_IMPORT
+#  else
+#    define KEXAPI
+#  endif
 #endif
 
 #ifndef KEX_COMPONENT
@@ -76,40 +83,6 @@
 #define QUERY_KEY_MULTIPLE_VALUE_VALID_MASK \
 	(QUERY_KEY_MULTIPLE_VALUE_FAIL_FAST)
 
-#define KEX_RTL_STRING_MAPPER_CASE_INSENSITIVE_KEYS 1
-#define KEX_RTL_STRING_MAPPER_FLAGS_VALID_MASK (KEX_RTL_STRING_MAPPER_CASE_INSENSITIVE_KEYS)
-
-//
-// When you define new custom NTSTATUS values, make sure to update the code
-// in status.c to convert it into a string.
-//
-
-#define NTSTATUS_SUCCESS			(0x00000000L)
-#define NTSTATUS_INFORMATIONAL		(0x40000000L)
-#define NTSTATUS_WARNING			(0x80000000L)
-#define NTSTATUS_ERROR				(0xC0000000L)
-#define NTSTATUS_CUSTOMER			(0x20000000L)
-#define DEFINE_KEX_NTSTATUS(Severity, Number) ((NTSTATUS) (NTSTATUS_CUSTOMER | Severity | Number))
-
-// Remember to add entries to KexDll\status.c if you add more values.
-
-#define STATUS_USER_DISABLED					DEFINE_KEX_NTSTATUS(NTSTATUS_INFORMATIONAL, 0)
-#define STATUS_ALREADY_INITIALIZED				DEFINE_KEX_NTSTATUS(NTSTATUS_INFORMATIONAL, 1)
-#define STATUS_ALREADY_CONNECTED				DEFINE_KEX_NTSTATUS(NTSTATUS_INFORMATIONAL, 2)
-
-#define STATUS_IMAGE_NO_IMPORT_DIRECTORY		DEFINE_KEX_NTSTATUS(NTSTATUS_ERROR, 0)
-#define STATUS_STRING_MAPPER_ENTRY_NOT_FOUND	DEFINE_KEX_NTSTATUS(NTSTATUS_ERROR, 1)
-#define STATUS_REG_DATA_TYPE_MISMATCH			DEFINE_KEX_NTSTATUS(NTSTATUS_ERROR, 2)
-#define STATUS_KEXDLL_INITIALIZATION_FAILURE	DEFINE_KEX_NTSTATUS(NTSTATUS_ERROR, 3)
-#define STATUS_VERSION_MISMATCH					DEFINE_KEX_NTSTATUS(NTSTATUS_ERROR, 4)
-#define STATUS_SOURCE_APPLICATION_MISMATCH		DEFINE_KEX_NTSTATUS(NTSTATUS_ERROR, 5)
-#define STATUS_TOO_MANY_INDICES					DEFINE_KEX_NTSTATUS(NTSTATUS_ERROR, 6)
-#define STATUS_INVALID_OPEN_MODE				DEFINE_KEX_NTSTATUS(NTSTATUS_ERROR, 7)
-#define STATUS_KEXDATA_NOT_INITIALIZED			DEFINE_KEX_NTSTATUS(NTSTATUS_ERROR, 8)
-#define STATUS_KEXSETUP_FAILURE					DEFINE_KEX_NTSTATUS(NTSTATUS_ERROR, 9)
-#define STATUS_IMAGE_SECTION_NOT_FOUND			DEFINE_KEX_NTSTATUS(NTSTATUS_ERROR, 10)
-#define STATUS_DLL_NOT_IN_SYSTEM_ROOT			DEFINE_KEX_NTSTATUS(NTSTATUS_ERROR, 11)
-
 #define KEXDATA_FLAG_PROPAGATED				1	// Indicates that this process was spawned from a VxKex-enabled parent
 #define KEXDATA_FLAG_IFEO_OPTIONS_PRESENT	2	// Indicates that this process has VxKex options set in IFEO
 #define KEXDATA_FLAG_MSIEXEC				4	// Indicates that this process is %SystemRoot%\system32\msiexec.exe
@@ -117,6 +90,7 @@
 #define KEXDATA_FLAG_DISABLE_LOGGING		16	// Log files are not to be created.
 #define KEXDATA_FLAG_CHROMIUM				32	// This is a Chromium-based application (Chrome, Edge, Electron, QtWebEngine, etc.)
 #define KEXDATA_FLAG_KB2533623_PRESENT		64	// Indicates the DllDirectory APIs are available
+#define KEXDATA_FLAG_QT6					128 // Indicates a Qt6 application.
 
 #define KEX_STRONGSPOOF_SHAREDUSERDATA	1
 #define KEX_STRONGSPOOF_REGISTRY		2
@@ -144,22 +118,6 @@ typedef struct _KEX_RTL_QUERY_KEY_MULTIPLE_VARIABLE_TABLE_ENTRY {
 	IN		ULONG							ValueDataTypeRestrict;
 	OUT		ULONG							ValueDataType;
 } TYPEDEF_TYPE_NAME(KEX_RTL_QUERY_KEY_MULTIPLE_VARIABLE_TABLE_ENTRY);
-
-typedef struct _KEX_RTL_STRING_MAPPER {
-	RTL_DYNAMIC_HASH_TABLE	HashTable;
-	ULONG					Flags;
-} TYPEDEF_TYPE_NAME(KEX_RTL_STRING_MAPPER);
-
-typedef struct _KEX_RTL_STRING_MAPPER_ENTRY {
-	UNICODE_STRING	Key;
-	UNICODE_STRING	Value;
-} TYPEDEF_TYPE_NAME(KEX_RTL_STRING_MAPPER_ENTRY);
-
-typedef struct _KEX_RTL_STRING_MAPPER_HASH_TABLE_ENTRY {
-	RTL_DYNAMIC_HASH_TABLE_ENTRY	HashTableEntry;
-	UNICODE_STRING					Key;
-	UNICODE_STRING					Value;
-} TYPEDEF_TYPE_NAME(KEX_RTL_STRING_MAPPER_HASH_TABLE_ENTRY);
 
 #define VXLL_VERSION 1
 
@@ -368,6 +326,10 @@ KEXAPI VOID NTAPI KexRtlRetreatUnicodeString(
 	OUT	PUNICODE_STRING	String,
 	IN	USHORT			RetreatCb);
 
+KEXAPI NTSTATUS NTAPI KexRtlSetUnicodeStringBufferEnd(
+	OUT	PUNICODE_STRING	String,
+	IN	PCWCHAR			NewEnd);
+
 KEXAPI NTSTATUS NTAPI KexRtlShiftUnicodeString(
 	IN OUT	PUNICODE_STRING	String,
 	IN		USHORT			ShiftCch,
@@ -391,51 +353,14 @@ KEXAPI NTSTATUS NTAPI KexRtlCreateDirectoryRecursive(
 KEXAPI PCWSTR NTAPI KexRtlNtStatusToString(
 	IN	NTSTATUS	Status);
 
-KEXAPI NTSTATUS NTAPI KexRtlCreateStringMapper(
-	OUT		PPKEX_RTL_STRING_MAPPER		StringMapper,
-	IN		ULONG						Flags OPTIONAL);
-
-KEXAPI NTSTATUS NTAPI KexRtlDeleteStringMapper(
-	IN		PPKEX_RTL_STRING_MAPPER		StringMapper);
-
-KEXAPI NTSTATUS NTAPI KexRtlInsertEntryStringMapper(
-	IN		PKEX_RTL_STRING_MAPPER		StringMapper,
-	IN		PCUNICODE_STRING			Key,
-	IN		PCUNICODE_STRING			Value);
-
-KEXAPI NTSTATUS NTAPI KexRtlLookupEntryStringMapper(
-	IN		PKEX_RTL_STRING_MAPPER			StringMapper,
-	IN		PCUNICODE_STRING				Key,
-	OUT		PUNICODE_STRING					Value OPTIONAL);
-
-KEXAPI NTSTATUS NTAPI KexRtlRemoveEntryStringMapper(
-	IN		PKEX_RTL_STRING_MAPPER			StringMapper,
-	IN		PCUNICODE_STRING				Key);
-
-KEXAPI NTSTATUS NTAPI KexRtlApplyStringMapper(
-	IN		PKEX_RTL_STRING_MAPPER			StringMapper,
-	IN OUT	PUNICODE_STRING					KeyToValue);
-
-KEXAPI NTSTATUS NTAPI KexRtlInsertMultipleEntriesStringMapper(
-	IN		PKEX_RTL_STRING_MAPPER				StringMapper,
-	IN		CONST KEX_RTL_STRING_MAPPER_ENTRY	Entries[],
-	IN		ULONG								EntryCount);
-
-KEXAPI NTSTATUS NTAPI KexRtlLookupMultipleEntriesStringMapper(
-	IN		PKEX_RTL_STRING_MAPPER			StringMapper,
-	IN OUT	KEX_RTL_STRING_MAPPER_ENTRY		Entries[],
-	IN		ULONG							EntryCount);
-
-KEXAPI NTSTATUS NTAPI KexRtlBatchApplyStringMapper(
-	IN		PKEX_RTL_STRING_MAPPER			StringMapper,
-	IN OUT	UNICODE_STRING					KeyToValue[],
-	IN		ULONG							KeyToValueCount);
-
 KEXAPI PIMAGE_SECTION_HEADER NTAPI KexRtlSectionTableFromRva(
 	IN	PIMAGE_NT_HEADERS	NtHeaders,
 	IN	ULONG				ImageRva);
 
 KEXAPI NTSTATUS NTAPI KexRtlNullTerminateUnicodeString(
+	IN OUT	PUNICODE_STRING	String);
+
+KEXAPI BOOLEAN NTAPI KexRtlUnicodeStringContainsEmbeddedNull(
 	IN	PUNICODE_STRING	String);
 
 KEXAPI NTSTATUS NTAPI KexRtlWaitOnAddress(
@@ -491,6 +416,7 @@ KEXAPI NTSTATUS NTAPI KexRtlGenerateRandomData(
 #define KexRtlAnsiStringCch(AnsiString) ((AnsiString)->Length)
 #define KexRtlAnsiStringBufferCch(AnsiString) ((AnsiString)->MaximumLength)
 #define KexRtlEndOfUnicodeString(UnicodeString) ((UnicodeString)->Buffer + KexRtlUnicodeStringCch(UnicodeString))
+#define KexRtlEndOfUnicodeStringBuffer(UnicodeString) ((UnicodeString)->Buffer + KexRtlUnicodeStringBufferCch(UnicodeString))
 #define KexRtlCopyMemory(Destination, Source, Cb) __movsb((PUCHAR) (Destination), (PUCHAR) (Source), (Cb))
 
 #define ForEachArrayItem(Array, Index) for (Index = 0; Index < ARRAYSIZE(Array); ++Index)
@@ -525,10 +451,10 @@ KEXAPI NTSTATUS NTAPI KexLdrGetDllFullNameFromAddress(
 	IN	PVOID			Address,
 	OUT	PUNICODE_STRING	DllFullPath);
 
-KEXAPI NTSTATUS NTAPI KexLdrProtectImageImportSection(
+KEXAPI NTSTATUS NTAPI KexLdrGetImageImportSection(
 	IN	PVOID	ImageBase,
-	IN	ULONG	PageProtection,
-	OUT	PULONG	OldProtection);
+	OUT	PPVOID	ImportSectionBase,
+	OUT	PSIZE_T	ImportSectionSize);
 
 #pragma endregion
 
@@ -693,20 +619,20 @@ KEXAPI NTSTATUS NTAPI KexPatchCpiwSubsystemVersionCheck(
 // System Service Extensions/Hooks
 //
 
-NTSTATUS NTAPI Ext_NtQueryInformationThread(
+KEXAPI NTSTATUS NTAPI Ext_NtQueryInformationThread(
 	IN	HANDLE				ThreadHandle,
 	IN	THREADINFOCLASS		ThreadInformationClass,
 	OUT	PVOID				ThreadInformation,
 	IN	ULONG				ThreadInformationLength,
 	OUT	PULONG				ReturnLength OPTIONAL);
 
-NTSTATUS NTAPI Ext_NtSetInformationThread(
+KEXAPI NTSTATUS NTAPI Ext_NtSetInformationThread(
 	IN	HANDLE				ThreadHandle,
 	IN	THREADINFOCLASS		ThreadInformationClass,
 	IN	PVOID				ThreadInformation,
 	IN	ULONG				ThreadInformationLength);
 
-NTSTATUS NTAPI Ext_NtNotifyChangeKey(
+KEXAPI NTSTATUS NTAPI Ext_NtNotifyChangeKey(
 	IN	HANDLE				KeyHandle,
 	IN	HANDLE				Event OPTIONAL,
 	IN	PIO_APC_ROUTINE		ApcRoutine OPTIONAL,
@@ -718,7 +644,7 @@ NTSTATUS NTAPI Ext_NtNotifyChangeKey(
 	IN	ULONG				BufferSize,
 	IN	BOOLEAN				Asynchronous);
 
-NTSTATUS NTAPI Ext_NtNotifyChangeMultipleKeys(
+KEXAPI NTSTATUS NTAPI Ext_NtNotifyChangeMultipleKeys(
 	IN	HANDLE				MasterKeyHandle,
 	IN	ULONG				Count OPTIONAL,
 	IN	OBJECT_ATTRIBUTES	SlaveObjects[] OPTIONAL,
@@ -732,7 +658,7 @@ NTSTATUS NTAPI Ext_NtNotifyChangeMultipleKeys(
 	IN	ULONG				BufferSize,
 	IN	BOOLEAN				Asynchronous);
 
-NTSTATUS NTAPI Ext_NtCreateSection(
+KEXAPI NTSTATUS NTAPI Ext_NtCreateSection(
 	OUT	PHANDLE				SectionHandle,
 	IN	ULONG				DesiredAccess,
 	IN	POBJECT_ATTRIBUTES	ObjectAttributes OPTIONAL,
@@ -741,7 +667,7 @@ NTSTATUS NTAPI Ext_NtCreateSection(
 	IN	ULONG				SectionAttributes,
 	IN	HANDLE				FileHandle OPTIONAL);
 
-NTSTATUS NTAPI Ext_NtQueryInformationProcess(
+KEXAPI NTSTATUS NTAPI Ext_NtQueryInformationProcess(
 	IN	HANDLE				ProcessHandle,
 	IN	PROCESSINFOCLASS	ProcessInformationClass,
 	OUT	PVOID				ProcessInformation,
@@ -752,6 +678,12 @@ KEXAPI NTSTATUS NTAPI Ext_NtAssignProcessToJobObject(
 	IN	HANDLE	JobHandle,
 	IN	HANDLE	ProcessHandle);
 
+#pragma endregion
+
+#pragma region Nt* functions (not present in Windows 7)
+KEXAPI NTSTATUS NTAPI NtCompareObjects(
+	IN		HANDLE		FirstObject,
+	IN		HANDLE		SecondObject);
 #pragma endregion
 
 #pragma region KexNt* functions

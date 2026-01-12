@@ -36,8 +36,11 @@
 #define NOSOUND
 #define _UXTHEME_H_
 
+#define KXADVAPI
+
 #pragma comment(lib, "KexDll.lib")
 
 #define KEX_COMPONENT L"KxAdvapi"
 #define KEX_ENV_WIN32
 #define KEX_TARGET_TYPE_DLL
+#define KEX_NO_EXTRA_LIBS
