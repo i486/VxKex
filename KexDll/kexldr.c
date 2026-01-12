@@ -20,6 +20,8 @@
 //     vxiiduu              27-Feb-2024  Improve efficiency of routines which
 //                                       find NTDLL base addresses.
 //     vxiiduu              29-Feb-2024  Revert previous change (wrong assumption).
+//     vxiiduu              21-Mar-2024  Properly handle situations where an empty
+//                                       DLL name is passed to KexLdrLoadDll
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -565,6 +567,10 @@ KEXAPI NTSTATUS NTAPI KexLdrLoadDll(
 		goto BailOut;
 	}
 
+	if (DllName->Length == 0) {
+		goto BailOut;
+	}
+
 	//
 	// Try to rewrite the DLL name or path.
 	//
@@ -622,7 +628,14 @@ BailOut:
 		DllHandle);
 
 	if (!NT_SUCCESS(Status)) {
-		KexLogWarningEvent(
+		//
+		// Use Detail severity when the call originates from a non-rewritten module.
+		// Use Warning severity when the call originates from a module for which we
+		// have rewritten imports (i.e. target application's modules).
+		//
+
+		KexLogEvent(
+			NtCurrentTeb()->KexLdrShouldRewriteDll ? LogSeverityWarning : LogSeverityDetail,
 			L"Failed to dynamically load %wZ.\r\n\r\n"
 			L"DllPath:            \"%s\"\r\n"
 			L"DllCharacteristics: 0x%08lx\r\n"
@@ -646,7 +659,13 @@ KEXAPI NTSTATUS NTAPI KexLdrGetDllHandleEx(
 	NTSTATUS Status;
 	UNICODE_STRING RewrittenDll;
 
+	ASSERT (VALID_UNICODE_STRING(DllName));
+
 	if (!NtCurrentTeb()->KexLdrShouldRewriteDll) {
+		goto BailOut;
+	}
+
+	if (DllName->Length == 0) {
 		goto BailOut;
 	}
 

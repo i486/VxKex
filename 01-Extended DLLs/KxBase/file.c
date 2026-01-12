@@ -167,56 +167,76 @@ KXBASEAPI HRESULT WINAPI CopyFile2(
 	}
 }
 
-//KXBASEAPI HANDLE WINAPI Ext_CreateFileMappingW(
-//	IN	HANDLE					FileHandle,
-//	IN	PSECURITY_ATTRIBUTES	SecurityAttributes OPTIONAL,
-//	IN	ULONG					PageProtection,
-//	IN	ULONG					MaximumSizeHigh,
-//	IN	ULONG					MaximumSizeLow,
-//	IN	PCWSTR					Name OPTIONAL)
-//{
-//	HANDLE SectionHandle;
-//	WCHAR GeneratedName[64];
-//
-//	//
-//	// Windows 7 ignores security attributes on unnamed sections. Chromium checks
-//	// this and crashes. In order to solve this problem we will give a random name
-//	// to any unnamed section that has a security descriptor.
-//	//
-//
-//	if (SecurityAttributes && SecurityAttributes->lpSecurityDescriptor && !Name) {
-//		ULONGLONG RandomIdentifier;
-//		PTEB Teb;
-//
-//		//
-//		// Create a random identifier.
-//		//
-//
-//		Teb = NtCurrentTeb();
-//		NtQuerySystemTime((PLONGLONG) &RandomIdentifier);
-//		RandomIdentifier *= (ULONG_PTR) Teb->ClientId.UniqueThread;
-//		RandomIdentifier *= RtlRandomEx((PULONG) &RandomIdentifier);
-//
-//		StringCchPrintf(
-//			GeneratedName,
-//			ARRAYSIZE(GeneratedName),
-//			L"VxKexRandomSectionName_%016I64x",
-//			RandomIdentifier);
-//
-//		Name = GeneratedName;
-//	}
-//
-//	SectionHandle = CreateFileMappingW(
-//		FileHandle,
-//		SecurityAttributes,
-//		PageProtection,
-//		MaximumSizeHigh,
-//		MaximumSizeLow,
-//		Name);
-//
-//	if (SectionHandle == NULL && Name == GeneratedName) {
-//		KexDebugCheckpoint();
-//	}
-//
-//	return SectionHandle;
-//}
+KXBASEAPI BOOL WINAPI GetOverlappedResultEx(
+	IN	HANDLE					FileHandle,
+	IN	VOLATILE LPOVERLAPPED	Overlapped,
+	OUT	PULONG					NumberOfBytesTransferred,
+	IN	ULONG					TimeoutMs,
+	IN	BOOL					Alertable)
+{
+	if (Overlapped->Internal == STATUS_PENDING) {
+		if (TimeoutMs != 0) {
+			HANDLE HandleToWaitOn;
+			ULONG WaitResult;
+
+			//
+			// We will wait on the hEvent member of the OVERLAPPED structure.
+			// If hEvent is NULL, we will wait on the file handle instead.
+			//
+
+			if (Overlapped->hEvent) {
+				HandleToWaitOn = Overlapped->hEvent;
+			} else {
+				HandleToWaitOn = FileHandle;
+			}
+
+			WaitResult = WaitForSingleObjectEx(
+				HandleToWaitOn,
+				TimeoutMs,
+				Alertable);
+
+			if (WaitResult != WAIT_OBJECT_0) {
+				if (WaitResult == WAIT_TIMEOUT || WaitResult == WAIT_IO_COMPLETION) {
+					RtlSetLastWin32Error(WaitResult);
+				}
+
+				return FALSE;
+			}
+		} else {
+			//
+			// If the timeout is zero and the operation is still pending, the
+			// function returns FALSE immediately with the last-error code being
+			// ERROR_IO_INCOMPLETE.
+			//
+
+			RtlSetLastWin32Error(ERROR_IO_INCOMPLETE);
+			return FALSE;
+		}
+	}
+
+	*NumberOfBytesTransferred = (ULONG) Overlapped->InternalHigh;
+
+	if (NT_SUCCESS((NTSTATUS) Overlapped->Internal)) {
+		return TRUE;
+	} else {
+		BaseSetLastNTError((NTSTATUS) Overlapped->Internal);
+		return FALSE;
+	}
+}
+
+KXBASEAPI BOOL WINAPI GetFileInformationByName(
+	IN	PCWSTR					FileName,
+	IN	FILE_INFO_BY_NAME_CLASS	FileInformationClass,
+	OUT	PVOID					FileInformationBuffer,
+	IN	ULONG					BufferCb)
+{
+	KexLogWarningEvent(
+		L"Unsupported API GetFileInformationByName called\r\n\r\n"
+		L"FileName:             %s\r\n"
+		L"FileInformationClass: %d",
+		FileName,
+		FileInformationClass);
+
+	RtlSetLastWin32Error(ERROR_NOT_SUPPORTED);
+	return FALSE;
+}

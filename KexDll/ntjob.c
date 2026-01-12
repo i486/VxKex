@@ -7,7 +7,7 @@ KEXAPI NTSTATUS NTAPI Ext_NtAssignProcessToJobObject(
 {
 	NTSTATUS Status;
 	
-	Status = KexNtAssignProcessToJobObject(
+	Status = NtAssignProcessToJobObject(
 		JobHandle,
 		ProcessHandle);
 

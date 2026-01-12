@@ -30,6 +30,7 @@ EXPORTS
 	KexRtlSectionTableFromRva
 	KexRtlNullTerminateUnicodeString
 	KexRtlCreateUntrustedDirectoryObject
+	KexRtlGenerateRandomData
 
 	KexRtlWow64GetProcessMachines
 	KexRtlSetBit
@@ -87,6 +88,14 @@ EXPORTS
 	VxlReadLog
 	VxlReadMultipleEntriesLog
 	VxlSeverityToText
+
+	Ext_NtQueryInformationThread
+	Ext_NtSetInformationThread
+	Ext_NtQueryInformationProcess
+	Ext_NtNotifyChangeKey
+	Ext_NtNotifyChangeMultipleKeys
+	Ext_NtCreateSection
+	Ext_NtAssignProcessToJobObject
 
 	KexNtQuerySystemTime
 	KexNtCreateUserProcess

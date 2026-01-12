@@ -161,6 +161,11 @@ NTSTATUS CDECL VxlWriteLogEx(
 			FileEntry->TextHeaderCch = DoubleNewLine - FileEntry->Text + 1;
 			FileEntry->TextCch = TextCch - FileEntry->TextHeaderCch;
 
+			// NOTE: This assertion can get hit if the log string contains null
+			// characters. If you are hitting this assertion make sure that any
+			// UNICODE_STRINGs you are putting in the formatted text do not contain
+			// embedded nulls. Technically the log file format can support embedded
+			// nulls but the log viewer does not display any text after a null.
 			ASSERT (wcslen(FileEntry->Text + FileEntry->TextHeaderCch) == FileEntry->TextCch - 1);
 
 			// recalculate new size of log file entry, since we reduced its
@@ -179,7 +184,7 @@ NTSTATUS CDECL VxlWriteLogEx(
 		// interacting with the log file header.
 		//
 
-		KexNtQuerySystemTime((PLONGLONG) &FileEntry->Time64);
+		NtQuerySystemTime((PLONGLONG) &FileEntry->Time64);
 		FileEntry->ProcessId = (ULONG) Teb->ClientId.UniqueProcess;
 		FileEntry->ThreadId = (ULONG) Teb->ClientId.UniqueThread;
 		FileEntry->Severity = Severity;
@@ -242,7 +247,7 @@ NTSTATUS CDECL VxlWriteLogEx(
 		// Passing -1 causes the write to occur at the end of the file.
 		EndOfFileOffset = -1;
 
-		Status = KexNtWriteFile(
+		Status = NtWriteFile(
 			LogHandle->FileHandle,
 			NULL,
 			NULL,

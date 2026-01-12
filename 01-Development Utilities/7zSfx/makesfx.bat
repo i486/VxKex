@@ -144,8 +144,8 @@ REM ===========================================================================
 REM FOR FINAL RELEASE: switch to the upper command for higher compression
 REM ===========================================================================
 
-7zr a -y Archive.7z .\Archive\* -mmt1 -mx9 -m0=LZMA:d32
-REM 7zr a -y Archive.7z .\Archive\* -mmt1 -mx1 -m0=LZMA:d32
+REM 7zr a -y Archive.7z .\Archive\* -mmt1 -mx9 -m0=LZMA:d32
+7zr a -y Archive.7z .\Archive\* -mmt1 -mx1 -m0=LZMA:d32
 
 if %errorlevel% neq 0 (
 	pause
@@ -166,7 +166,7 @@ del Archive.7z
 REM Now auto-increment the build number, but only for debug builds.
 
 if %DBGREL%==Debug (
-REM	"..\..\01-Development Utilities\vautogen\vautogen.exe"
+	"..\..\01-Development Utilities\vautogen\vautogen.exe"
 
 	if %errorlevel% neq 0 (
 		pause

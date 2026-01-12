@@ -11,3 +11,4 @@ EXPORTS
 
 	;; winsock.c
 	GetHostNameW
+	getaddrinfo = Ext_getaddrinfo

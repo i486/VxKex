@@ -143,6 +143,9 @@
     <ClCompile Include="ntjob.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="rtlrng.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="KexDll.def">

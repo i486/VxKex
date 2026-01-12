@@ -35,7 +35,10 @@ STATIC NTSTATUS AshpSetIsChromiumProcess(
 {
 	NTSTATUS Status;
 
+	ASSUME (KexData != NULL);
 	ASSUME (!(KexData->Flags & KEXDATA_FLAG_CHROMIUM));
+
+	KexData->Flags |= KEXDATA_FLAG_CHROMIUM;
 
 	KexLogInformationEvent(L"Detected Chromium, applying compatibility fixes");
 
@@ -47,7 +50,17 @@ STATIC NTSTATUS AshpSetIsChromiumProcess(
 	Status = AshSelectDWriteImplementation(DWriteWindows10Implementation);
 	ASSERT (NT_SUCCESS(Status));
 
-	KexData->Flags |= KEXDATA_FLAG_CHROMIUM;
+	if (!NT_SUCCESS(Status)) {
+		return Status;
+	}
+
+	//
+	// Ensure the random number generator is initialized as soon as possible.
+	// Once Chromium locks down the sandbox this call will fail.
+	//
+
+	Status = KexRtlInitializeRandomNumberGenerator();
+	ASSERT (NT_SUCCESS(Status));
 
 	return Status;
 }

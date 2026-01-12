@@ -1,9 +1,9 @@
 LIBRARY KxDx
 EXPORTS
+	;; factory.c
 	CreateDXGIFactory2
 	
-	MFCreateDXGIDeviceManager
-
+	;; dx12stub.c
 	;; These must be exported with ordinal. A lot of programs import by ordinal
 	;; from d3d12 for some reason.
 	D3D12CreateDevice								@101
@@ -14,3 +14,8 @@ EXPORTS
 	D3D12GetInterface
 	D3D12SerializeRootSignature						@115
 	D3D12SerializeVersionedRootSignature			@116
+
+	;; dcmpstub.c
+	DCompositionCreateDevice
+	DCompositionCreateDevice2
+	DCompositionCreateDevice3

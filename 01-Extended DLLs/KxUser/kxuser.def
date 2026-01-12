@@ -6,6 +6,7 @@ EXPORTS
 
 	SetDisplayAutoRotationPreferences
 	GetDisplayAutoRotationPreferences
+	GetAutoRotationState
 
 	;;
 	;; blutooth.c

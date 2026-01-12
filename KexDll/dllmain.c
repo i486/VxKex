@@ -29,6 +29,7 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
+#define NEED_VERSION_DEFS
 #include "buildcfg.h"
 #include "kexdllp.h"
 
@@ -122,14 +123,25 @@ BOOL WINAPI DllMain(
 		KexOpenVxlLogForCurrentApplication(&KexData->LogHandle);
 
 		//
+		// Hook hard errors so that we can log various kinds of loader failures.
+		//
+
+		KexHkInstallBasicHook(NtRaiseHardError, Ext_NtRaiseHardError, NULL);
+
+		//
 		// Log some basic information such as command-line parameters to
 		// the log.
 		//
 
 		KexLogInformationEvent(
 			L"Process created\r\n\r\n"
+			L"The VxKex version is %hs (%s)\r\n"
+			L"The program is %d-bit and the operating system is %d-bit\r\n"
 			L"Full path to the EXE: %wZ\r\n"
 			L"Command line:         %wZ\r\n",
+			KEX_VERSION_STR,
+			KexIsDebugBuild ? L"Debug" : L"Release",
+			KexRtlCurrentProcessBitness(), KexRtlOperatingSystemBitness(),
 			&Peb->ProcessParameters->ImagePathName,
 			&Peb->ProcessParameters->CommandLine);
 
@@ -161,19 +173,6 @@ BOOL WINAPI DllMain(
 			KexData->IfeoParameters.DisableAppSpecific,
 			KexData->IfeoParameters.WinVerSpoof,
 			KexData->IfeoParameters.StrongVersionSpoof);
-
-		//
-		// Hook any other NT system calls we are going to hook.
-		//
-
-		KexHkInstallBasicHook(NtQueryInformationThread, Ext_NtQueryInformationThread, NULL);
-		KexHkInstallBasicHook(NtSetInformationThread, Ext_NtSetInformationThread, NULL);
-		KexHkInstallBasicHook(NtQueryInformationProcess, Ext_NtQueryInformationProcess, NULL);
-		KexHkInstallBasicHook(NtNotifyChangeKey, Ext_NtNotifyChangeKey, NULL);
-		KexHkInstallBasicHook(NtNotifyChangeMultipleKeys, Ext_NtNotifyChangeMultipleKeys, NULL);
-		KexHkInstallBasicHook(NtCreateSection, Ext_NtCreateSection, NULL);
-		KexHkInstallBasicHook(NtRaiseHardError, Ext_NtRaiseHardError, NULL);
-		KexHkInstallBasicHook(NtAssignProcessToJobObject, Ext_NtAssignProcessToJobObject, NULL);
 
 		//
 		// Perform version spoofing, if required.

@@ -83,6 +83,12 @@
     <ClCompile Include="token.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="geoname.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="security.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="kxbase.def">

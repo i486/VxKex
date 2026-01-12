@@ -130,7 +130,7 @@
 #pragma comment(linker, "/EXPORT:CreateServiceA=advapi32.CreateServiceA")
 #pragma comment(linker, "/EXPORT:CreateServiceW=advapi32.CreateServiceW")
 #pragma comment(linker, "/EXPORT:CreateTraceInstanceId=advapi32.CreateTraceInstanceId")
-#pragma comment(linker, "/EXPORT:CreateWellKnownSid=advapi32.CreateWellKnownSid")
+//#pragma comment(linker, "/EXPORT:CreateWellKnownSid=advapi32.CreateWellKnownSid")
 #pragma comment(linker, "/EXPORT:CredBackupCredentials=advapi32.CredBackupCredentials")
 #pragma comment(linker, "/EXPORT:CredDeleteA=advapi32.CredDeleteA")
 #pragma comment(linker, "/EXPORT:CredDeleteW=advapi32.CredDeleteW")

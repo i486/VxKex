@@ -367,10 +367,23 @@ BOOLEAN KexShouldRewriteImportsOfDll(
 
 	//
 	// If this DLL is a part of VxKex, do not rewrite its imports.
+	// Note: Only the DLLs which start with "Kx" are considered part of VxKex.
+	// Other DLLs within Kex32/Kex64 are just prebuilt DLLs from later versions
+	// of Windows.
 	//
 
 	if (RtlPrefixUnicodeString(&KexData->KexDir, FullDllName, TRUE)) {
-		return FALSE;
+
+		if (KexRtlUnicodeStringCch(&BaseDllName) >= 2 &&
+			ToUpper(BaseDllName.Buffer[0]) == 'K' &&
+			ToUpper(BaseDllName.Buffer[1]) == 'X') {
+
+			// This is a VxKex API extension DLL.
+			return FALSE;
+		}
+
+		// Prebuilt DLL. Rewrite it and don't perform any further checks.
+		return TRUE;
 	}
 
 	unless (KexData->IfeoParameters.DisableAppSpecific) {
@@ -384,9 +397,9 @@ BOOLEAN KexShouldRewriteImportsOfDll(
 		// see anything the app is drawing.
 		//
 
-		RtlInitConstantUnicodeString(&TargetDllName, L"wpfgfx_cor3.dll");
+		RtlInitConstantUnicodeString(&TargetDllName, L"wpfgfx_");
 
-		if (KexRtlUnicodeStringEndsWith(FullDllName, &TargetDllName, TRUE)) {
+		if (RtlPrefixUnicodeString(&TargetDllName, &BaseDllName, TRUE)) {
 			return FALSE;
 		}
 
@@ -401,7 +414,7 @@ BOOLEAN KexShouldRewriteImportsOfDll(
 			RtlInitConstantUnicodeString(&TargetDllName, L"action_x86.dll");
 		}
 
-		if (KexRtlUnicodeStringEndsWith(FullDllName, &TargetDllName, TRUE)) {
+		if (RtlEqualUnicodeString(&BaseDllName, &TargetDllName, TRUE)) {
 			return FALSE;
 		}
 	}

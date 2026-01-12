@@ -39,6 +39,8 @@ NTSTATUS NTAPI Ext_NtCreateSection(
 	// to any unnamed section that has a DACL.
 	//
 
+RetryCreateRandomName:
+
 	if (ObjectAttributes &&
 		ObjectAttributes->RootDirectory == NULL &&
 		ObjectAttributes->ObjectName == NULL &&
@@ -53,13 +55,18 @@ NTSTATUS NTAPI Ext_NtCreateSection(
 		Teb = NtCurrentTeb();
 
 		//
-		// Create a random identifier.
+		// Create a random identifier. The uniqueness of this identifier is quite
+		// important. If we don't get a unique identifier, we will have to retry
+		// the operation, and that is bad for performance.
 		//
 
-		NtQuerySystemTime((PLONGLONG) &RandomIdentifier);
-		RandomIdentifier *= (ULONG_PTR) Teb->ClientId.UniqueProcess;
-		RandomIdentifier *= (ULONG_PTR) Teb->ClientId.UniqueThread;
-		RandomIdentifier += RtlRandomEx((PULONG) &RandomIdentifier);
+		Status = KexRtlGenerateRandomData(&RandomIdentifier, sizeof(RandomIdentifier));
+		ASSERT (NT_SUCCESS(Status));
+
+		if (!NT_SUCCESS(Status)) {
+			Status = NtQuerySystemTime((PLONGLONG) &RandomIdentifier);
+			ASSERT (NT_SUCCESS(Status));
+		}
 
 		RtlInitEmptyUnicodeString(&NewObjectName, ObjectName, sizeof(ObjectName));
 		Status = RtlAppendUnicodeToString(&NewObjectName, L"VxKexRandomSectionName_");
@@ -80,6 +87,8 @@ NTSTATUS NTAPI Ext_NtCreateSection(
 		NewObjectAttributes.RootDirectory = KexData->BaseNamedObjects;
 		NewObjectAttributes.ObjectName = &NewObjectName;
 
+		KexLogDebugEvent(L"Generated a random section name: \"%wZ\"", &NewObjectName);
+
 		//
 		// TODO: set some kind of security which stops other people opening this
 		// named object.
@@ -92,7 +101,7 @@ NTSTATUS NTAPI Ext_NtCreateSection(
 	}
 
 RetryAfterError:
-	Status = KexNtCreateSection(
+	Status = NtCreateSection(
 		SectionHandle,
 		DesiredAccess,
 		ObjectAttributes,
@@ -103,11 +112,27 @@ RetryAfterError:
 
 	if (HaveRenamedObject && !NT_SUCCESS(Status)) {
 		if (ObjectAttributes->RootDirectory == KexData->UntrustedNamedObjects) {
+
 			KexDebugCheckpoint();
 
-			//
-			// TODO: handle STATUS_OBJECT_NAME_COLLISION by retrying.
-			//
+			if (Status == STATUS_OBJECT_NAME_COLLISION) {
+				//
+				// This should be extremely rare.
+				//
+
+				KexLogWarningEvent(L"Random section name collision has occurred");
+
+				//
+				// Go back and keep retrying until we succeed.
+				//
+
+				goto RetryCreateRandomName;
+			}
+
+			KexLogErrorEvent(
+				L"Creating randomly named section failed. Falling back to anonymous section.\r\n\r\n"
+				L"NTSTATUS error code: %s (0x%08lx)",
+				KexRtlNtStatusToString(Status), Status);
 
 			// fall back to original ObjectAttributes structure
 			ObjectAttributes = OriginalObjectAttributes;

@@ -8,8 +8,6 @@
 
 EXTERN PKEX_PROCESS_DATA KexData;
 
-#define IOCTL_KSEC_RANDOM_FILL_BUFFER CTL_CODE(FILE_DEVICE_KSEC, 0x02, METHOD_BUFFERED, FILE_ANY_ACCESS)
-
 typedef enum _TLS_ALGORITHM_USAGE {
 	TlsParametersCngAlgUsageKeyExchange,	// Key exchange algorithm. RSA, ECHDE, DHE, etc.
 	TlsParametersCngAlgUsageSignature,		// Signature algorithm. RSA, DSA, ECDSA, etc.

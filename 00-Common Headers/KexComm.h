@@ -219,6 +219,41 @@
 #  define PopulationCount16 __popcnt16
 #  define PopulationCount __popcnt
 #  define PopulationCount64 __popcnt64
+
+#  define InterlockedIncrement _InterlockedIncrement
+#  define InterlockedIncrement16 _InterlockedIncrement16
+#  define InterlockedIncrement64 _InterlockedIncrement64
+
+#  define InterlockedDecrement _InterlockedDecrement
+#  define InterlockedDecrement16 _InterlockedDecrement16
+#  define InterlockedDecrement64 _InterlockedDecrement64
+
+#  define InterlockedAnd _InterlockedAnd
+#  define InterlockedAnd8 _InterlockedAnd8
+#  define InterlockedAnd16 _InterlockedAnd16
+#  define InterlockedAnd64 _InterlockedAnd64
+
+#  define InterlockedOr _InterlockedOr
+#  define InterlockedOr8 _InterlockedOr8
+#  define InterlockedOr16 _InterlockedOr16
+#  define InterlockedOr64 _InterlockedOr64
+
+#  define InterlockedXor _InterlockedXor
+#  define InterlockedXor8 _InterlockedXor8
+#  define InterlockedXor16 _InterlockedXor16
+#  define InterlockedXor64 _InterlockedXor64
+
+#  define InterlockedCompareExchange _InterlockedCompareExchange
+#  define InterlockedCompareExchange8 _InterlockedCompareExchange8
+#  define InterlockedCompareExchange16 _InterlockedCompareExchange16
+#  define InterlockedCompareExchange64 _InterlockedCompareExchange64
+
+#  undef InterlockedCompareExchangePointer
+#  ifdef _M_X64
+#    define InterlockedCompareExchangePointer(PointerToPointer, Pointer, Compare) ((PVOID) _InterlockedCompareExchange64((LONGLONG VOLATILE *) (PointerToPointer), (LONGLONG) (Pointer), (LONGLONG) Compare))
+#  else
+#    define InterlockedCompareExchangePointer(PointerToPointer, Pointer, Compare) ((PVOID) _InterlockedCompareExchange((LONG VOLATILE *) (PointerToPointer), (LONG) (Pointer), (LONG) Compare))
+#  endif
 #pragma endregion
 
 #pragma region Convenience Macros

@@ -98,7 +98,6 @@ KEXAPI NTSTATUS NTAPI KexPatchCpiwSubsystemVersionCheck(
 	STATIC BOOLEAN AlreadyPatched = FALSE;
 
 	if (AlreadyPatched) {
-		ASSERT (!AlreadyPatched);
 		return STATUS_ALREADY_INITIALIZED;
 	}
 
