@@ -189,4 +189,8 @@ GENERATE_SYSCALL(NtQueryInformationProcess,			0x00EA, 0x0016, 0x00, 0x14,
 	IN	ULONG				ProcessInformationLength,
 	OUT	PULONG				ReturnLength OPTIONAL);
 
+GENERATE_SYSCALL(NtAssignProcessToJobObject,		0x002B, 0x0085, 0x08, 0x08,
+	IN	HANDLE				JobHandle,
+	IN	HANDLE				ProcessHandle);
+
 #endif

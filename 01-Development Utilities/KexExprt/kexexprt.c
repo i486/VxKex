@@ -149,7 +149,7 @@ INT_PTR CALLBACK MainWndProc(
 			}
 
 			GetDlgItemText(MainWindow, IDC_FILEPATH, DllPath, ARRAYSIZE(DllPath));
-			DumpExports(MainWindow, DllPath, Style);
+			DumpExports(MainWindow, DllPath, Style, IsDlgButtonChecked(MainWindow, IDC_INCLUDEORDINALS));
 		} else if (ControlId == M_SELECTALL) {
 			HWND FocusedWindow;
 			WCHAR ClassName[16];

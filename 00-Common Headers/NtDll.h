@@ -1508,7 +1508,7 @@ typedef struct _TEB {
 		ULONG_PTR						KexPerThreadData;
 		PVOID							EnvironmentPointer; // unused
 	};
-	
+
 	CLIENT_ID							ClientId; // GetCurrentProcessId & GetCurrentThreadId
 	PVOID								ActiveRpcHandle; // unused
 	PVOID								ThreadLocalStoragePointer;
@@ -1922,7 +1922,7 @@ typedef enum _PS_ATTRIBUTE_NUM {
 	PsAttributeGroupAffinity, // in PGROUP_AFFINITY
 	PsAttributePreferredNode, // in PUSHORT
 	PsAttributeIdealProcessor, // in PPROCESSOR_NUMBER
-	PsAttributeUmsThread, // see UpdateProceThreadAttributeList in msdn (CreateProcessA/W...) in PUMS_CREATE_THREAD_ATTRIBUTES
+	PsAttributeUmsThread, // see UpdateProcThreadAttributeList in msdn (CreateProcessA/W...) in PUMS_CREATE_THREAD_ATTRIBUTES
 	PsAttributeMitigationOptions, // in UCHAR
 	PsAttributeProtectionLevel,
 	PsAttributeSecureProcess, // since THRESHOLD (Virtual Secure Mode, Device Guard)
@@ -3638,6 +3638,10 @@ NTSYSCALLAPI NTSTATUS NTAPI NtQueryAttributesFile(
 NTSYSCALLAPI NTSTATUS NTAPI NtQueryFullAttributesFile(
 	IN		POBJECT_ATTRIBUTES				ObjectAttributes,
 	OUT		PFILE_NETWORK_OPEN_INFORMATION	FileInformation);
+
+NTSYSCALLAPI NTSTATUS NTAPI NtAssignProcessToJobObject(
+	IN		HANDLE		JobHandle,
+	IN		HANDLE		ProcessHandle);
 
 #pragma endregion
 

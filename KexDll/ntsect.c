@@ -105,6 +105,10 @@ RetryAfterError:
 		if (ObjectAttributes->RootDirectory == KexData->UntrustedNamedObjects) {
 			KexDebugCheckpoint();
 
+			//
+			// TODO: handle STATUS_OBJECT_NAME_COLLISION by retrying.
+			//
+
 			// fall back to original ObjectAttributes structure
 			ObjectAttributes = OriginalObjectAttributes;
 			HaveRenamedObject = FALSE;

@@ -356,6 +356,15 @@ KEXAPI NTSTATUS NTAPI KexDataInitialize(
 		Status = RtlAppendUnicodeToString(&_KexData.Kex3264DirPath, L"\\Kex32;");
 	}
 
+	ASSERT (NT_SUCCESS(Status));
+
+	if (!NT_SUCCESS(Status)) {
+		return Status;
+	}
+
+	Status = KexRtlNullTerminateUnicodeString(&_KexData.Kex3264DirPath);
+	ASSERT (NT_SUCCESS(Status));
+
 	if (!NT_SUCCESS(Status)) {
 		return Status;
 	}

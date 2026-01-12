@@ -116,6 +116,7 @@
 #define KEXDATA_FLAG_ENABLED_FOR_MSI		8	// Indicates that this MSI has VxKex enabled.
 #define KEXDATA_FLAG_DISABLE_LOGGING		16	// Log files are not to be created.
 #define KEXDATA_FLAG_CHROMIUM				32	// This is a Chromium-based application (Chrome, Edge, Electron, QtWebEngine, etc.)
+#define KEXDATA_FLAG_KB2533623_PRESENT		64	// Indicates the DllDirectory APIs are available
 
 #define KEX_STRONGSPOOF_SHAREDUSERDATA	1
 #define KEX_STRONGSPOOF_REGISTRY		2
@@ -742,6 +743,10 @@ NTSTATUS NTAPI Ext_NtQueryInformationProcess(
 	IN	ULONG				ProcessInformationLength,
 	OUT	PULONG				ReturnLength OPTIONAL);
 
+KEXAPI NTSTATUS NTAPI Ext_NtAssignProcessToJobObject(
+	IN	HANDLE	JobHandle,
+	IN	HANDLE	ProcessHandle);
+
 #pragma endregion
 
 #pragma region KexNt* functions
@@ -885,5 +890,9 @@ KEXAPI NTSTATUS NTAPI KexNtQueryInformationProcess(
 	OUT	PVOID				ProcessInformation,
 	IN	ULONG				ProcessInformationLength,
 	OUT	PULONG				ReturnLength OPTIONAL);
+
+KEXAPI NTSTATUS NTAPI KexNtAssignProcessToJobObject(
+	IN	HANDLE				JobHandle,
+	IN	HANDLE				ProcessHandle);
 
 #pragma endregion

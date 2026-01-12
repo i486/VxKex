@@ -303,3 +303,22 @@ Failure:
 
 	return ProcedureAddress;
 }
+
+//
+// This is the delay-load helper function used by KexDll itself.
+//
+
+EXTERN PVOID __ImageBase;
+
+STATIC PVOID WINAPI __delayLoadHelper2(
+	IN	PCIMAGE_DELAYLOAD_DESCRIPTOR	DelayloadDescriptor,
+	OUT	PIMAGE_THUNK_DATA				ThunkData)
+{
+	return KexLdrResolveDelayLoadedAPI(
+		&__ImageBase,
+		DelayloadDescriptor,
+		NULL,
+		NULL,
+		ThunkData,
+		0);
+}

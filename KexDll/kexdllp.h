@@ -159,8 +159,13 @@ EXTERN PKEX_PROCESS_DATA KexData;
 // kexhe.c
 //
 
-NTSTATUS KexHeInstallHandler(
-	VOID);
+NTSTATUS NTAPI Ext_NtRaiseHardError(
+	IN	NTSTATUS	ErrorStatus,
+	IN	ULONG		NumberOfParameters,
+	IN	ULONG		UnicodeStringParameterMask,
+	IN	PULONG_PTR	Parameters,
+	IN	ULONG		ValidResponseOptions,
+	OUT	PULONG		Response);
 
 NORETURN VOID KexHeErrorBox(
 	IN	PCWSTR	ErrorMessage);

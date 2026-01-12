@@ -606,6 +606,10 @@ INT_PTR CALLBACK DialogProc(
 VOID DisplayInstallerGUI(
 	VOID)
 {
+	unless (OperationMode == OperationModeUninstall) {
+		KexSetupCheckForPrerequisites();
+	}
+
 	CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
 	DialogBox(GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_MAINWINDOW), NULL, DialogProc);
 }

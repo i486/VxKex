@@ -63,3 +63,12 @@ KXBASEAPI ULONG WINAPI PssQuerySnapshot(
 	KexDebugCheckpoint();
 	return ERROR_NOT_SUPPORTED;
 }
+
+KXBASEAPI ULONG WINAPI PssWalkMarkerCreate(
+	IN	PCPSS_ALLOCATOR	Allocator,
+	OUT	HPSSWALK		WalkMarkerHandle)
+{
+	KexLogWarningEvent(L"Stub API called: PssWalkMarkerCreate");
+	KexDebugCheckpoint();
+	return ERROR_NOT_SUPPORTED;
+}

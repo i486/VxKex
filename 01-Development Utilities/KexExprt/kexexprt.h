@@ -42,4 +42,5 @@ INT_PTR CALLBACK MainWndProc(
 VOID DumpExports(
 	IN	HWND					MainWindow,
 	IN	PCWSTR					DllPath,
-	IN	KEXEXPRT_GENERATE_STYLE	Style);
+	IN	KEXEXPRT_GENERATE_STYLE	Style,
+	IN	BOOLEAN					IncludeOrdinals);

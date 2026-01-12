@@ -5,7 +5,6 @@ EXPORTS
 	;;
 
 	ResolveDelayLoadedAPI				= KexDll.KexLdrResolveDelayLoadedAPI
-	EventSetInformation					= KexDll.KexEtwEventSetInformation
 
 	;; thread.c
 	GetThreadDescription
@@ -32,12 +31,10 @@ EXPORTS
 	PssCaptureSnapshot
 	PssFreeSnapshot
 	PssQuerySnapshot
+	PssWalkMarkerCreate
 
 	;; cfgmgr.c
 	CM_Register_Notification
-
-	;; wldp.c
-	WldpQueryWindowsLockdownMode
 
 	;; module.c
 	LoadPackagedLibrary
@@ -46,50 +43,30 @@ EXPORTS
 	GetOsSafeBootMode
 	GetFirmwareType
 
-	;; winhttp.c
-	WinHttpCreateProxyResolver
-	WinHttpGetProxyForUrlEx
-	WinHttpGetProxyResult
-	WinHttpFreeProxyResult
-
-	;; dns.c
-	DnsQueryEx
-
 	;; file.c
 	CreateFile2
 	GetTempPath2A
 	GetTempPath2W
 	CopyFile2
 
-	;; power.c
-	PowerDeterminePlatformRoleEx
-	PowerRegisterSuspendResumeNotification
-	PowerUnregisterSuspendResumeNotification
-
 	;; time.c
 	GetSystemTimePreciseAsFileTime
 	QueryUnbiasedInterruptTimePrecise
 
 	;; appmodel.c
+	AppPolicyGetProcessTerminationMethod
+	AppPolicyGetThreadInitializationType
+	AppPolicyGetWindowingModel
+	AppXGetPackageSid
+	AppXFreeMemory
+	GetApplicationUserModelId
+	GetCurrentApplicationUserModelId
 	GetCurrentPackageFullName
 	GetCurrentPackageId
 	GetPackageFamilyName
-	GetApplicationUserModelId
-	GetCurrentApplicationUserModelId
+	GetPackageFullName
 	GetPackagesByPackageFamily
-	AppPolicyGetProcessTerminationMethod
-	CreateAppContainerProfile
-	DeleteAppContainerProfile
-	DeriveAppContainerSidFromAppContainerName
-	GetAppContainerFolderPath
-	GetAppContainerRegistryLocation
-	AppXGetPackageSid
-	AppXFreeMemory
 	PackageFamilyNameFromFullName
-
-	;; crypto.c
-	ProcessPrng
-	BCryptHash
 
 	;; synch.c
 	WaitOnAddress
@@ -152,8 +129,6 @@ EXPORTS
 	GetModuleHandleW					= Ext_GetModuleHandleW
 	GetModuleHandleExA					= Ext_GetModuleHandleExA
 	GetModuleHandleExW					= Ext_GetModuleHandleExW
-	GetModuleFileNameA					= Ext_GetModuleFileNameA
-	GetModuleFileNameW					= Ext_GetModuleFileNameW
 	LoadLibraryA						= Ext_LoadLibraryA
 	LoadLibraryW						= Ext_LoadLibraryW
 	LoadLibraryExA						= Ext_LoadLibraryExA
@@ -167,9 +142,6 @@ EXPORTS
 
 	;; stubs.c
 	DuplicateHandle						= Ext_DuplicateHandle
-
-	;; verspoof.c
-	GetFileVersionInfoW					= Ext_GetFileVersionInfoW
 
 	;; heap.c
 	HeapCreate							= Ext_HeapCreate

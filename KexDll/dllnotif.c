@@ -69,25 +69,23 @@ VOID NTAPI KexDllNotificationCallback(
 		ShouldRewriteImports = KexShouldRewriteImportsOfDll(
 			NotificationData->FullDllName);
 
+		unless (KexData->IfeoParameters.DisableAppSpecific) {
+			if (ShouldRewriteImports) {
+				if (!(KexData->Flags & KEXDATA_FLAG_CHROMIUM)) {
+					//
+					// APPSPECIFICHACK: Perform heuristic-based Chromium detection if we don't
+					// already know that this is a Chromium process.
+					//
+					AshPerformChromiumDetectionFromLoadedDll(NotificationData);
+				}
+			}
+		}
+
 		if (ShouldRewriteImports) {
 			Status = KexRewriteImageImportDirectory(
 				NotificationData->DllBase,
 				NotificationData->BaseDllName,
 				NotificationData->FullDllName);
-		}
-
-		unless (KexData->IfeoParameters.DisableAppSpecific) {
-			if (!(KexData->Flags & KEXDATA_FLAG_CHROMIUM) &&
-				ShouldRewriteImports &&
-				NT_SUCCESS(Status)) {
-
-				//
-				// APPSPECIFICHACK: Perform heuristic-based Chromium detection if we don't
-				// already know that this is a Chromium process.
-				//
-
-				AshPerformChromiumDetectionFromLoadedDll(NotificationData);
-			}
 		}
 	}
 }

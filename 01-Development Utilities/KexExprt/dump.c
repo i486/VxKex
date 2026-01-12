@@ -70,7 +70,8 @@ STATIC VOID AppendToOutput(
 VOID DumpExports(
 	IN	HWND					MainWindow,
 	IN	PCWSTR					DllPathCString,
-	IN	KEXEXPRT_GENERATE_STYLE	Style)
+	IN	KEXEXPRT_GENERATE_STYLE	Style,
+	IN	BOOLEAN					IncludeOrdinals)
 {
 	BOOLEAN Success;
 	NTSTATUS Status;
@@ -201,10 +202,26 @@ VOID DumpExports(
 
 		switch (Style) {
 		case GenerateStyleDef:
-			AppendToOutput(L"\t%hs = %wZ.%hs\r\n", FunctionName, &DllBaseName, FunctionName);
+			if (IncludeOrdinals) {
+				AppendToOutput(
+					L"\t%hs = %wZ.%hs @%lu\r\n",
+					FunctionName, &DllBaseName, FunctionName, Ordinal);
+			} else {
+				AppendToOutput(
+					L"\t%hs = %wZ.%hs\r\n",
+					FunctionName, &DllBaseName, FunctionName);
+			}
 			break;
 		case GenerateStylePragma:
-			AppendToOutput(L"#pragma comment(linker, \"/EXPORT:%hs=%wZ.%hs\")\r\n", FunctionName, &DllBaseName, FunctionName);
+			if (IncludeOrdinals) {
+				AppendToOutput(
+					L"#pragma comment(linker, \"/EXPORT:%hs=%wZ.%hs,@%lu\")\r\n",
+					FunctionName, &DllBaseName, FunctionName, Ordinal);
+			} else {
+				AppendToOutput(
+					L"#pragma comment(linker, \"/EXPORT:%hs=%wZ.%hs\")\r\n",
+					FunctionName, &DllBaseName, FunctionName);
+			}
 			break;
 		default:
 			NOT_REACHED;

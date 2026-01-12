@@ -140,6 +140,9 @@
     <ClCompile Include="ashselec.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="ntjob.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="KexDll.def">

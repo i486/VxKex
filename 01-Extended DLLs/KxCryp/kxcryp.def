@@ -1,0 +1,11 @@
+LIBRARY KxCryp
+EXPORTS
+	;; bcrypt.c
+	BCryptHash
+
+	;; rng.c
+	ProcessPrng
+
+	;; schannel.c
+;	AcquireCredentialsHandleA					= Ext_AcquireCredentialsHandleA
+	AcquireCredentialsHandleW					= Ext_AcquireCredentialsHandleW

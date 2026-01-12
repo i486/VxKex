@@ -31,6 +31,7 @@
 #include "buildcfg.h"
 #include "kxbasep.h"
 #include <KexW32ML.h>
+#include <Shlwapi.h>
 
 //
 // These two utility functions make use of an unused field in the TEB.
@@ -131,22 +132,6 @@ KXBASEAPI BOOL WINAPI Ext_GetModuleHandleExW(
 	InterceptedKernelBaseLoaderCallReturn(ReEntrant);
 
 	return Success;
-}
-
-KXBASEAPI ULONG WINAPI Ext_GetModuleFileNameA(
-	IN	HMODULE	ModuleHandle,
-	OUT	PSTR	FileName,
-	IN	ULONG	FileNameCch)
-{
-	return GetModuleFileNameA(ModuleHandle, FileName, FileNameCch);
-}
-
-KXBASEAPI ULONG WINAPI Ext_GetModuleFileNameW(
-	IN	HMODULE	ModuleHandle,
-	OUT	PWSTR	FileName,
-	IN	ULONG	FileNameCch)
-{
-	return GetModuleFileNameW(ModuleHandle, FileName, FileNameCch);
 }
 
 KXBASEAPI HMODULE WINAPI Ext_LoadLibraryA(
@@ -266,6 +251,8 @@ STATIC NTSTATUS BasepGetDllDirectoryProcedure(
 			return Status;
 		}
 
+		ASSUME (KexData->BaseDllBase != NULL);
+
 		Status = LdrGetProcedureAddress(
 			KexData->BaseDllBase,
 			&ProcedureNameAS,
@@ -325,6 +312,7 @@ KXBASEAPI BOOL WINAPI Ext_SetDefaultDllDirectories(
 	BasepGetDllDirectoryProcedure("SetDefaultDllDirectories", (PPVOID) &SetDefaultDllDirectories);
 
 	if (SetDefaultDllDirectories) {
+		DirectoryFlags |= LOAD_LIBRARY_SEARCH_USER_DIRS;
 		return SetDefaultDllDirectories(DirectoryFlags);
 	} else {
 		return FALSE;

@@ -3,7 +3,6 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOGDICAPMASKS
 #define NOVIRTUALKEYCODES
-#define NOWINMESSAGES
 #define NOWINSTYLES
 #define NOSYSMETRICS
 #define NOMENUS
@@ -15,15 +14,11 @@
 #define NOATOM
 #define NOCLIPBOARD
 #define NOCOLOR
-#define NOCTLMGR
 #define NODRAWTEXT
 #define NOGDI
 #define NOKERNEL
-#define NOUSER
-#define NONLS
 #define NOMB
 #define NOMEMMGR
-#define NOMSG
 #define NOOPENFILE
 #define NOSCROLL
 #define NOTEXTMETRIC
@@ -42,14 +37,6 @@
 #define _UXTHEME_H_
 
 #define KXBASEAPI
-
-#pragma comment(lib, "powrprof.lib")
-#pragma comment(lib, "bcrypt.lib")
-#pragma comment(lib, "version.lib")
-#pragma comment(lib, "dnsapi.lib")
-#pragma comment(lib, "winhttp.lib")
-#pragma comment(lib, "userenv.lib")
-#pragma comment(lib, "bcrypt.lib")
 
 #ifdef _M_X64
 #  pragma comment(lib, "cfgmgr32_x64.lib")

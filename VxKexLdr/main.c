@@ -26,6 +26,7 @@
 // Revision History:
 //
 //     vxiiduu              29-Feb-2024  Initial creation.
+//     vxiiduu              19-Mar-2024  Patch CPIW version check as well.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -57,6 +58,14 @@ VOID EntryPoint(
 
 		NOT_REACHED;
 	}
+
+	//
+	// Patch the CreateProcessInternalW subsystem version check.
+	// Failure here is non-critical.
+	//
+
+	Status = KexPatchCpiwSubsystemVersionCheck();
+	ASSERT (NT_SUCCESS(Status));
 
 	//
 	// Parse command line.

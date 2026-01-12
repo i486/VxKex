@@ -69,6 +69,9 @@
 // undocumented window message
 #define WM_COPYGLOBALDATA 0x0049
 
+// special taskdialog flag not defined in sdk headers
+#define TDIF_SIZE_TO_CONTENT 0x1000000
+
 //
 // ctlsx.c
 //

@@ -22,9 +22,7 @@
 
 #include <KexComm.h>
 #include <KexDll.h>
-#include <powrprof.h>
 #include <cfgmgr32.h>
-#include <bcrypt.h>
 
 #pragma region Macro Definitions
 
@@ -38,6 +36,9 @@
 	 PROCESS_CREATION_MITIGATION_POLICY_DEP_ATL_THUNK_ENABLE | \
 	 PROCESS_CREATION_MITIGATION_POLICY_SEHOP_ENABLE)
 
+// undocumented STARTUPINFO flag
+#define STARTF_HASSHELLDATA		0x400
+
 #define LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR		0x00000100
 #define LOAD_LIBRARY_SEARCH_APPLICATION_DIR		0x00000200
 #define LOAD_LIBRARY_SEARCH_USER_DIRS			0x00000400
@@ -45,12 +46,14 @@
 #define LOAD_LIBRARY_SEARCH_DEFAULT_DIRS		0x00001000
 #define LOAD_LIBRARY_SAFE_CURRENT_DIRS			0x00002000
 
-#define IOCTL_KSEC_RANDOM_FILL_BUFFER			CTL_CODE(FILE_DEVICE_KSEC, 0x02, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define LOAD_LIBRARY_ALL_DLLDIR_FLAGS			(LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | \
+												 LOAD_LIBRARY_SEARCH_APPLICATION_DIR | \
+												 LOAD_LIBRARY_SEARCH_USER_DIRS | \
+												 LOAD_LIBRARY_SEARCH_SYSTEM32 | \
+												 LOAD_LIBRARY_SEARCH_DEFAULT_DIRS)
 
 #define APPMODEL_ERROR_NO_PACKAGE				15700L
 #define APPMODEL_ERROR_NO_APPLICATION			15703L
-
-#define DEVICE_NOTIFY_CALLBACK					2
 
 #pragma endregion
 
@@ -362,16 +365,6 @@ typedef struct _THREAD_POWER_THROTTLING_STATE {
 	ULONG	StateMask;
 } TYPEDEF_TYPE_NAME(THREAD_POWER_THROTTLING_STATE);
 
-typedef ULONG (CALLBACK *PDEVICE_NOTIFY_CALLBACK_ROUTINE) (
-    IN	PVOID	Context OPTIONAL,
-    IN	ULONG	Type,
-    IN	PVOID	Setting);
-
-typedef struct _DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS {
-	PDEVICE_NOTIFY_CALLBACK_ROUTINE	Callback;
-	PVOID							Context;
-} TYPEDEF_TYPE_NAME(DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS);
-
 typedef enum _PROCESS_MITIGATION_POLICY {
 	ProcessDEPPolicy,
 	ProcessASLRPolicy,
@@ -448,6 +441,20 @@ typedef enum _PSS_QUERY_INFORMATION_CLASS {
 	PSS_QUERY_HANDLE_TRACE_INFORMATION		= 6,
 	PSS_QUERY_PERFORMANCE_COUNTERS			= 7
 } TYPEDEF_TYPE_NAME(PSS_QUERY_INFORMATION_CLASS);
+
+typedef PVOID (WINAPI *PPSS_ALLOCATOR_ALLOC_ROUTINE) (
+	IN	PVOID	Context,
+	IN	ULONG	Size);
+
+typedef VOID (WINAPI *PPSS_ALLOCATOR_FREE_ROUTINE) (
+	IN	PVOID	Context,
+	IN	PVOID	Address);
+
+typedef struct _PSS_ALLOCATOR {
+	PVOID							Context;
+	PPSS_ALLOCATOR_ALLOC_ROUTINE	AllocRoutine;
+	PPSS_ALLOCATOR_FREE_ROUTINE		FreeRoutine;
+} TYPEDEF_TYPE_NAME(PSS_ALLOCATOR);
 
 typedef enum _CM_NOTIFY_FILTER_TYPE {
 	CM_NOTIFY_FILTER_TYPE_DEVICEINTERFACE,
@@ -529,13 +536,6 @@ typedef struct _CM_NOTIFY_FILTER {
 	};
 } TYPEDEF_TYPE_NAME(CM_NOTIFY_FILTER);
 
-typedef enum _WLDP_WINDOWS_LOCKDOWN_MODE {
-	WLDP_WINDOWS_LOCKDOWN_MODE_UNLOCKED,
-	WLDP_WINDOWS_LOCKDOWN_MODE_TRIAL,
-	WLDP_WINDOWS_LOCKDOWN_MODE_LOCKED,
-	WLDP_WINDOWS_LOCKDOWN_MODE_MAX
-} TYPEDEF_TYPE_NAME(WLDP_WINDOWS_LOCKDOWN_MODE);
-
 typedef enum _FIRMWARE_TYPE {
 	FirmwareTypeUnknown,
 	FirmwareTypeBios,
@@ -543,13 +543,17 @@ typedef enum _FIRMWARE_TYPE {
 	FirmwareTypeMax
 } TYPEDEF_TYPE_NAME(FIRMWARE_TYPE);
 
-typedef struct _VERHEAD {
-	WORD				wTotLen;
-	WORD				wValLen;
-	WORD				wType;
-	WCHAR				szKey[(sizeof("VS_VERSION_INFO") + 3) & ~3];
-	VS_FIXEDFILEINFO	vsf;
-} TYPEDEF_TYPE_NAME(VERHEAD);
+typedef enum _APP_POLICY_WINDOWING_MODEL {
+	AppPolicyWindowingModel_None,
+	AppPolicyWindowingModel_Universal,
+	AppPolicyWindowingModel_ClassicDesktop,
+	AppPolicyWindowingModel_ClassicPhone
+} TYPEDEF_TYPE_NAME(APP_POLICY_WINDOWING_MODEL);
+
+typedef enum _APP_POLICY_THREAD_INITIALIZATION_TYPE {
+	AppPolicyThreadInitializationType_None,
+	AppPolicyThreadInitializationType_InitializeWinRT
+} TYPEDEF_TYPE_NAME(APP_POLICY_THREAD_INITIALIZATION_TYPE);
 
 #pragma endregion
 
@@ -752,23 +756,6 @@ KXBASEAPI HRESULT WINAPI GetAppContainerRegistryLocation(
 	OUT	PHKEY	AppContainerKey);
 
 //
-// crypto.c
-//
-
-KXBASEAPI BOOL WINAPI ProcessPrng(
-	OUT	PBYTE	Buffer,
-	IN	SIZE_T	BufferCb);
-
-KXBASEAPI NTSTATUS WINAPI BCryptHash(
-	IN	BCRYPT_ALG_HANDLE	Algorithm,
-	IN	PBYTE				Secret OPTIONAL,
-	IN	ULONG				SecretCb,
-	IN	PBYTE				Input,
-	IN	ULONG				InputCb,
-	OUT	PBYTE				Output,
-	IN	ULONG				OutputCb);
-
-//
 // vmem.c
 //
 
@@ -792,21 +779,6 @@ KXBASEAPI BOOL WINAPI PrefetchVirtualMemory(
 	IN	ULONG						Flags);
 
 //
-// power.c
-//
-
-KXBASEAPI POWER_PLATFORM_ROLE WINAPI PowerDeterminePlatformRoleEx(
-	IN	ULONG	Version);
-
-KXBASEAPI ULONG WINAPI PowerRegisterSuspendResumeNotification(
-	IN	ULONG			Flags,
-	IN	HANDLE			Recipient,
-	OUT	PHPOWERNOTIFY	RegistrationHandle);
-
-KXBASEAPI ULONG WINAPI PowerUnregisterSuspendResumeNotification(
-	IN OUT	HPOWERNOTIFY	RegistrationHandle);
-
-//
 // misc.c
 //
 
@@ -815,5 +787,18 @@ KXBASEAPI BOOL WINAPI GetOsSafeBootMode(
 
 KXBASEAPI BOOL WINAPI GetFirmwareType(
 	OUT	PFIRMWARE_TYPE	FirmwareType);
+
+//
+// module.c
+//
+
+KXBASEAPI DLL_DIRECTORY_COOKIE WINAPI Ext_AddDllDirectory(
+	IN	PCWSTR	NewDirectory);
+
+KXBASEAPI BOOL WINAPI Ext_RemoveDllDirectory(
+	IN	DLL_DIRECTORY_COOKIE	Cookie);
+
+KXBASEAPI BOOL WINAPI Ext_SetDefaultDllDirectories(
+	IN	ULONG	DirectoryFlags);
 
 #endif // if defined(KEX_ENV_WIN32)

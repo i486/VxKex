@@ -70,19 +70,25 @@
 //
 //     vxiiduu              30-Oct-2022  Initial creation.
 //     vxiiduu              31-Oct-2022  Fix bugs and finalize implementation.
+//     vxiiduu              18-Mar-2024  Fix a bug where forward slashes in the
+//                                       DllPath could impede the ability of
+//                                       KexpShrinkDllPathLength to do its job.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "buildcfg.h"
 #include "kexdllp.h"
 
-STATIC NTSTATUS KexpShrinkDllPathLength(
+STATIC INLINE NTSTATUS KexpShrinkDllPathLength(
 	IN	PUNICODE_STRING	DllPath,
 	IN	USHORT			TargetLength);
 
-STATIC NTSTATUS KexpPadDllPathToOriginalLength(
+STATIC INLINE NTSTATUS KexpPadDllPathToOriginalLength(
 	IN	PUNICODE_STRING	DllPath,
 	IN	USHORT			OriginalLength);
+
+STATIC INLINE VOID KexpNormalizeDllPathBackslashes(
+	IN OUT	PUNICODE_STRING	DllPath);
 
 NTSTATUS KexpAddKex3264ToDllPath(
 	VOID)
@@ -98,12 +104,31 @@ NTSTATUS KexpAddKex3264ToDllPath(
 	DllPath = &NtCurrentPeb()->ProcessParameters->DllPath;
 	DllPathOriginalLength = DllPath->Length;
 
+	KexLogInformationEvent(
+		L"Shrinking default loader DLL path\r\n\r\n"
+		L"The original DLL path is: \"%wZ\"",
+		DllPath);
+
+	//
+	// Convert all forward slashes in the DllPath to backslashes.
+	// At least one real world case has been observed where a user's computer
+	// had the Path environment variable contain forward slashes instead of
+	// backslashes for some reason.
+	//
+	// Without normalizing the path separators, KexpShrinkDllPathLength would
+	// fail. This would cause VxKex to not work.
+	//
+
+	KexpNormalizeDllPathBackslashes(DllPath);
+
 	//
 	// Call a helper function to shrink DllPath by *at least* the length
 	// of our prepend string.
 	//
 
 	Status = KexpShrinkDllPathLength(DllPath, DllPath->Length - KexData->Kex3264DirPath.Length);
+	ASSERT (NT_SUCCESS(Status));
+
 	if (!NT_SUCCESS(Status)) {
 		return Status;
 	}
@@ -121,11 +146,15 @@ NTSTATUS KexpAddKex3264ToDllPath(
 	//
 
 	Status = RtlAppendUnicodeStringToString(&NewDllPath, &KexData->Kex3264DirPath);
+	ASSERT (NT_SUCCESS(Status));
+
 	if (!NT_SUCCESS(Status)) {
 		return Status;
 	}
 
 	Status = RtlAppendUnicodeStringToString(&NewDllPath, DllPath);
+	ASSERT (NT_SUCCESS(Status));
+
 	if (!NT_SUCCESS(Status)) {
 		return Status;
 	}
@@ -136,14 +165,17 @@ NTSTATUS KexpAddKex3264ToDllPath(
 
 	RtlCopyUnicodeString(DllPath, &NewDllPath);
 	
-	return KexpPadDllPathToOriginalLength(DllPath, DllPathOriginalLength);
+	Status = KexpPadDllPathToOriginalLength(DllPath, DllPathOriginalLength);
+	ASSERT (NT_SUCCESS(Status));
+
+	return Status;
 }
 
 //
 // Try to shrink the DllPath length to equal or less than "Length" by
 // removing duplicate entries.
 //
-STATIC NTSTATUS KexpShrinkDllPathLength(
+STATIC INLINE NTSTATUS KexpShrinkDllPathLength(
 	IN	PUNICODE_STRING	DllPath,
 	IN	USHORT			TargetLength)
 {
@@ -234,7 +266,7 @@ STATIC NTSTATUS KexpShrinkDllPathLength(
 	return STATUS_SUCCESS;
 }
 
-STATIC NTSTATUS KexpPadDllPathToOriginalLength(
+STATIC INLINE NTSTATUS KexpPadDllPathToOriginalLength(
 	IN	PUNICODE_STRING	DllPath,
 	IN	USHORT			OriginalLength)
 {
@@ -256,4 +288,25 @@ STATIC NTSTATUS KexpPadDllPathToOriginalLength(
 	}
 
 	return STATUS_SUCCESS;
+}
+
+//
+// Convert all slashes in the specified DllPath to backslashes.
+//
+STATIC INLINE VOID KexpNormalizeDllPathBackslashes(
+	IN OUT	PUNICODE_STRING	DllPath)
+{
+	ULONG Index;
+	ULONG DllPathCch;
+
+	ASSUME (VALID_UNICODE_STRING(DllPath));
+
+	DllPathCch = KexRtlUnicodeStringCch(DllPath);
+	ASSUME (DllPathCch > 0);
+
+	for (Index = 0; Index < DllPathCch; ++Index) {
+		if (DllPath->Buffer[Index] == '/') {
+			DllPath->Buffer[Index] = '\\';
+		}
+	}
 }

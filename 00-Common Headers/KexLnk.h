@@ -63,11 +63,6 @@
 #      pragma comment(lib, "ole32.lib")
 #    endif
 #  endif
-
-#  ifdef KEX_ARCH_X86
-     // seh32.lib contains SEH functions from WinXP CRTs.
-#    pragma comment(lib, "seh32.lib")
-#  endif
 #elif defined(KEX_TARGET_TYPE_SYS)
 #  ifdef _M_X64
 #    pragma comment(lib, "ntoskrnl_x64.lib")
@@ -76,10 +71,9 @@
 #    pragma comment(lib, "ntoskrnl_x86.lib")
 #    pragma comment(lib, "ntstrsafe_x86.lib")
 #  endif
+#endif
 
-#  ifdef KEX_ARCH_X86
-     // original name: exsup.lib from DDK
-#    pragma comment(lib, "seh32km.lib")
-#  endif
+#ifdef KEX_ARCH_X86
+#  pragma comment(lib, "seh32.lib")
 #endif
 #pragma endregion

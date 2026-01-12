@@ -29,7 +29,7 @@ NTSTATUS NTAPI Ext_NtNotifyChangeMultipleKeys(
 
 	CompletionFilter &= ~REG_NOTIFY_THREAD_AGNOSTIC;
 
-	return NtNotifyChangeMultipleKeys(
+	return KexNtNotifyChangeMultipleKeys(
 		MasterKeyHandle,
 		Count,
 		SlaveObjects,
