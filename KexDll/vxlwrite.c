@@ -25,7 +25,7 @@
 #pragma warning(disable:4018)	// signed/unsigned mismatch
 
 NTSTATUS CDECL VxlWriteLogEx(
-	IN		VXLHANDLE		LogHandle,
+	IN		VXLHANDLE		LogHandle OPTIONAL,
 	IN		PCWSTR			SourceComponent OPTIONAL,
 	IN		PCWSTR			SourceFile OPTIONAL,
 	IN		ULONG			SourceLine,
@@ -46,7 +46,11 @@ NTSTATUS CDECL VxlWriteLogEx(
 	// param validation
 	//
 
-	if (!LogHandle || !Format) {
+	if (KexIsReleaseBuild && LogHandle == NULL) {
+		return STATUS_INVALID_HANDLE;
+	}
+
+	if (!Format) {
 		return STATUS_INVALID_PARAMETER;
 	}
 
@@ -119,13 +123,22 @@ NTSTATUS CDECL VxlWriteLogEx(
 		}
 
 		//
-		// If this is a debug build, write the formatted log message to the
-		// debugging console so the developer doesn't need to open VxlView all
-		// the time.
+		// If a debugger is attached, write the formatted log message to the
+		// debugging console.
 		//
 
-		if (KexIsDebugBuild && NtCurrentPeb()->BeingDebugged) {
+		if (NtCurrentPeb()->BeingDebugged) {
 			DbgPrint("VXL (%ws): %ws\r\n", SourceComponent, FileEntry->Text);
+		}
+
+		//
+		// At this point, if the passed-in Log Handle is invalid, we'll just
+		// exit here. We've already printed the log message to the debugger.
+		//
+
+		if (!LogHandle) {
+			Status = STATUS_INVALID_HANDLE;
+			leave;
 		}
 
 		//
@@ -181,6 +194,7 @@ NTSTATUS CDECL VxlWriteLogEx(
 		return Status;
 	}
 
+	ASSERT (LogHandle != NULL);
 	RtlAcquireSRWLockExclusive(&LogHandle->Lock);
 
 	try {
@@ -228,7 +242,7 @@ NTSTATUS CDECL VxlWriteLogEx(
 		// Passing -1 causes the write to occur at the end of the file.
 		EndOfFileOffset = -1;
 
-		Status = NtWriteFile(
+		Status = KexNtWriteFile(
 			LogHandle->FileHandle,
 			NULL,
 			NULL,

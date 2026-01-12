@@ -4,14 +4,32 @@
 
 KW32MLDECLSPEC EXTERN_C BOOLEAN KW32MLAPI SupersedeFile(
 	IN	PCWSTR	SourceFile,
-	IN	PCWSTR	TargetFile)
+	IN	PCWSTR	TargetFile,
+	IN	HANDLE	TransactionHandle OPTIONAL)
 {
 	BOOLEAN Success;
+	HANDLE ExistingTransaction;
 
-	Success = MoveFileEx(
-		SourceFile,
-		TargetFile,
-		MOVEFILE_REPLACE_EXISTING | MOVEFILE_COPY_ALLOWED);
+	ExistingTransaction = RtlGetCurrentTransaction();
+
+	if (ExistingTransaction) {
+		RtlSetCurrentTransaction(NULL);
+	}
+
+	if (TransactionHandle) {
+		Success = MoveFileTransacted(
+			SourceFile,
+			TargetFile,
+			NULL,
+			NULL,
+			MOVEFILE_REPLACE_EXISTING | MOVEFILE_COPY_ALLOWED,
+			TransactionHandle);
+	} else {
+		Success = MoveFileEx(
+			SourceFile,
+			TargetFile,
+			MOVEFILE_REPLACE_EXISTING | MOVEFILE_COPY_ALLOWED);
+	}
 
 	if (!Success) {
 		ULONG RandomIdentifier;
@@ -25,24 +43,56 @@ KW32MLDECLSPEC EXTERN_C BOOLEAN KW32MLAPI SupersedeFile(
 			ARRAYSIZE(ExistingTargetNewName),
 			L"%s.old_%04u", TargetFile, RandomIdentifier);
 
-		Success = MoveFileEx(
-			TargetFile,
-			ExistingTargetNewName,
-			MOVEFILE_REPLACE_EXISTING);
+		if (TransactionHandle) {
+			Success = MoveFileTransacted(
+				TargetFile,
+				ExistingTargetNewName,
+				NULL,
+				NULL,
+				0,
+				TransactionHandle);
+		} else {
+			Success = MoveFile(TargetFile, ExistingTargetNewName);
+		}
 
 		if (Success) {
 			// schedule the old file to be deleted later
-			MoveFileEx(
-				ExistingTargetNewName,
-				NULL,
-				MOVEFILE_DELAY_UNTIL_REBOOT);
+
+			if (TransactionHandle) {
+				MoveFileTransacted(
+					ExistingTargetNewName,
+					NULL,
+					NULL,
+					NULL,
+					MOVEFILE_DELAY_UNTIL_REBOOT,
+					TransactionHandle);
+			} else {
+				MoveFileEx(
+					ExistingTargetNewName,
+					NULL,
+					MOVEFILE_DELAY_UNTIL_REBOOT);
+			}
 
 			// move the new file into the old position
-			Success = MoveFileEx(
-				SourceFile,
-				TargetFile,
-				MOVEFILE_REPLACE_EXISTING | MOVEFILE_COPY_ALLOWED);
+			if (TransactionHandle) {
+				Success = MoveFileTransacted(
+					SourceFile,
+					TargetFile,
+					NULL,
+					NULL,
+					MOVEFILE_REPLACE_EXISTING | MOVEFILE_COPY_ALLOWED,
+					TransactionHandle);
+			} else {
+				Success = MoveFileEx(
+					SourceFile,
+					TargetFile,
+					MOVEFILE_REPLACE_EXISTING | MOVEFILE_COPY_ALLOWED);
+			}
 		}
+	}
+
+	if (ExistingTransaction) {
+		RtlSetCurrentTransaction(ExistingTransaction);
 	}
 
 	return Success;

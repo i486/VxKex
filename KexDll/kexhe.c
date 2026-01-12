@@ -114,9 +114,7 @@ STATIC NTSTATUS NTAPI KexpNtRaiseHardErrorHook(
 	//
 
 BailOut:
-	if (KexData->IfeoParameters.BreakOnHardError) {
-		__debugbreak();
-	}
+	KexDebugCheckpoint();
 
 	Status = KexNtRaiseHardError(
 		ErrorStatus,

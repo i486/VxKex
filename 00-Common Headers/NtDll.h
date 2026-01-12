@@ -474,6 +474,57 @@
 #define HEAP_CLASS_8					0x00008000		// Csr Port heap
 #define HEAP_CLASS_MASK					0x0000F000
 
+// win8+ only - use with NtUnmapViewOfSectionEx
+#define MEM_UNMAP_WITH_TRANSIENT_BOOST	1
+#define MEM_PRESERVE_PLACEHOLDER		2
+#define MEM_UNMAP_VALID_FLAGS			(MEM_UNMAP_WITH_TRANSIENT_BOOST | MEM_PRESERVE_PLACEHOLDER)
+
+// win10+ only - NtMapViewOfSectionEx
+#define MEM_EXTENDED_PARAMETER_GRAPHICS                 0x00000001
+#define MEM_EXTENDED_PARAMETER_NONPAGED                 0x00000002
+#define MEM_EXTENDED_PARAMETER_ZERO_PAGES_OPTIONAL      0x00000004
+#define MEM_EXTENDED_PARAMETER_NONPAGED_LARGE           0x00000008
+#define MEM_EXTENDED_PARAMETER_NONPAGED_HUGE            0x00000010
+#define MEM_EXTENDED_PARAMETER_SOFT_FAULT_PAGES         0x00000020
+#define MEM_EXTENDED_PARAMETER_NUMA_NODE_MANDATORY      MINLONG64
+
+#define MEM_REPLACE_PLACEHOLDER 0x4000
+
+// win10+ only - NtMapViewOfSectionEx
+typedef enum _MEM_EXTENDED_PARAMETER_TYPE {
+	MemExtendedParameterInvalidType = 0,
+	MemExtendedParameterAddressRequirements,
+	MemExtendedParameterNumaNode,
+	MemExtendedParameterPartitionHandle,
+	MemExtendedParameterUserPhysicalHandle,
+	MemExtendedParameterAttributeFlags,
+	MemExtendedParameterMax
+} TYPEDEF_TYPE_NAME(MEM_EXTENDED_PARAMETER_TYPE);
+
+// win10+ only - NtMapViewOfSectionEx
+#define MEM_EXTENDED_PARAMETER_TYPE_BITS    8
+
+typedef struct DECLSPEC_ALIGN(8) _MEM_EXTENDED_PARAMETER {
+	struct {
+		DWORD64 Type : MEM_EXTENDED_PARAMETER_TYPE_BITS;
+		DWORD64 Reserved : 64 - MEM_EXTENDED_PARAMETER_TYPE_BITS;
+	};
+
+	union {
+		DWORD64 ULong64;
+		PVOID Pointer;
+		SIZE_T Size;
+		HANDLE Handle;
+		DWORD ULong;
+	};
+} TYPEDEF_TYPE_NAME(MEM_EXTENDED_PARAMETER);
+
+typedef struct _MEM_ADDRESS_REQUIREMENTS {
+	PVOID	LowestStartingAddress;
+	PVOID	HighestStartingAddress;
+	SIZE_T	Alignment;
+} TYPEDEF_TYPE_NAME(MEM_ADDRESS_REQUIREMENTS);
+
 #define MEM_EXECUTE_OPTION_DISABLE					0x1
 #define MEM_EXECUTE_OPTION_ENABLE					0x2
 #define MEM_EXECUTE_OPTION_DISABLE_THUNK_EMULATION	0x4
@@ -497,6 +548,27 @@
 #define RTL_HT_FIRST_LEVEL_DIR_SIZE			0x1FF
 
 #define RTL_HT_FLAG_HEAP_ALLOCATED			1
+
+//
+// Object Manager Directory Specific Access Rights.
+//
+
+#define DIRECTORY_QUERY					(0x0001)
+#define DIRECTORY_TRAVERSE				(0x0002)
+#define DIRECTORY_CREATE_OBJECT			(0x0004)
+#define DIRECTORY_CREATE_SUBDIRECTORY	(0x0008)
+
+#define DIRECTORY_ALL_ACCESS (STANDARD_RIGHTS_REQUIRED | 0xF)
+
+#define DLL_CHARACTERISTIC_LOAD_AS_DATA				0x000002
+#define DLL_CHARACTERISTIC_IGNORE_CODE_AUTHZ_LEVEL	0x001000
+#define DLL_CHARACTERISTIC_REQUIRE_SIGNATURE		0x800000
+
+// LDR_GET_DLL_HANDLE_EX_UNCHANGED_REFCOUNT cannot be used together with
+// LDR_GET_DLL_HANDLE_EX_PIN.
+#define LDR_GET_DLL_HANDLE_EX_UNCHANGED_REFCOUNT	0x0001 // The DLL's reference count will not be incremented.
+#define LDR_GET_DLL_HANDLE_EX_PIN					0x0002 // The DLL will remain loaded until the process exits.
+#define LDR_GET_DLL_HANDLE_EX_UNKNOWN				0x0004 // Is valid, but appears to do nothing.
 
 #pragma endregion
 
@@ -939,6 +1011,67 @@ typedef enum _SYSINFOCLASS {
 	MaxSystemInfoClass
 } SYSINFOCLASS;
 
+typedef struct _SYSTEM_BASIC_PERFORMANCE_INFORMATION {
+	ULONG_PTR	AvailablePages;
+	ULONG_PTR	CommittedPages;
+	ULONG_PTR	CommitLimit;
+	ULONG_PTR	PeakCommitment;
+} TYPEDEF_TYPE_NAME(SYSTEM_BASIC_PERFORMANCE_INFORMATION);
+
+#define LDRP_STATIC_LINK				0x00000002
+#define LDRP_IMAGE_DLL					0x00000004
+#define LDRP_LOAD_IN_PROGRESS			0x00001000
+#define LDRP_UNLOAD_IN_PROGRESS			0x00002000
+#define LDRP_ENTRY_PROCESSED			0x00004000
+#define LDRP_ENTRY_INSERTED				0x00008000
+#define LDRP_CURRENT_LOAD				0x00010000
+#define LDRP_FAILED_BUILTIN_LOAD		0x00020000
+#define LDRP_DONT_CALL_FOR_THREADS		0x00040000
+#define LDRP_PROCESS_ATTACH_CALLED		0x00080000
+#define LDRP_DEBUG_SYMBOLS_LOADED		0x00100000
+#define LDRP_IMAGE_NOT_AT_BASE			0x00200000
+#define LDRP_COR_IMAGE					0x00400000
+#define LDRP_COR_OWNS_UNMAP				0x00800000
+#define LDRP_SYSTEM_MAPPED				0x01000000
+#define LDRP_IMAGE_VERIFYING			0x02000000
+#define LDRP_DRIVER_DEPENDENT_DLL		0x04000000
+#define LDRP_ENTRY_NATIVE				0x08000000
+#define LDRP_REDIRECTED					0x10000000
+#define LDRP_NON_PAGED_DEBUG_INFO		0x20000000
+#define LDRP_MM_LOADED					0x40000000
+#define LDRP_COMPAT_DATABASE_PROCESSED	0x80000000
+
+// https://www.geoffchappell.com/studies/windows/km/ntoskrnl/inc/api/ntldr/rtl_process_module_information.htm
+typedef struct _RTL_PROCESS_MODULE_INFORMATION {
+	PVOID			Section;
+	PVOID			MappedBase;
+	PVOID			ImageBase;
+	ULONG			ImageSize;
+	ULONG			Flags;					// LDRP_* flags defined above
+	USHORT			LoadOrderIndex;
+	USHORT			InitOrderIndex;
+	USHORT			LoadCount;
+	USHORT			OffsetToFileName;		// &FullPathName[OffsetToFileName] is the base name.
+	CHAR			FullPathName[0x100];
+} TYPEDEF_TYPE_NAME(RTL_PROCESS_MODULE_INFORMATION);
+
+// definition from this structure can be found in 8175 leaked symbols and probably other symbols too
+// usage example:
+// https://raw.githubusercontent.com/gtworek/PSBits/master/DFIR/SystemModuleInformationEx.c
+typedef struct _RTL_PROCESS_MODULE_INFORMATION_EX {
+	USHORT							NextOffset;
+	RTL_PROCESS_MODULE_INFORMATION	BaseInfo;
+	ULONG							ImageChecksum;	// I'm guessing these are the fields straight out of the PE headers
+	ULONG							TimeDateStamp;
+	PVOID							DefaultBase;
+} TYPEDEF_TYPE_NAME(RTL_PROCESS_MODULE_INFORMATION_EX);
+
+// https://www.geoffchappell.com/studies/windows/km/ntoskrnl/inc/api/ntldr/rtl_process_modules.htm
+typedef struct _RTL_PROCESS_MODULES {
+	ULONG							NumberOfModules;
+	RTL_PROCESS_MODULE_INFORMATION	Modules[];
+} TYPEDEF_TYPE_NAME(RTL_PROCESS_MODULES);
+
 typedef enum _MEMINFOCLASS {
 	MemoryBasicInformation,				// MEMORY_BASIC_INFORMATION
 	MemoryWorkingSetInformation,		// ULONG_PTR
@@ -946,13 +1079,6 @@ typedef enum _MEMINFOCLASS {
 	MemoryRegionInformation,			// MEMORY_REGION_INFORMATION
 	MemoryWorkingSetExInformation		// MEMORY_WORKING_SET_EX_INFORMATION
 } MEMINFOCLASS;
-
-typedef struct _SYSTEM_BASIC_PERFORMANCE_INFORMATION {
-	ULONG_PTR	AvailablePages;
-	ULONG_PTR	CommittedPages;
-	ULONG_PTR	CommitLimit;
-	ULONG_PTR	PeakCommitment;
-} TYPEDEF_TYPE_NAME(SYSTEM_BASIC_PERFORMANCE_INFORMATION);
 
 typedef struct _MEMORY_REGION_INFORMATION {
 	PVOID								AllocationBase;
@@ -1359,13 +1485,36 @@ typedef struct _TEB_ACTIVE_FRAME {
 
 typedef struct _TEB {
 	NT_TIB								NtTib;
-	PVOID								EnvironmentPointer; // OS/2 subsystem
+
+	union {
+		struct {
+			//
+			// KexLdrShouldRewriteDll is set if the current call stack
+			// includes one of the following functions:
+			//
+			//   Ext_GetModuleHandleA
+			//   Ext_GetModuleHandleW
+			//   Ext_GetModuleHandleExA
+			//   Ext_GetModuleHandleExW
+			//   Ext_LoadLibraryA
+			//   Ext_LoadLibraryW
+			//   Ext_LoadLibraryExA
+			//   Ext_LoadLibraryExW
+			//
+
+			BOOLEAN						KexLdrShouldRewriteDll	: 1;
+		};
+
+		ULONG_PTR						KexPerThreadData;
+		PVOID							EnvironmentPointer; // unused
+	};
+	
 	CLIENT_ID							ClientId; // GetCurrentProcessId & GetCurrentThreadId
-	PVOID								ActiveRpcHandle;
+	PVOID								ActiveRpcHandle; // unused
 	PVOID								ThreadLocalStoragePointer;
 	PPEB								ProcessEnvironmentBlock;
 	ULONG								LastErrorValue; // GetLastError & SetLastError
-	ULONG								CountOfOwnedCriticalSections;
+	ULONG								CountOfOwnedCriticalSections; // used by app verifier
 
 	PVOID								CsrClientThread;
 	PVOID								Win32ThreadInfo;
@@ -1648,12 +1797,12 @@ typedef struct _KUSER_SHARED_DATA {
 } TYPEDEF_TYPE_NAME(KUSER_SHARED_DATA);
 
 typedef struct _OBJECT_ATTRIBUTES {
-	ULONG				Length;
-	HANDLE				RootDirectory;
-	PUNICODE_STRING		ObjectName;
-	ULONG				Attributes;
-	PVOID				SecurityDescriptor;
-	PVOID				SecurityQualityOfService;
+	ULONG							Length;
+	HANDLE							RootDirectory;
+	PUNICODE_STRING					ObjectName;
+	ULONG							Attributes;
+	PSECURITY_DESCRIPTOR			SecurityDescriptor;
+	PSECURITY_QUALITY_OF_SERVICE	SecurityQualityOfService;
 } TYPEDEF_TYPE_NAME(OBJECT_ATTRIBUTES);
 
 #define LDR_DLL_LOADED_FLAG_RELOCATED (0x00000001)
@@ -2013,6 +2162,44 @@ typedef struct _FILE_NAMES_INFORMATION {
 	ULONG		FileNameLength;
 	WCHAR		FileName[];
 } TYPEDEF_TYPE_NAME(FILE_NAMES_INFORMATION);
+
+typedef struct _FILE_BASIC_INFORMATION {
+	LARGE_INTEGER	CreationTime;
+	LARGE_INTEGER	LastAccessTime;
+	LARGE_INTEGER	LastWriteTime;
+	LARGE_INTEGER	ChangeTime;
+	ULONG			FileAttributes;
+} TYPEDEF_TYPE_NAME(FILE_BASIC_INFORMATION);
+
+typedef struct _FILE_STANDARD_INFORMATION {
+	LARGE_INTEGER	AllocationSize;
+	LARGE_INTEGER	EndOfFile;
+	ULONG			NumberOfLinks;
+	BOOLEAN			DeletePending;
+	BOOLEAN			Directory;
+} TYPEDEF_TYPE_NAME(FILE_STANDARD_INFORMATION);
+
+typedef struct _FILE_POSITION_INFORMATION {
+	LARGE_INTEGER	CurrentByteOffset;
+} TYPEDEF_TYPE_NAME(FILE_POSITION_INFORMATION);
+
+typedef struct _FILE_NETWORK_OPEN_INFORMATION {
+	LARGE_INTEGER	CreationTime;
+	LARGE_INTEGER	LastAccessTime;
+	LARGE_INTEGER	LastWriteTime;
+	LARGE_INTEGER	ChangeTime;
+	LARGE_INTEGER	AllocationSize;
+	LARGE_INTEGER	EndOfFile;
+	ULONG			FileAttributes;
+} TYPEDEF_TYPE_NAME(FILE_NETWORK_OPEN_INFORMATION);
+
+typedef struct _FILE_FULL_EA_INFORMATION {
+	ULONG			NextEntryOffset;
+	UCHAR			Flags;
+	UCHAR			EaNameLength;
+	USHORT			EaValueLength;
+	CHAR			EaName[1];
+} TYPEDEF_TYPE_NAME(FILE_FULL_EA_INFORMATION);
 
 typedef struct _SYSTEM_PROCESS_INFORMATION {
 	ULONG			NextEntryOffset;
@@ -2729,6 +2916,12 @@ NTSYSCALLAPI NTSTATUS NTAPI NtWaitForMultipleObjects(
 	IN	BOOLEAN				Alertable,
 	IN	PLONGLONG			Timeout OPTIONAL);
 
+NTSYSCALLAPI NTSTATUS NTAPI NtSignalAndWaitForSingleObject(
+	IN	HANDLE			SignalHandle,
+	IN	HANDLE			WaitHandle,
+	IN	BOOLEAN			Alertable,
+	IN	PLARGE_INTEGER	Timeout);
+
 NTSYSCALLAPI NTSTATUS NTAPI NtClose(
 	IN	HANDLE	Handle);
 
@@ -3401,6 +3594,51 @@ NTSYSCALLAPI NTSTATUS NTAPI NtPowerInformation(
 	OUT		PVOID					OutputBuffer OPTIONAL,
 	IN		ULONG					OutputBufferLength);
 
+NTSYSCALLAPI NTSTATUS NTAPI NtCreateDirectoryObject(
+	OUT		PHANDLE				DirectoryHandle,
+	IN		ACCESS_MASK			DesiredAccess,
+	IN		POBJECT_ATTRIBUTES	ObjectAttributes);
+
+NTSYSCALLAPI NTSTATUS NTAPI NtOpenDirectoryObject(
+	OUT		PHANDLE				DirectoryHandle,
+	IN		ACCESS_MASK			DesiredAccess,
+	IN		POBJECT_ATTRIBUTES	ObjectAttributes);
+
+NTSYSCALLAPI NTSTATUS NTAPI NtSetSecurityObject(
+	IN		HANDLE					Handle,
+	IN		SECURITY_INFORMATION	SecurityInformation,
+	IN		PSECURITY_DESCRIPTOR	SecurityDescriptor);
+
+NTSYSCALLAPI NTSTATUS NTAPI NtQuerySecurityObject(
+	IN		HANDLE					Handle,
+	IN		SECURITY_INFORMATION	SecurityInformation,
+	OUT		PSECURITY_DESCRIPTOR	SecurityDescriptor OPTIONAL,
+	IN		ULONG					Length,
+	OUT		PULONG					LengthNeeded);
+
+NTSYSCALLAPI NTSTATUS NTAPI NtDuplicateObject(
+	IN		HANDLE		SourceProcessHandle,
+	IN		HANDLE		SourceHandle,
+	IN		HANDLE		TargetProcessHandle OPTIONAL,
+	OUT		PHANDLE		TargetHandle,
+	IN		ACCESS_MASK	DesiredAccess,
+	IN		ULONG		HandleAttributes,
+	IN		ULONG		Options);
+
+NTSYSCALLAPI NTSTATUS NTAPI NtOpenThread(
+	OUT		PHANDLE				ThreadHandle,
+	IN		ACCESS_MASK			DesiredAccess,
+	IN		POBJECT_ATTRIBUTES	ObjectAttributes,
+	IN		PCLIENT_ID			ClientId);
+
+NTSYSCALLAPI NTSTATUS NTAPI NtQueryAttributesFile(
+	IN		POBJECT_ATTRIBUTES		ObjectAttributes,
+	OUT		PFILE_BASIC_INFORMATION	FileInformation);
+
+NTSYSCALLAPI NTSTATUS NTAPI NtQueryFullAttributesFile(
+	IN		POBJECT_ATTRIBUTES				ObjectAttributes,
+	OUT		PFILE_NETWORK_OPEN_INFORMATION	FileInformation);
+
 #pragma endregion
 
 #pragma region Nt* function declarations (not in Windows 7)
@@ -3557,6 +3795,11 @@ NTSYSAPI VOID NTAPI RtlFreeUnicodeString(
 	IN OUT	PUNICODE_STRING	UnicodeString);
 
 NTSYSAPI BOOLEAN NTAPI RtlEqualUnicodeString(
+	IN	PCUNICODE_STRING	String1,
+	IN	PCUNICODE_STRING	String2,
+	IN	BOOLEAN				CaseInsensitive);
+
+NTSYSAPI LONG NTAPI RtlCompareUnicodeString(
 	IN	PCUNICODE_STRING	String1,
 	IN	PCUNICODE_STRING	String2,
 	IN	BOOLEAN				CaseInsensitive);
@@ -3982,6 +4225,9 @@ NTSYSAPI PVOID NTAPI RtlCreateHeap(
 	IN	PVOID	Lock OPTIONAL,
 	IN	PVOID	Parameters OPTIONAL);
 
+NTSYSAPI PVOID NTAPI RtlDestroyHeap(
+	IN	PVOID	HeapHandle);
+
 NTSYSAPI NTSTATUS NTAPI RtlVerifyVersionInfo(
 	IN	PRTL_OSVERSIONINFOEXW	VersionInfo,
 	IN	ULONG					TypeMask,
@@ -3992,6 +4238,42 @@ NTSYSAPI NTSTATUS NTAPI RtlGetVersion(
 
 NTSYSAPI BOOLEAN NTAPI RtlGetNtProductType(
 	OUT	PNT_PRODUCT_TYPE	ProductType);
+
+NTSYSAPI NTSTATUS NTAPI RtlCreateAcl(
+	OUT		PACL		Acl,
+	IN		ULONG		AclLength,
+	IN		ULONG		AclRevision);
+
+NTSYSAPI NTSTATUS NTAPI RtlAddMandatoryAce(
+	IN OUT	PACL	Acl,
+	IN		ULONG	Revision,
+	IN		ULONG	Flags,
+	IN		PSID	LabelSid,
+	IN		UCHAR	AceType,
+	IN		ULONG	AccessMask);
+
+NTSYSAPI NTSTATUS NTAPI RtlCreateSecurityDescriptor(
+	OUT		PSECURITY_DESCRIPTOR	SecurityDescriptor,
+	IN		ULONG					Revision);
+
+NTSYSAPI NTSTATUS NTAPI RtlSetDaclSecurityDescriptor(
+	IN OUT	PSECURITY_DESCRIPTOR	SecurityDescriptor,
+	IN		BOOLEAN					DaclPresent,
+	IN		PACL					Dacl OPTIONAL,
+	IN		BOOLEAN					DaclDefaulted);
+
+NTSYSAPI NTSTATUS NTAPI RtlSetSaclSecurityDescriptor(
+	IN OUT	PSECURITY_DESCRIPTOR	SecurityDescriptor,
+	IN		BOOLEAN					SaclPresent,
+	IN		PACL					Sacl OPTIONAL,
+	IN		BOOLEAN					SaclDefaulted);
+
+#ifdef _M_X64
+NTSYSAPI BOOLEAN NTAPI RtlAddFunctionTable(
+	IN		PRUNTIME_FUNCTION		FunctionTable,
+	IN		ULONG					EntryCount,
+	IN		ULONGLONG				BaseAddress);
+#endif
 
 #pragma endregion
 
@@ -4060,15 +4342,21 @@ NTSYSAPI NTSTATUS NTAPI LdrGetDllHandle(
 	OUT	PPVOID				DllHandle);
 
 NTSYSAPI NTSTATUS NTAPI LdrGetDllHandleEx(
-	IN	ULONG				Flags,
+	IN	ULONG				Flags, // LDR_GET_DLL_HANDLE_EX_*
 	IN	PCWSTR				DllPath OPTIONAL,
 	IN	PULONG				DllCharacteristics OPTIONAL,
 	IN	PCUNICODE_STRING	DllName,
-	OUT	PPVOID				DllHandle);
+	OUT	PPVOID				DllHandle OPTIONAL); // only optional with LDR_GET_DLL_HANDLE_EX_PIN
 
+// LdrGetDllHandleByName is better than LdrGetDllHandle for internal use.
+// The prior two functions do a lot of extra bullshit that you probably don't need.
+//
+// NB: It is faster to search for a DLL by its base name rather than its full name,
+// since the base names are hashed and stored in a hash table. If you use a full
+// name then Ldr needs to search the entire loaded module list.
 NTSYSAPI NTSTATUS NTAPI LdrGetDllHandleByName(
 	IN	PUNICODE_STRING		DllBaseName OPTIONAL, // one or the other must be specified
-	IN	PUNICODE_STRING		DllFullName OPTIONAL, // specify both if you have both
+	IN	PUNICODE_STRING		DllFullName OPTIONAL,
 	OUT	PPVOID				DllHandle);
 
 // This function is quite strange and I can't think of a good
@@ -4087,6 +4375,13 @@ NTSYSAPI NTSTATUS NTAPI LdrGetProcedureAddress(
 	IN	PCANSI_STRING		ProcedureName OPTIONAL,
 	IN	ULONG				ProcedureNumber OPTIONAL,
 	OUT	PPVOID				ProcedureAddress);
+
+NTSYSAPI NTSTATUS NTAPI LdrGetProcedureAddressEx(
+	IN	PVOID				DllHandle,
+	IN	PCANSI_STRING		ProcedureName OPTIONAL,
+	IN	ULONG				ProcedureNumber OPTIONAL,
+	OUT	PPVOID				ProcedureAddress,
+	IN	ULONG				Flags); // Takes a flag value of 0 or 1 only. Don't know what it does.
 
 NTSYSAPI NTSTATUS NTAPI LdrFindEntryForAddress(
 	IN	PVOID					Address,
@@ -4141,8 +4436,8 @@ NTSYSAPI ULONG NTAPI DbgPrintEx(
 
 #pragma region Function-like Macros
 
-#define WELL_FORMED_UNICODE_STRING(s) ((s) != NULL && !((s)->Length & 1) && !((s)->MaximumLength & 1))
-#define VALID_UNICODE_STRING(s) (WELL_FORMED_UNICODE_STRING(s) && (s)->Buffer != NULL)
+#define WELL_FORMED_UNICODE_STRING(s) ((s) != NULL && !((s)->Length & 1) && !((s)->MaximumLength & 1) && ((s)->Length <= (s)->MaximumLength))
+#define VALID_UNICODE_STRING(s) (WELL_FORMED_UNICODE_STRING(s) && (s)->Buffer != NULL && (s)->MaximumLength != 0)
 
 // example: UNICODE_STRING Name = RTL_CONSTANT_STRING(L"\\??\\pipe\\Something");
 #define RTL_CONSTANT_STRING(s) { sizeof( s ) - sizeof( (s)[0] ), sizeof( s ), s }

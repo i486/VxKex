@@ -361,11 +361,32 @@ VOID KexSetupInstallFiles(
 		GetWindowsDirectory(TargetPath, ARRAYSIZE(TargetPath));
 		PathCchAppend(TargetPath, ARRAYSIZE(TargetPath), L"sysnative");
 		KexSetupMoveFileSpecToDirectory(L".\\Core64\\KexDll.*", TargetPath);
+
+		PathCchAppend(TargetPath, ARRAYSIZE(TargetPath), L"KexDll.*.old_*");
+		KexSetupDeleteFilesBySpec(TargetPath);
+
+		if (KexIsReleaseBuild) {
+			PathCchRemoveFileSpec(TargetPath, ARRAYSIZE(TargetPath));
+			PathCchAppend(TargetPath, ARRAYSIZE(TargetPath), L"KexDll.pdb");
+			KexSetupDeleteFile(TargetPath);
+		}
 	}
 
 	GetWindowsDirectory(TargetPath, ARRAYSIZE(TargetPath));
 	PathCchAppend(TargetPath, ARRAYSIZE(TargetPath), L"system32"); // On 64-bit OS, this actually goes to syswow64
 	KexSetupMoveFileSpecToDirectory(L".\\Core32\\KexDll.*", TargetPath);
+
+	// Delete any lingering old files.
+	PathCchAppend(TargetPath, ARRAYSIZE(TargetPath), L"KexDll.*.old_*");
+	KexSetupDeleteFilesBySpec(TargetPath);
+
+	// If a release build, delete PDB now (it is no longer the correct one
+	// anyway).
+	if (KexIsReleaseBuild) {
+		PathCchRemoveFileSpec(TargetPath, ARRAYSIZE(TargetPath));
+		PathCchAppend(TargetPath, ARRAYSIZE(TargetPath), L"KexDll.pdb");
+		KexSetupDeleteFile(TargetPath);
+	}
 
 	//
 	// Install native core files to KexDir, plus KexShl32 & CpiwBp32 if 64bit OS
@@ -392,16 +413,55 @@ VOID KexSetupInstallFiles(
 		KexSetupMoveFileSpecToDirectory(L".\\Core32\\*", KexDir);
 	}
 
+	KexSetupFormatPath(TargetPath, L"%s\\*.old_*", KexDir);
+	KexSetupDeleteFilesBySpec(TargetPath);
+
+	if (KexIsReleaseBuild) {
+		// Remove outdated PDB files
+		KexSetupFormatPath(TargetPath, L"%s\\*.pdb", KexDir);
+		KexSetupDeleteFilesBySpec(TargetPath);
+	}
+
 	//
 	// Install extension DLLs to KexDir\Kex32 (and KexDir\Kex64 if 64bit OS)
 	//
 
+	// remove old PDBs
+	KexSetupFormatPath(TargetPath, L"%s\\Kex32\\*.pdb", KexDir);
+	KexSetupDeleteFilesBySpec(TargetPath);
+
 	KexSetupFormatPath(TargetPath, L"%s\\Kex32", KexDir);
 	KexSetupMoveFileSpecToDirectory(L".\\Kex32\\*", TargetPath);
+
+	PathCchAppend(TargetPath, ARRAYSIZE(TargetPath), L"*.old_*");
+	KexSetupDeleteFilesBySpec(TargetPath);
+
+	// remove dnsw8, which is no longer included
+	KexSetupFormatPath(TargetPath, L"%s\\Kex32\\dnsw8.dll", KexDir);
+	KexSetupDeleteFile(TargetPath);
+
+	// remove msvw10, which is no longer included
+	KexSetupFormatPath(TargetPath, L"%s\\Kex32\\msvw10.dll", KexDir);
+	KexSetupDeleteFile(TargetPath);
 	
 	if (Is64BitOS) {
+		// remove old PDBs
+		KexSetupFormatPath(TargetPath, L"%s\\Kex64\\*.pdb", KexDir);
+		KexSetupDeleteFilesBySpec(TargetPath);
+
 		KexSetupFormatPath(TargetPath, L"%s\\Kex64", KexDir);
 		KexSetupMoveFileSpecToDirectory(L".\\Kex64\\*", TargetPath);
+
+		PathCchAppend(TargetPath, ARRAYSIZE(TargetPath), L"*.old_*");
+		KexSetupDeleteFilesBySpec(TargetPath);
+
+		// remove dnsw8
+		KexSetupFormatPath(TargetPath, L"%s\\Kex64\\dnsw8.dll", KexDir);
+		KexSetupDeleteFile(TargetPath);
+
+		// remove msvw10
+		KexSetupFormatPath(TargetPath, L"%s\\Kex64\\msvw10.dll", KexDir);
+		KexSetupDeleteFile(TargetPath);
 	}
 }
 
@@ -714,32 +774,6 @@ VOID KexSetupUninstall(
 	KexSetupRemoveKexCfgScheduledTask();
 }
 
-VOID KexSetupPopulateDllRewrite(
-	VOID)
-{
-	HKEY KeyHandle;
-
-	KexSetupCreateKey(
-		HKEY_LOCAL_MACHINE,
-		L"Software\\VXsoft\\VxKex\\DllRewrite",
-		KEY_READ | KEY_WRITE,
-		&KeyHandle);
-
-	try {
-		ULONG Index;
-
-		for (Index = 0; Index < KxCfgNumberOfDllRedirects; ++Index) {
-			KexSetupRegWriteString(
-				KeyHandle,
-				KxCfgDllRedirects[Index][0],
-				KxCfgDllRedirects[Index][1]);
-		}
-	} finally {
-		RegCloseKey(KeyHandle);
-		KeyHandle = NULL;
-	}
-}
-
 VOID KexSetupInstall(
 	VOID)
 {
@@ -791,12 +825,6 @@ VOID KexSetupInstall(
 	} finally {
 		RegCloseKey(KeyHandle);
 	}
-
-	//
-	// Create and populate the DllRewrite key under the VxKex key.
-	//
-
-	KexSetupPopulateDllRewrite();
 
 	//
 	// Create and populate VxKex HKCU registry key.
@@ -995,8 +1023,6 @@ VOID KexSetupInstall(
 	//         KexShlEx Property Page (*)
 	//           (Default)	= REG_SZ "{9AACA888-A5F5-4C01-852E-8A2005C1D45F}"
 	//
-	// TODO: Add support for .lnk (shortcut) files as well.
-	//
 
 	KexSetupCreateKey(
 		HKEY_CLASSES_ROOT,
@@ -1164,6 +1190,8 @@ VOID KexSetupUpgrade(
 
 	//
 	// Update the InstalledVersion in Vxkex HKLM key.
+	// Delete the DllRewrite key which was present in older versions
+	// but is no longer used.
 	//
 
 	VxKexKeyHandle = KxCfgOpenVxKexRegistryKey(
@@ -1178,15 +1206,16 @@ VOID KexSetupUpgrade(
 
 	try {
 		KexSetupRegWriteI32(VxKexKeyHandle, L"InstalledVersion", InstallerVxKexVersion);
+
+		//
+		// Delete the DllRewrite key which was present in older versions, but is
+		// no longer wanted.
+		//
+
+		KexSetupDeleteKey(VxKexKeyHandle, L"DllRewrite");
 	} finally {
 		RegCloseKey(VxKexKeyHandle);
 	}
-
-	//
-	// Update the DllRewrite key.
-	//
-
-	KexSetupPopulateDllRewrite();
 
 	//
 	// Call subroutine to install updated VxKex files.

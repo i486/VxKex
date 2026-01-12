@@ -31,6 +31,41 @@ KXBASEAPI LONG WINAPI GetCurrentPackageId(
 	return APPMODEL_ERROR_NO_PACKAGE;
 }
 
+KXBASEAPI LONG WINAPI GetPackageFamilyName(
+	IN		HANDLE	ProcessHandle,
+	IN OUT	PULONG	NameLength,
+	OUT		PWSTR	PackageFamilyName OPTIONAL)
+{
+	if (!ProcessHandle || !NameLength || *NameLength && !PackageFamilyName) {
+		return ERROR_INVALID_PARAMETER;
+	}
+
+	*NameLength = 0;
+
+	if (PackageFamilyName) {
+		PackageFamilyName[0] = '\0';
+	}
+
+	return APPMODEL_ERROR_NO_PACKAGE;
+}
+
+KXBASEAPI LONG WINAPI GetPackagesByPackageFamily(
+	IN		PCWSTR	PackageFamilyName,
+	IN OUT	PULONG	Count,
+	OUT		PPWSTR	PackageFullNames OPTIONAL,
+	IN OUT	PULONG	BufferLength,
+	OUT		PPWSTR	Buffer OPTIONAL)
+{
+	if (!Count || !BufferLength) {
+		return ERROR_INVALID_PARAMETER;
+	}
+
+	*Count = 0;
+	*BufferLength = 0;
+
+	return ERROR_SUCCESS;
+}
+
 KXBASEAPI LONG WINAPI AppPolicyGetProcessTerminationMethod(
 	IN	HANDLE	ProcessToken,
 	OUT	PULONG	Policy)
@@ -60,6 +95,8 @@ KXBASEAPI HRESULT WINAPI CreateAppContainerProfile(
 		Description,
 		NumberOfCapabilities);
 
+	KexDebugCheckpoint();
+
 	return E_NOTIMPL;
 }
 
@@ -69,6 +106,8 @@ KXBASEAPI HRESULT WINAPI DeleteAppContainerProfile(
 	KexLogWarningEvent(
 		L"DeleteAppContainerProfile called: %s",
 		AppContainerName);
+
+	KexDebugCheckpoint();
 
 	return S_OK;
 }
@@ -81,6 +120,8 @@ KXBASEAPI HRESULT WINAPI DeriveAppContainerSidFromAppContainerName(
 		L"DeriveAppContainerSidFromAppContainerName called: %s",
 		AppContainerName);
 
+	KexDebugCheckpoint();
+
 	return E_NOTIMPL;
 }
 
@@ -92,6 +133,8 @@ KXBASEAPI HRESULT WINAPI GetAppContainerFolderPath(
 		L"GetAppContainerFolderPath called: %s",
 		AppContainerName);
 
+	KexDebugCheckpoint();
+
 	return E_NOTIMPL;
 }
 
@@ -100,6 +143,7 @@ KXBASEAPI HRESULT WINAPI GetAppContainerRegistryLocation(
 	OUT	PHKEY	AppContainerKey)
 {
 	KexLogWarningEvent(L"GetAppContainerRegistryLocation called");
+	KexDebugCheckpoint();
 	return E_NOTIMPL;
 }
 
@@ -108,6 +152,7 @@ KXBASEAPI HRESULT WINAPI AppXGetPackageSid(
 	OUT	PSID	*PackageSid)
 {
 	KexLogWarningEvent(L"AppXGetPackageSid called: %s", PackageMoniker);
+	KexDebugCheckpoint();
 
 	if (!PackageMoniker || !PackageSid) {
 		return E_INVALIDARG;
@@ -122,7 +167,6 @@ KXBASEAPI VOID WINAPI AppXFreeMemory(
 	RtlFreeHeap(RtlProcessHeap(), 0, Pointer);
 }
 
-// returns a win32 error code
 KXBASEAPI ULONG WINAPI PackageFamilyNameFromFullName(
 	IN		PCWSTR	PackageFullName,
 	IN OUT	PULONG	PackageFamilyNameLength,
@@ -136,12 +180,25 @@ KXBASEAPI ULONG WINAPI PackageFamilyNameFromFullName(
 		return ERROR_INVALID_PARAMETER;
 	}
 
-	KexLogWarningEvent(L"PackageFamilyNameFromFullName called: %s", PackageFullName);
-
 	if (*PackageFamilyNameLength != 0) {
 		PackageFamilyName[0] = '\0';
 	}
 
 	*PackageFamilyNameLength = 0;
 	return ERROR_SUCCESS;
+}
+
+KXBASEAPI LONG WINAPI GetApplicationUserModelId(
+	IN		HANDLE	ProcessHandle,
+	IN OUT	PULONG	ApplicationUserModelIdLength,
+	OUT		PWSTR	ApplicationUserModelId)
+{
+	return APPMODEL_ERROR_NO_APPLICATION;
+}
+
+KXBASEAPI LONG WINAPI GetCurrentApplicationUserModelId(
+	IN OUT	PULONG	Cch,
+	OUT		PWSTR	Buffer)
+{
+	return APPMODEL_ERROR_NO_APPLICATION;
 }

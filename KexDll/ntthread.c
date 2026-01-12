@@ -21,7 +21,7 @@
 #include "buildcfg.h"
 #include "kexdllp.h"
 
-NTSTATUS NTAPI KexpNtQueryInformationThreadHook(
+NTSTATUS NTAPI Ext_NtQueryInformationThread(
 	IN	HANDLE				ThreadHandle,
 	IN	THREADINFOCLASS		ThreadInformationClass,
 	OUT	PVOID				ThreadInformation,
@@ -71,7 +71,7 @@ NTSTATUS NTAPI KexpNtQueryInformationThreadHook(
 			ThreadInformationClass);
 	}
 
-	return KexNtQueryInformationThread(
+	return NtQueryInformationThread(
 		ThreadHandle,
 		ThreadInformationClass,
 		ThreadInformation,
@@ -79,7 +79,7 @@ NTSTATUS NTAPI KexpNtQueryInformationThreadHook(
 		ReturnLength);
 } PROTECTED_FUNCTION_END
 
-NTSTATUS NTAPI KexpNtSetInformationThreadHook(
+NTSTATUS NTAPI Ext_NtSetInformationThread(
 	IN	HANDLE				ThreadHandle,
 	IN	THREADINFOCLASS		ThreadInformationClass,
 	IN	PVOID				ThreadInformation,
@@ -89,7 +89,7 @@ NTSTATUS NTAPI KexpNtSetInformationThreadHook(
 	// TODO: Implement ThreadNameInformation
 	//
 
-	return KexNtSetInformationThread(
+	return NtSetInformationThread(
 		ThreadHandle,
 		ThreadInformationClass,
 		ThreadInformation,

@@ -24,6 +24,7 @@
 //     vxiiduu              02-Mar-2024    Fix GetModuleHandleExW logging when
 //										   GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS
 //										   flag is passed.
+//     vxiiduu              13-Mar-2024    Move most of the code here to kexldr.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -31,75 +32,90 @@
 #include "kxbasep.h"
 #include <KexW32ML.h>
 
+//
+// These two utility functions make use of an unused field in the TEB.
+// Their purpose is to set KexLdrShouldRewriteDll to 1 whenever
+// Ext_GetModuleHandle(Ex)(A/W) or Ext_LoadLibrary(Ex)(A/W) is present in
+// the call stack.
+//
+// When this happens, it means that an EXE or DLL outside of WinDir and KexDir
+// has called GetModuleHandle or LoadLibrary. It signals to Ext_LdrLoadDll
+// and Ext_LdrGetDllHandle so that they can avoid rewriting imports when it
+// isn't desired.
+//
+
+STATIC INLINE VOID InterceptedKernelBaseLoaderCallEntry(
+	OUT	PBOOLEAN	ReEntrant)
+{
+	PTEB Teb;
+
+	Teb = NtCurrentTeb();
+	*ReEntrant = Teb->KexLdrShouldRewriteDll;
+	Teb->KexLdrShouldRewriteDll = TRUE;
+}
+
+STATIC INLINE VOID InterceptedKernelBaseLoaderCallReturn(
+	IN	BOOLEAN		ReEntrant)
+{
+	if (!ReEntrant) {
+		NtCurrentTeb()->KexLdrShouldRewriteDll = FALSE;
+	}
+}
+
 KXBASEAPI HMODULE WINAPI Ext_GetModuleHandleA(
 	IN	PCSTR	ModuleName)
 {
-	BOOLEAN Success;
 	HMODULE ModuleHandle;
+	BOOLEAN ReEntrant;
 
-	Success = Ext_GetModuleHandleExA(
-		GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-		ModuleName,
-		&ModuleHandle);
+	InterceptedKernelBaseLoaderCallEntry(&ReEntrant);
+	ModuleHandle = GetModuleHandleA(ModuleName);
+	InterceptedKernelBaseLoaderCallReturn(ReEntrant);
 
-	if (Success) {
-		return ModuleHandle;
-	} else {
-		return GetModuleHandleA(ModuleName);
-	}
+	return ModuleHandle;
 }
 
 KXBASEAPI HMODULE WINAPI Ext_GetModuleHandleW(
 	IN	PCWSTR	ModuleName)
 {
-	BOOLEAN Success;
 	HMODULE ModuleHandle;
+	BOOLEAN ReEntrant;
 
-	Success = Ext_GetModuleHandleExW(
-		GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-		ModuleName,
-		&ModuleHandle);
+	//
+	// APPSPECIFICHACK: Chromium-based software uses a bootleg knockoff version of
+	// GetProcAddress that fails miserably and crashes the whole app when we rewrite
+	// NTDLL, because their shitty implementation doesn't work properly with
+	// the export forwarders in KxNt. Neither does it properly work with stubs,
+	// because they actually scan the instruction code of system calls.
+	//
+	if ((KexData->Flags & KEXDATA_FLAG_CHROMIUM) &&
+		ModuleName != NULL &&
+		StringEqual(ModuleName, L"ntdll.dll")) {
 
-	if (Success) {
-		return ModuleHandle;
-	} else {
-		return GetModuleHandleW(ModuleName);
+		KexLogDebugEvent(L"Not rewriting NTDLL for Chromium compatibility");
+		return (HMODULE) KexData->SystemDllBase;
 	}
+
+	InterceptedKernelBaseLoaderCallEntry(&ReEntrant);
+	ModuleHandle = GetModuleHandleW(ModuleName);
+	InterceptedKernelBaseLoaderCallReturn(ReEntrant);
+
+	return ModuleHandle;
 }
 
-//
-// ANSI thunk to Ext_GetModuleHandleExW
-//
 KXBASEAPI BOOL WINAPI Ext_GetModuleHandleExA(
 	IN	ULONG	Flags,
 	IN	PCSTR	ModuleName,
 	OUT	HMODULE	*ModuleHandleOut)
 {
-	if (Flags & GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS) {
-		goto BailOut;
-	}
+	BOOL Success;
+	BOOLEAN ReEntrant;
 
-	if (ModuleName) {
-		WCHAR ModuleNameUnicode[MAX_PATH];
-		ULONG ModuleNameCch;
+	InterceptedKernelBaseLoaderCallEntry(&ReEntrant);
+	Success = GetModuleHandleExA(Flags, ModuleName, ModuleHandleOut);
+	InterceptedKernelBaseLoaderCallReturn(ReEntrant);
 
-		ModuleNameCch = MultiByteToWideChar(
-			CP_ACP,
-			0,
-			ModuleName,
-			-1,
-			ModuleNameUnicode,
-			ARRAYSIZE(ModuleNameUnicode));
-
-		if (ModuleNameCch == 0) {
-			goto BailOut;
-		}
-
-		return Ext_GetModuleHandleExW(Flags, ModuleNameUnicode, ModuleHandleOut);
-	}
-
-BailOut:
-	return GetModuleHandleExA(Flags, ModuleName, ModuleHandleOut);
+	return Success;
 }
 
 KXBASEAPI BOOL WINAPI Ext_GetModuleHandleExW(
@@ -107,77 +123,14 @@ KXBASEAPI BOOL WINAPI Ext_GetModuleHandleExW(
 	IN	PCWSTR	ModuleName,
 	OUT	HMODULE	*ModuleHandleOut)
 {
-	NTSTATUS Status;
+	BOOL Success;
+	BOOLEAN ReEntrant;
 
-	Status = STATUS_SUCCESS;
+	InterceptedKernelBaseLoaderCallEntry(&ReEntrant);
+	Success = GetModuleHandleExW(Flags, ModuleName, ModuleHandleOut);
+	InterceptedKernelBaseLoaderCallReturn(ReEntrant);
 
-	if (Flags & GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS) {
-		KexLogDebugEvent(
-			L"GetModuleHandle* called: 0x%p\r\n\r\n"
-			L"Flags: 0x%08lx\r\n"
-			L"ModuleHandleOut: 0x%p",
-			ModuleName,
-			Flags,
-			ModuleHandleOut);
-
-		// Nothing to rewrite
-		goto BailOut;
-	} else {
-		KexLogDebugEvent(
-			L"GetModuleHandle* called: %s\r\n\r\n"
-			L"Flags: 0x%08lx\r\n"
-			L"ModuleHandleOut: 0x%p",
-			ModuleName,
-			Flags,
-			ModuleHandleOut);
-	}
-
-	if (ModuleName) {
-		UNICODE_STRING ModuleNameUS;
-		UNICODE_STRING RewrittenModuleName;
-		WCHAR RewrittenModuleNameBuffer[MAX_PATH + 1];
-
-		RtlInitEmptyUnicodeString(
-			&RewrittenModuleName,
-			RewrittenModuleNameBuffer,
-			sizeof(RewrittenModuleNameBuffer));
-
-		Status = RtlInitUnicodeStringEx(&ModuleNameUS, ModuleName);
-		if (!NT_SUCCESS(Status)) {
-			goto BailOut;
-		}
-
-		Status = KexRewriteDllPath(
-			&ModuleNameUS,
-			&RewrittenModuleName);
-
-		if (!NT_SUCCESS(Status)) {
-			goto BailOut;
-		}
-
-		Status = KexRtlNullTerminateUnicodeString(&RewrittenModuleName);
-		if (!NT_SUCCESS(Status)) {
-			goto BailOut;
-		}
-
-		ModuleName = RewrittenModuleName.Buffer;
-	}
-
-BailOut:
-
-	if (!NT_SUCCESS(Status) &&
-		Status != STATUS_STRING_MAPPER_ENTRY_NOT_FOUND &&	// DLL doesn't need to be rewritten
-		Status != STATUS_DLL_NOT_IN_SYSTEM_ROOT) {			// Isn't a Windows DLL
-
-		KexLogWarningEvent(
-			L"Failed to rewrite ModuleName: %s\r\n\r\n"
-			L"NTSTATUS error code: %s (0x%08lx)",
-			ModuleName,
-			KexRtlNtStatusToString(Status),
-			Status);
-	}
-
-	return GetModuleHandleExW(Flags, ModuleName, ModuleHandleOut);
+	return Success;
 }
 
 KXBASEAPI ULONG WINAPI Ext_GetModuleFileNameA(
@@ -199,13 +152,27 @@ KXBASEAPI ULONG WINAPI Ext_GetModuleFileNameW(
 KXBASEAPI HMODULE WINAPI Ext_LoadLibraryA(
 	IN	PCSTR	FileName)
 {
-	return Ext_LoadLibraryExA(FileName, NULL, 0);
+	HMODULE ModuleHandle;
+	BOOLEAN ReEntrant;
+
+	InterceptedKernelBaseLoaderCallEntry(&ReEntrant);
+	ModuleHandle = LoadLibraryA(FileName);
+	InterceptedKernelBaseLoaderCallReturn(ReEntrant);
+
+	return ModuleHandle;
 }
 
 KXBASEAPI HMODULE WINAPI Ext_LoadLibraryW(
 	IN	PCWSTR	FileName)
 {
-	return Ext_LoadLibraryExW(FileName, NULL, 0);
+	HMODULE ModuleHandle;
+	BOOLEAN ReEntrant;
+
+	InterceptedKernelBaseLoaderCallEntry(&ReEntrant);
+	ModuleHandle = LoadLibraryW(FileName);
+	InterceptedKernelBaseLoaderCallReturn(ReEntrant);
+
+	return ModuleHandle;
 }
 
 KXBASEAPI HMODULE WINAPI Ext_LoadLibraryExA(
@@ -213,27 +180,14 @@ KXBASEAPI HMODULE WINAPI Ext_LoadLibraryExA(
 	IN	HANDLE	FileHandle,
 	IN	ULONG	Flags)
 {
-	if (FileName) {
-		WCHAR FileNameUnicode[MAX_PATH];
-		ULONG FileNameCch;
+	HMODULE ModuleHandle;
+	BOOLEAN ReEntrant;
 
-		FileNameCch = MultiByteToWideChar(
-			CP_ACP,
-			0,
-			FileName,
-			-1,
-			FileNameUnicode,
-			ARRAYSIZE(FileNameUnicode));
+	InterceptedKernelBaseLoaderCallEntry(&ReEntrant);
+	ModuleHandle = LoadLibraryExA(FileName, FileHandle, Flags);
+	InterceptedKernelBaseLoaderCallReturn(ReEntrant);
 
-		if (FileNameCch == 0) {
-			goto BailOut;
-		}
-
-		return Ext_LoadLibraryExW(FileNameUnicode, FileHandle, Flags);
-	}
-
-BailOut:
-	return LoadLibraryExA(FileName, FileHandle, Flags);
+	return ModuleHandle;
 }
 
 KXBASEAPI HMODULE WINAPI Ext_LoadLibraryExW(
@@ -241,242 +195,138 @@ KXBASEAPI HMODULE WINAPI Ext_LoadLibraryExW(
 	IN	HANDLE	FileHandle,
 	IN	ULONG	Flags)
 {
-	NTSTATUS Status;
 	HMODULE ModuleHandle;
-	STATIC ULONG Counter = 0;
+	BOOLEAN ReEntrant;
+
+	InterceptedKernelBaseLoaderCallEntry(&ReEntrant);
+	ModuleHandle = LoadLibraryExW(FileName, FileHandle, Flags);
+	InterceptedKernelBaseLoaderCallReturn(ReEntrant);
+
+	return ModuleHandle;
+}
+
+KXBASEAPI HMODULE WINAPI LoadPackagedLibrary(
+	IN	PCWSTR	LibFileName,
+	IN	ULONG	Reserved)
+{
+	RTL_PATH_TYPE PathType;
+	ULONG Index;
+
+	if (Reserved) {
+		BaseSetLastNTError(STATUS_INVALID_PARAMETER);
+		return NULL;
+	}
+
+	PathType = RtlDetermineDosPathNameType_U(LibFileName);
+
+	if (PathType != RtlPathTypeRelative) {
+		BaseSetLastNTError(STATUS_INVALID_PARAMETER);
+		return NULL;
+	}
+
+	for (Index = 0; LibFileName[Index] != '\0'; ++Index) {
+		if (LibFileName[Index] == '.' && LibFileName[Index+1] == '.' &&
+			(LibFileName[Index+2] == '\\' || LibFileName[Index+2] == '/')) {
+
+			BaseSetLastNTError(STATUS_INVALID_PARAMETER);
+			return NULL;
+		}
+
+		do {
+			++Index;
+		} until (LibFileName[Index] == '\0' ||
+				 LibFileName[Index] == '\\' ||
+				 LibFileName[Index] == '/');
+	}
+
+	// On Windows 8 this would be the point where this function would call
+	// LoadLibraryExW with the undocumented flag 0x04. However, this flag and
+	// its underlying implementation inside LdrLoadDll is not present on Windows
+	// 7, so we will just return an error straight away (as documented).
+	RtlSetLastWin32Error(APPMODEL_ERROR_NO_PACKAGE);
+	return NULL;
+}
+
+STATIC NTSTATUS BasepGetDllDirectoryProcedure(
+	IN		PCSTR	ProcedureName,
+	IN OUT	PPVOID	ProcedureAddress)
+{
+	NTSTATUS Status;
 
 	Status = STATUS_SUCCESS;
 
-	if (Flags & (DONT_RESOLVE_DLL_REFERENCES |
-				 LOAD_LIBRARY_AS_DATAFILE |
-				 LOAD_LIBRARY_AS_DATAFILE_EXCLUSIVE |
-				 LOAD_LIBRARY_AS_IMAGE_RESOURCE)) {
+	ASSERT (ProcedureName != NULL);
+	ASSERT (ProcedureAddress != NULL);
 
-		// They are probably trying to load resources.
-		// In which case, we won't rewrite.
-		goto BailOut;
-	}
+	if (!*ProcedureAddress) {
+		ANSI_STRING ProcedureNameAS;
 
-	if (FileName) {
-		UNICODE_STRING FileNameUS;
-		UNICODE_STRING RewrittenFileName;
-		WCHAR RewrittenFileNameBuffer[MAX_PATH + 1];
-
-		RtlInitEmptyUnicodeString(
-			&RewrittenFileName,
-			RewrittenFileNameBuffer,
-			sizeof(RewrittenFileNameBuffer));
-
-		Status = RtlInitUnicodeStringEx(
-			&FileNameUS,
-			FileName);
-
+		Status = RtlInitAnsiStringEx(&ProcedureNameAS, ProcedureName);
 		if (!NT_SUCCESS(Status)) {
-			goto BailOut;
+			return Status;
 		}
 
-		Status = KexRewriteDllPath(
-			&FileNameUS,
-			&RewrittenFileName);
+		Status = LdrGetProcedureAddress(
+			KexData->BaseDllBase,
+			&ProcedureNameAS,
+			0,
+			ProcedureAddress);
 
 		if (!NT_SUCCESS(Status)) {
-			goto BailOut;
+			KexLogErrorEvent(
+				L"%hs is not available on this computer\r\n\r\n"
+				L"This function is only available on Windows 7 with the KB2533623 "
+				L"security update.", ProcedureName);
+
+			BaseSetLastNTError(Status);
 		}
-
-		Status = KexRtlNullTerminateUnicodeString(&RewrittenFileName);
-		if (!NT_SUCCESS(Status)) {
-			goto BailOut;
-		}
-
-		FileName = RewrittenFileNameBuffer;
-
-		//
-		// At this point we have changed the DLL.
-		//
 	}
 
-	if (!NT_SUCCESS(Status) &&
-		Status != STATUS_STRING_MAPPER_ENTRY_NOT_FOUND &&
-		Status != STATUS_DLL_NOT_IN_SYSTEM_ROOT) {
-
-		KexLogWarningEvent(
-			L"Failed to rewrite FileName: %s\r\n\r\n"
-			L"NTSTATUS error code: %s (0x%08lx)",
-			FileName,
-			KexRtlNtStatusToString(Status),
-			Status);
+	if (NT_SUCCESS(Status)) {
+		ASSUME (*ProcedureAddress != NULL);
 	}
 
-BailOut:
-	ModuleHandle = LoadLibraryExW(FileName, FileHandle, Flags);
-
-	if (ModuleHandle) {
-		KexLogDebugEvent(
-			L"Dynamically loaded %s successfully.\r\n\r\n"
-			L"Flags:         0x%08lx\r\n"
-			L"FileHandle:    0x%08lx\r\n"
-			L"The module handle is 0x%p.",
-			FileName,
-			Flags,
-			FileHandle,
-			ModuleHandle);
-	} else {
-		KexLogWarningEvent(
-			L"Failed to dynamically load %s.\r\n\r\n"
-			L"Flags:         0x%08lx\r\n"
-			L"FileHandle:    0x%08lx\r\n"
-			L"(%d) %s",
-			FileName,
-			Flags,
-			FileHandle,
-			GetLastError(), GetLastErrorAsString());
-	}
-
-	return ModuleHandle;
+	return Status;
 }
 
 KXBASEAPI DLL_DIRECTORY_COOKIE WINAPI Ext_AddDllDirectory(
 	IN	PCWSTR	NewDirectory)
 {
-	HMODULE Kernel32;
-	DLL_DIRECTORY_COOKIE (WINAPI *AddDllDirectory)(PCWSTR NewDirectory);
+	STATIC DLL_DIRECTORY_COOKIE (WINAPI *AddDllDirectory) (PCWSTR) = NULL;
 
-	KexLogDebugEvent(L"AddDllDirectory was called: %s", NewDirectory);
+	BasepGetDllDirectoryProcedure("AddDllDirectory", (PPVOID) &AddDllDirectory);
 
-	if (KexData->IfeoParameters.DisableDllDirectory) {
-		KexLogDetailEvent(L"AddDllDirectory disabled by user setting.");
-		return (DLL_DIRECTORY_COOKIE) 0x12345678;
-	}
-
-	Kernel32 = GetModuleHandle(L"kernel32");
-	AddDllDirectory = (DLL_DIRECTORY_COOKIE (WINAPI *)(PCWSTR NewDirectory)) GetProcAddress(Kernel32, "AddDllDirectory");
-
-	if (!AddDllDirectory) {
-		KexLogInformationEvent(
-			L"AddDllDirectory is not available on this computer.\r\n\r\n"
-			L"This function is only available on Windows 7 with the KB2533623 security update.");
-		SetLastError(ERROR_NOT_SUPPORTED);
+	if (AddDllDirectory) {
+		return AddDllDirectory(NewDirectory);
+	} else {
 		return NULL;
 	}
-
-	return AddDllDirectory(NewDirectory);
 }
 
 KXBASEAPI BOOL WINAPI Ext_RemoveDllDirectory(
 	IN	DLL_DIRECTORY_COOKIE	Cookie)
 {
-	HMODULE Kernel32;
-	BOOL (WINAPI *RemoveDllDirectory)(DLL_DIRECTORY_COOKIE Cookie);
+	STATIC BOOL (WINAPI *RemoveDllDirectory) (DLL_DIRECTORY_COOKIE) = NULL;
 
-	KexLogDebugEvent(L"RemoveDllDirectory was called: 0x%p", Cookie);
+	BasepGetDllDirectoryProcedure("RemoveDllDirectory", (PPVOID) &RemoveDllDirectory);
 
-	if (KexData->IfeoParameters.DisableDllDirectory) {
-		KexLogDetailEvent(L"RemoveDllDirectory disabled by user setting.");
-		return TRUE;
-	}
-
-	Kernel32 = GetModuleHandle(L"kernel32");
-	RemoveDllDirectory = (BOOL (WINAPI *)(DLL_DIRECTORY_COOKIE)) GetProcAddress(Kernel32, "RemoveDllDirectory");
-
-	if (!RemoveDllDirectory) {
-		KexLogInformationEvent(
-			L"RemoveDllDirectory is not available on this computer.\r\n\r\n"
-			L"This function is only available on Windows 7 with the KB2533623 security update.");
-		SetLastError(ERROR_NOT_SUPPORTED);
+	if (RemoveDllDirectory) {
+		return RemoveDllDirectory(Cookie);
+	} else {
 		return FALSE;
 	}
-
-	return RemoveDllDirectory(Cookie);
 }
 
 KXBASEAPI BOOL WINAPI Ext_SetDefaultDllDirectories(
 	IN	ULONG	DirectoryFlags)
 {
-	HMODULE Kernel32;
-	BOOL (WINAPI *SetDefaultDllDirectories)(ULONG DirectoryFlags);
+	STATIC BOOL (WINAPI *SetDefaultDllDirectories) (ULONG) = NULL;
 
-	KexLogDetailEvent(
-		L"SetDefaultDllDirectories was called.\r\n\r\n"
-		L"DirectoryFlags = 0x%08lx%s\r\n"
-		L"%s%s%s%s%s%s",
-		DirectoryFlags,
-		DirectoryFlags ? L", which represents the following value(s):" : L"",
-		DirectoryFlags & LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR ? L"LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR\r\n" : L"",
-		DirectoryFlags & LOAD_LIBRARY_SEARCH_APPLICATION_DIR ? L"LOAD_LIBRARY_SEARCH_APPLICATION_DIR\r\n" : L"",
-		DirectoryFlags & LOAD_LIBRARY_SEARCH_USER_DIRS ? L"LOAD_LIBRARY_SEARCH_USER_DIRS\r\n" : L"",
-		DirectoryFlags & LOAD_LIBRARY_SEARCH_SYSTEM32 ? L"LOAD_LIBRARY_SEARCH_SYSTEM32\r\n" : L"",
-		DirectoryFlags & LOAD_LIBRARY_SEARCH_DEFAULT_DIRS ? L"LOAD_LIBRARY_SEARCH_DEFAULT_DIRS\r\n" : L"",
-		DirectoryFlags & LOAD_LIBRARY_SAFE_CURRENT_DIRS ? L"LOAD_LIBRARY_SAFE_CURRENT_DIRS\r\n" : L"");
+	BasepGetDllDirectoryProcedure("SetDefaultDllDirectories", (PPVOID) &SetDefaultDllDirectories);
 
-	if (KexData->IfeoParameters.DisableDllDirectory) {
-		KexLogDetailEvent(L"SetDefaultDllDirectories disabled by user setting.");
-		return TRUE;
-	}
-
-	Kernel32 = GetModuleHandle(L"kernel32");
-	SetDefaultDllDirectories = (BOOL (WINAPI *)(ULONG)) GetProcAddress(Kernel32, "SetDefaultDllDirectories");
-
-	if (!SetDefaultDllDirectories) {
-		KexLogInformationEvent(
-			L"SetDefaultDllDirectories is not available on this computer.\r\n\r\n"
-			L"This function is only available on Windows 7 with the KB2533623 security update.");
-		SetLastError(ERROR_NOT_SUPPORTED);
+	if (SetDefaultDllDirectories) {
+		return SetDefaultDllDirectories(DirectoryFlags);
+	} else {
 		return FALSE;
 	}
-
-	//
-	// We will add LOAD_LIBRARY_SEARCH_USER_DIRS to the list of flags,
-	// so that the dll directory we added during DllMain will be available.
-	// This isn't necessary for LoadLibrary/GetModuleHandle, but it is necessary
-	// for successfully loading rewritten imports of any future DLLs.
-	//
-
-	if (!(DirectoryFlags & LOAD_LIBRARY_SEARCH_USER_DIRS)) {
-		KexLogDebugEvent(L"Adding LOAD_LIBRARY_SEARCH_USER_DIRS to DirectoryFlags.");
-		DirectoryFlags |= LOAD_LIBRARY_SEARCH_USER_DIRS;
-	}
-
-	return SetDefaultDllDirectories(DirectoryFlags);
-}
-
-KXBASEAPI FARPROC WINAPI Ext_GetProcAddress(
-	IN	HMODULE		ModuleHandle,
-	IN	PCSTR		ProcedureName)
-{
-	FARPROC ProcedureAddress;
-	WCHAR ModuleFullPath[MAX_PATH];
-	PCWSTR ModuleName;
-
-	GetModuleFileName(ModuleHandle, ModuleFullPath, ARRAYSIZE(ModuleFullPath));
-	ModuleName = PathFindFileName(ModuleFullPath);
-
-	ProcedureAddress = GetProcAddress(ModuleHandle, ProcedureName);
-
-	if (ProcedureAddress) {
-		if (IS_INTRESOURCE(ProcedureName)) {
-			KexLogDebugEvent(
-				L"GetProcAddress of #%hu from %s succeeded",
-				ProcedureName, ModuleName);
-		} else {
-			KexLogDebugEvent(
-				L"GetProcAddress of %hs from %s succeeded",
-				ProcedureName, ModuleName);
-		}
-	} else {
-		if (IS_INTRESOURCE(ProcedureName)) {
-			KexLogWarningEvent(
-				L"GetProcAddress of #%hu from %s failed\r\n\r\n"
-				L"(%d) %s",
-				ProcedureName, ModuleName,
-				GetLastError(), GetLastErrorAsString());
-		} else {
-			KexLogWarningEvent(
-				L"GetProcAddress of %hs from %s failed\r\n\r\n"
-				L"(%d) %s",
-				ProcedureName, ModuleName,
-				GetLastError(), GetLastErrorAsString());
-		}
-	}
-
-	return ProcedureAddress;
 }

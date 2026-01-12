@@ -24,6 +24,8 @@
 // Revision History:
 //
 //     vxiiduu              21-Oct-2022  Initial creation.
+//     vxiiduu              16-Mar-2024  Remove erroneous OPTIONAL qualifier on
+//                                       the 2nd argument to InsertEntry.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -145,7 +147,7 @@ KEXAPI NTSTATUS NTAPI KexRtlDeleteStringMapper(
 KEXAPI NTSTATUS NTAPI KexRtlInsertEntryStringMapper(
 	IN		PKEX_RTL_STRING_MAPPER		StringMapper,
 	IN		PCUNICODE_STRING			Key,
-	IN		PCUNICODE_STRING			Value OPTIONAL)
+	IN		PCUNICODE_STRING			Value)
 {
 	PKEX_RTL_STRING_MAPPER_HASH_TABLE_ENTRY Entry;
 	ULONG KeySignature;

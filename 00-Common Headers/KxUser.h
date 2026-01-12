@@ -259,66 +259,69 @@ BOOL WINAPI EnableMouseInPointer(
 // scaling.c
 //
 
-DPI_AWARENESS GetAwarenessFromDpiAwarenessContext(
+KXUSERAPI DPI_AWARENESS GetAwarenessFromDpiAwarenessContext(
 	IN	DPI_AWARENESS_CONTEXT	Value);
 
 KXUSERAPI BOOL WINAPI IsValidDpiAwarenessContext(
 	IN	DPI_AWARENESS_CONTEXT	Value);
 
-DPI_AWARENESS_CONTEXT WINAPI GetThreadDpiAwarenessContext(
+KXUSERAPI DPI_AWARENESS_CONTEXT WINAPI GetThreadDpiAwarenessContext(
 	VOID);
 
-DPI_AWARENESS_CONTEXT WINAPI SetThreadDpiAwarenessContext(
+KXUSERAPI DPI_AWARENESS_CONTEXT WINAPI SetThreadDpiAwarenessContext(
 	IN	DPI_AWARENESS_CONTEXT DpiContext);
 
-BOOL WINAPI SetProcessDpiAwarenessContext(
+KXUSERAPI BOOL WINAPI SetProcessDpiAwarenessContext(
 	IN	DPI_AWARENESS_CONTEXT	DpiContext);
 
-DPI_AWARENESS_CONTEXT WINAPI GetWindowDpiAwarenessContext(
+KXUSERAPI DPI_AWARENESS_CONTEXT WINAPI GetWindowDpiAwarenessContext(
 	IN	HWND	Window);
 
-HRESULT WINAPI GetProcessDpiAwareness(
+KXUSERAPI HRESULT WINAPI GetProcessDpiAwareness(
 	IN	HANDLE					ProcessHandle,
 	OUT	PROCESS_DPI_AWARENESS	*DpiAwareness);
 
-HRESULT WINAPI SetProcessDpiAwareness(
+KXUSERAPI HRESULT WINAPI SetProcessDpiAwareness(
 	IN	PROCESS_DPI_AWARENESS	DpiAwareness);
 
-HRESULT WINAPI GetDpiForMonitor(
+KXUSERAPI BOOL WINAPI SetProcessDpiAwarenessInternal(
+	IN	PROCESS_DPI_AWARENESS	DpiAwareness);
+
+KXUSERAPI HRESULT WINAPI GetDpiForMonitor(
 	IN	HMONITOR			Monitor,
 	IN	MONITOR_DPI_TYPE	DpiType,
 	OUT	PULONG				DpiX,
 	OUT	PULONG				DpiY);
 
-HRESULT WINAPI GetScaleFactorForMonitor(
+KXUSERAPI HRESULT WINAPI GetScaleFactorForMonitor(
 	IN	HMONITOR				Monitor,
 	OUT	PDEVICE_SCALE_FACTOR	ScaleFactor);
 
-UINT WINAPI GetDpiForSystem(
+KXUSERAPI UINT WINAPI GetDpiForSystem(
 	VOID);
 
-UINT WINAPI GetDpiForWindow(
+KXUSERAPI UINT WINAPI GetDpiForWindow(
 	IN	HWND	Window);
 
-BOOL WINAPI AdjustWindowRectExForDpi(
+KXUSERAPI BOOL WINAPI AdjustWindowRectExForDpi(
 	IN OUT	LPRECT	Rect,
 	IN		ULONG	WindowStyle,
 	IN		BOOL	HasMenu,
 	IN		ULONG	WindowExStyle,
 	IN		ULONG	Dpi);
 
-UINT WINAPI GetDpiForShellUIComponent(
+KXUSERAPI UINT WINAPI GetDpiForShellUIComponent(
 	IN	SHELL_UI_COMPONENT	component);
 
-BOOL WINAPI LogicalToPhysicalPointForPerMonitorDPI(
+KXUSERAPI BOOL WINAPI LogicalToPhysicalPointForPerMonitorDPI(
 	IN		HWND	Window,
 	IN OUT	LPPOINT	Point);
 
-BOOL WINAPI PhysicalToLogicalPointForPerMonitorDPI(
+KXUSERAPI BOOL WINAPI PhysicalToLogicalPointForPerMonitorDPI(
 	IN		HWND	Window,
 	IN OUT	LPPOINT	Point);
 
-BOOL WINAPI EnableNonClientDpiScaling(
+KXUSERAPI BOOL WINAPI EnableNonClientDpiScaling(
 	IN	HWND	Window);
 
 //
@@ -346,3 +349,10 @@ KXUSERAPI BOOL WINAPI RegisterSuspendResumeNotification(
 
 KXUSERAPI BOOL WINAPI UnregisterSuspendResumeNotification(
 	IN OUT	HPOWERNOTIFY	Handle);
+
+//
+// misc.c
+//
+
+KXUSERAPI BOOL WINAPI IsImmersiveProcess(
+	IN	HANDLE	ProcessHandle);

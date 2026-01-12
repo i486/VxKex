@@ -98,6 +98,7 @@ PVOID NTAPI KexLdrResolveDelayLoadedAPI(
 	if (*DelayLoadedDllHandle == NULL) {
 		ANSI_STRING NameOfDllToLoadAS;
 		UNICODE_STRING NameOfDllToLoadUS;
+		UNICODE_STRING RewrittenDllName;
 
 		//
 		// DLL not loaded, we need to load it.
@@ -111,17 +112,27 @@ PVOID NTAPI KexLdrResolveDelayLoadedAPI(
 		Status = RtlAnsiStringToUnicodeString(&NameOfDllToLoadUS, &NameOfDllToLoadAS, FALSE);
 		ASSERT (NT_SUCCESS(Status));
 
+		//
+		// Rewrite DLL name.
+		//
+
+		RewrittenDllName = NameOfDllToLoadUS;
+
 		Status = KexRewriteDllPath(
 			&NameOfDllToLoadUS,
-			&NameOfDllToLoadUS);
+			&RewrittenDllName);
 
 		ASSERT (NT_SUCCESS(Status) || Status == STATUS_STRING_MAPPER_ENTRY_NOT_FOUND);
 
 		if (NT_SUCCESS(Status)) {
+			NameOfDllToLoadUS = RewrittenDllName;
+
+			//
 			// The DLL name was rewritten.
 			// Allocate a temporary stack buffer, and convert the DLL name back
 			// to ANSI and put that in the global variable NameOfDllToLoad for the
 			// rest of this function to use.
+			//
 
 			NameOfDllToLoadAS.Length = RtlUnicodeStringToAnsiSize(&NameOfDllToLoadUS);
 			NameOfDllToLoadAS.MaximumLength = NameOfDllToLoadAS.Length;

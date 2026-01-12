@@ -32,6 +32,7 @@ copy ..\..\%DBGREL%\VxKexLdr.exe Archive\Core32\ >nul
 copy ..\..\%DBGREL%\KxNt.dll Archive\Kex32\ >nul
 copy ..\..\%DBGREL%\KxBase.dll Archive\Kex32\ >nul
 copy ..\..\%DBGREL%\KxCom.dll Archive\Kex32\ >nul
+copy ..\..\%DBGREL%\KxCrt.dll Archive\Kex32\ >nul
 copy ..\..\%DBGREL%\KxDx.dll Archive\Kex32\ >nul
 copy ..\..\%DBGREL%\KxUser.dll Archive\Kex32\ >nul
 
@@ -47,6 +48,7 @@ copy ..\..\x64\%DBGREL%\VxKexLdr.exe Archive\Core64\ >nul
 copy ..\..\x64\%DBGREL%\KxNt.dll Archive\Kex64\ >nul
 copy ..\..\x64\%DBGREL%\KxBase.dll Archive\Kex64\ >nul
 copy ..\..\x64\%DBGREL%\KxCom.dll Archive\Kex64\ >nul
+copy ..\..\x64\%DBGREL%\KxCrt.dll Archive\Kex64\ >nul
 copy ..\..\x64\%DBGREL%\KxDx.dll Archive\Kex64\ >nul
 copy ..\..\x64\%DBGREL%\KxUser.dll Archive\Kex64\ >nul
 
@@ -67,6 +69,7 @@ if %DBGREL%==Debug (
 	copy ..\..\%DBGREL%\KxNt.pdb Archive\Kex32\ >nul
 	copy ..\..\%DBGREL%\KxBase.pdb Archive\Kex32\ >nul
 	copy ..\..\%DBGREL%\KxCom.pdb Archive\Kex32\ >nul
+	copy ..\..\%DBGREL%\KxCrt.pdb Archive\Kex32\ >nul
 	copy ..\..\%DBGREL%\KxDx.pdb Archive\Kex32\ >nul
 	copy ..\..\%DBGREL%\KxUser.pdb Archive\Kex32\ >nul
 
@@ -80,6 +83,7 @@ if %DBGREL%==Debug (
 	copy ..\..\x64\%DBGREL%\KxNt.pdb Archive\Kex64\ >nul
 	copy ..\..\x64\%DBGREL%\KxBase.pdb Archive\Kex64\ >nul
 	copy ..\..\x64\%DBGREL%\KxCom.pdb Archive\Kex64\ >nul
+	copy ..\..\x64\%DBGREL%\KxCrt.pdb Archive\Kex64\ >nul
 	copy ..\..\x64\%DBGREL%\KxDx.pdb Archive\Kex64\ >nul
 	copy ..\..\x64\%DBGREL%\KxUser.pdb Archive\Kex64\ >nul
 
@@ -87,16 +91,22 @@ if %DBGREL%==Debug (
 	copy "..\..\02-Prebuilt DLLs\x64\*.pdb" Archive\Kex64\ >nul
 )
 
-
 copy /y 7zS2.sfx ..\..\KexSetup_%DBGREL%.exe >nul
+
 
 REM vtrplnt copies the version resources from the original kexsetup into
 REM the packed SFX version.
 REM It has to be run now because otherwise it will clobber the appended
 REM 7zip data.
+
 vtrplnt.exe /%DBGREL%
 
+REM ===========================================================================
+REM FINAL RELEASE: switch to the upper command for higher compression
+REM ===========================================================================
+
 7zr a -y Archive.7z .\Archive\* -mmt1 -mx9 -m0=LZMA:d32
+REM 7zr a -y Archive.7z .\Archive\* -mmt1 -mx1 -m0=LZMA:d32
 
 if %errorlevel% neq 0 (
 	pause

@@ -1,5 +1,6 @@
 #pragma once
 
+#pragma comment(lib, "advapi32.lib")
 #pragma comment(lib, "oleaut32.lib")
 #pragma comment(lib, "taskschd.lib")
 

@@ -47,5 +47,8 @@
     <ClCompile Include="dpi.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="locale.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

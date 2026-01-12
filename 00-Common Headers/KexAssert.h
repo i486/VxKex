@@ -65,8 +65,10 @@
 										__FILEW__, __LINE__, __FUNCTIONW__, L#Condition); \
 									if (ShouldRaiseException) __int2c(); \
 								}
+#    define SOFT_ASSERT ASSERT
 #  else
 #    define ASSERT(Condition)	do { if (!(Condition)) { DbgPrint("Assertion failure: %s (%s:%d in %s)\r\n", #Condition, __FILE__, __LINE__, __FUNCTION__);  __int2c(); } } while(0)
+#    define SOFT_ASSERT (Condition) do { if (!(Condition)) { DbgPrint("Soft assertion failure: %s (%S:%d in %s)\r\n", #Condition, __FILE__, __LINE__, __FUNCTION); } while (0)
 #  endif
 #else
 #  define ASSERT(Condition)

@@ -23,13 +23,20 @@
 #include <KexComm.h>
 #include <KexDll.h>
 #include <powrprof.h>
+#include <cfgmgr32.h>
+#include <bcrypt.h>
 
 #pragma region Macro Definitions
 
-#ifndef KXBASEAPI
+#if !defined(KXBASEAPI) && defined(KEX_ENV_WIN32)
 #  define KXBASEAPI
 #  pragma comment(lib, "KxBase.lib")
 #endif
+
+#define PROCESS_CREATION_MITIGATION_POLICY_VALID_MASK \
+	(PROCESS_CREATION_MITIGATION_POLICY_DEP_ENABLE | \
+	 PROCESS_CREATION_MITIGATION_POLICY_DEP_ATL_THUNK_ENABLE | \
+	 PROCESS_CREATION_MITIGATION_POLICY_SEHOP_ENABLE)
 
 #define LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR		0x00000100
 #define LOAD_LIBRARY_SEARCH_APPLICATION_DIR		0x00000200
@@ -41,6 +48,7 @@
 #define IOCTL_KSEC_RANDOM_FILL_BUFFER			CTL_CODE(FILE_DEVICE_KSEC, 0x02, METHOD_BUFFERED, FILE_ANY_ACCESS)
 
 #define APPMODEL_ERROR_NO_PACKAGE				15700L
+#define APPMODEL_ERROR_NO_APPLICATION			15703L
 
 #define DEVICE_NOTIFY_CALLBACK					2
 
@@ -116,6 +124,49 @@ typedef struct _KERNELBASE_GLOBAL_DATA {
 	UNICODE_STRING			BaseWindowsDirectory;
 	UNICODE_STRING			BaseWindowsSystemDirectory;
 } TYPEDEF_TYPE_NAME(KERNELBASE_GLOBAL_DATA);
+
+typedef struct _BASE_STATIC_SERVER_DATA {
+	// e.g. "C:\Windows"
+	UNICODE_STRING			WindowsDirectory;
+
+	// e.g. "C:\Windows\system32"
+	UNICODE_STRING			WindowsSystemDirectory;
+
+	// e.g. "\Sessions\1\BaseNamedObjects"
+	UNICODE_STRING			NamedObjectDirectory;
+
+	//
+	// More members follow, but I don't consider them so interesting so
+	// I didn't bother to include them.
+	//
+} TYPEDEF_TYPE_NAME(BASE_STATIC_SERVER_DATA);
+
+// Applicable for 32-bit program on 64-bit OS only.
+typedef struct _BASE_STATIC_SERVER_DATA_WOW64 {
+	struct {
+		USHORT				Length;
+		USHORT				MaximumLength;
+		ULONG				Padding;
+		PWCHAR				Buffer;
+		ULONG				Zero;
+	} WindowsDirectory;
+
+	struct {
+		USHORT				Length;
+		USHORT				MaximumLength;
+		ULONG				Padding;
+		PWCHAR				Buffer;
+		ULONG				Zero;
+	} WindowsSystemDirectory;
+
+	struct {
+		USHORT				Length;
+		USHORT				MaximumLength;
+		ULONG				Padding;
+		PWCHAR				Buffer;
+		ULONG				Zero;
+	} NamedObjectDirectory;
+} TYPEDEF_TYPE_NAME(BASE_STATIC_SERVER_DATA_WOW64);
 
 typedef enum _OFFER_PRIORITY {
 	VMOfferPriorityVeryLow			= 1,
@@ -398,7 +449,111 @@ typedef enum _PSS_QUERY_INFORMATION_CLASS {
 	PSS_QUERY_PERFORMANCE_COUNTERS			= 7
 } TYPEDEF_TYPE_NAME(PSS_QUERY_INFORMATION_CLASS);
 
+typedef enum _CM_NOTIFY_FILTER_TYPE {
+	CM_NOTIFY_FILTER_TYPE_DEVICEINTERFACE,
+	CM_NOTIFY_FILTER_TYPE_DEVICEHANDLE,
+	CM_NOTIFY_FILTER_TYPE_DEVICEINSTANCE,
+	CM_NOTIFY_FILTER_TYPE_MAX
+} CM_NOTIFY_FILTER_TYPE, *PCM_NOTIFY_FILTER_TYPE;
+
+DECLARE_HANDLE(HCMNOTIFICATION);
+GEN_STD_TYPEDEFS(HCMNOTIFICATION);
+
+
+typedef enum _CM_NOTIFY_ACTION {
+	// Filter type: CM_NOTIFY_FILTER_TYPE_DEVICEINTERFACE
+	CM_NOTIFY_ACTION_DEVICEINTERFACEARRIVAL,
+	CM_NOTIFY_ACTION_DEVICEINTERFACEREMOVAL,
+
+	// Filter type: CM_NOTIFY_FILTER_TYPE_DEVICEHANDLE
+	CM_NOTIFY_ACTION_DEVICEQUERYREMOVE,
+	CM_NOTIFY_ACTION_DEVICEQUERYREMOVEFAILED,
+	CM_NOTIFY_ACTION_DEVICEREMOVEPENDING,
+	CM_NOTIFY_ACTION_DEVICEREMOVECOMPLETE,
+	CM_NOTIFY_ACTION_DEVICECUSTOMEVENT,
+
+	// Filter type: CM_NOTIFY_FILTER_TYPE_DEVICEINSTANCE
+	CM_NOTIFY_ACTION_DEVICEINSTANCEENUMERATED,
+	CM_NOTIFY_ACTION_DEVICEINSTANCESTARTED,
+	CM_NOTIFY_ACTION_DEVICEINSTANCEREMOVED,
+
+	CM_NOTIFY_ACTION_MAX
+} TYPEDEF_TYPE_NAME(CM_NOTIFY_ACTION);
+
+typedef struct _CM_NOTIFY_EVENT_DATA {
+	CM_NOTIFY_FILTER_TYPE	FilterType;
+	DWORD					Reserved;
+
+	union {
+		struct {
+			GUID			ClassGuid;
+			WCHAR			SymbolicLink[ANYSIZE_ARRAY];
+		} DeviceInterface;
+
+		struct {
+			GUID			EventGuid;
+			LONG			NameOffset;
+			DWORD			DataSize;
+			BYTE			Data[ANYSIZE_ARRAY];
+		} DeviceHandle;
+
+		struct {
+			WCHAR			InstanceId[ANYSIZE_ARRAY];
+		} DeviceInstance;
+	};
+} TYPEDEF_TYPE_NAME(CM_NOTIFY_EVENT_DATA);
+
+typedef DWORD (CALLBACK *PCM_NOTIFY_CALLBACK) (
+	IN	HCMNOTIFICATION			hNotify,
+	IN	PVOID					Context OPTIONAL,
+	IN	CM_NOTIFY_ACTION		Action,
+	IN	PCM_NOTIFY_EVENT_DATA	EventData,
+	IN	DWORD					EventDataSize);
+
+typedef struct _CM_NOTIFY_FILTER {
+	DWORD                 cbSize;
+	DWORD                 Flags;
+	CM_NOTIFY_FILTER_TYPE FilterType;
+	DWORD                 Reserved;
+
+	union {
+		struct {
+			GUID ClassGuid;
+		} DeviceInterface;
+		struct {
+			HANDLE hTarget;
+		} DeviceHandle;
+		struct {
+			WCHAR InstanceId[MAX_DEVICE_ID_LEN];
+		} DeviceInstance;
+	};
+} TYPEDEF_TYPE_NAME(CM_NOTIFY_FILTER);
+
+typedef enum _WLDP_WINDOWS_LOCKDOWN_MODE {
+	WLDP_WINDOWS_LOCKDOWN_MODE_UNLOCKED,
+	WLDP_WINDOWS_LOCKDOWN_MODE_TRIAL,
+	WLDP_WINDOWS_LOCKDOWN_MODE_LOCKED,
+	WLDP_WINDOWS_LOCKDOWN_MODE_MAX
+} TYPEDEF_TYPE_NAME(WLDP_WINDOWS_LOCKDOWN_MODE);
+
+typedef enum _FIRMWARE_TYPE {
+	FirmwareTypeUnknown,
+	FirmwareTypeBios,
+	FirmwareTypeUefi,
+	FirmwareTypeMax
+} TYPEDEF_TYPE_NAME(FIRMWARE_TYPE);
+
+typedef struct _VERHEAD {
+	WORD				wTotLen;
+	WORD				wValLen;
+	WORD				wType;
+	WCHAR				szKey[(sizeof("VS_VERSION_INFO") + 3) & ~3];
+	VS_FIXEDFILEINFO	vsf;
+} TYPEDEF_TYPE_NAME(VERHEAD);
+
 #pragma endregion
+
+#if defined(KEX_ENV_WIN32)
 
 WINBASEAPI PKERNELBASE_GLOBAL_DATA WINAPI KernelBaseGetGlobalData(
 	VOID);
@@ -500,6 +655,7 @@ KXBASEAPI BOOL WINAPI SetProcessMitigationPolicy(
 	IN	SIZE_T						BufferCb);
 
 KXBASEAPI BOOL WINAPI GetProcessMitigationPolicy(
+	IN	HANDLE						ProcessHandle,
 	IN	PROCESS_MITIGATION_POLICY	MitigationPolicy,
 	OUT	PVOID						Buffer,
 	IN	SIZE_T						BufferCb);
@@ -656,3 +812,8 @@ KXBASEAPI ULONG WINAPI PowerUnregisterSuspendResumeNotification(
 
 KXBASEAPI BOOL WINAPI GetOsSafeBootMode(
 	OUT	PBOOL	IsSafeBootMode);
+
+KXBASEAPI BOOL WINAPI GetFirmwareType(
+	OUT	PFIRMWARE_TYPE	FirmwareType);
+
+#endif // if defined(KEX_ENV_WIN32)

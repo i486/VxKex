@@ -10,7 +10,7 @@ typedef struct {
 	IShellExtInitVtbl		*ShellExtInitVtbl;
 	IShellPropSheetExtVtbl	*ShellPropSheetExtVtbl;
 
-	ULONG					RefCount;
+	LONG					RefCount;
 	WCHAR					ExeFullPath[MAX_PATH];
 } IKexShlEx;
 
@@ -110,7 +110,7 @@ HRESULT STDMETHODCALLTYPE CClassFactory_LockServer(
 //
 
 EXTERN HMODULE DllHandle;
-EXTERN ULONG DllReferenceCount;
+EXTERN LONG DllReferenceCount;
 EXTERN CONST IKexShlEx IKexShlExTemplate;
 
 //

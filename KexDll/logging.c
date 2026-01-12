@@ -92,13 +92,21 @@ NTSTATUS KexOpenVxlLogForCurrentApplication(
 		RtlInitEmptyUnicodeString(&LogFileName, LogFileBuffer, ARRAYSIZE(LogFileBuffer));
 		RtlAppendUnicodeStringToString(&LogFileName, &KexData->ImageBaseName);
 		KexRtlPathRemoveExtension(&LogFileName, &LogFileName);
-		RtlAppendUnicodeToString(&LogFileName, L"-");
 
 		// append system time, zero-padded to 20 characters for easy sorting
+		RtlAppendUnicodeToString(&LogFileName, L"-");
 		TemporaryLength = LogFileName.Length;
 		KexRtlAdvanceUnicodeString(&LogFileName, TemporaryLength);
 		RtlInt64ToUnicodeString(*(PULONGLONG) &SharedUserData->SystemTime, 10, &LogFileName);
 		KexRtlShiftUnicodeString(&LogFileName, 20 - (LogFileName.Length / sizeof(WCHAR)), '0');
+		KexRtlRetreatUnicodeString(&LogFileName, TemporaryLength);
+
+		// Append process ID. This combats situations where 2 processes with same name are
+		// started at the same time.
+		RtlAppendUnicodeToString(&LogFileName, L"-");
+		TemporaryLength = LogFileName.Length;
+		KexRtlAdvanceUnicodeString(&LogFileName, TemporaryLength);
+		RtlIntegerToUnicodeString((ULONG) NtCurrentTeb()->ClientId.UniqueProcess, 10, &LogFileName);
 		KexRtlRetreatUnicodeString(&LogFileName, TemporaryLength);
 
 		RtlAppendUnicodeToString(&LogFileName, L".vxl");
@@ -122,7 +130,9 @@ NTSTATUS KexOpenVxlLogForCurrentApplication(
 			GENERIC_WRITE,
 			FILE_OVERWRITE_IF);
 
-		ASSERT (NT_SUCCESS(Status));
+		// We can get STATUS_ACCESS_DENIED if running in a sandboxed Chromium process.
+		// This is normal and there's nothing wrong.
+		ASSERT (NT_SUCCESS(Status) || Status == STATUS_ACCESS_DENIED);
 	} finally {
 		RtlFreeUnicodeString(&LogDir);
 		SafeClose(LogDirHandle);

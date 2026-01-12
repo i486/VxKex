@@ -123,7 +123,7 @@ GENERATE_SYSCALL(NtWriteFile,						0x018C, 0x0005, 0x1A, 0x24,
 	OUT		PIO_STATUS_BLOCK	IoStatusBlock,
 	IN		PVOID				Buffer,
 	IN		ULONG				Length,
-	IN		PLARGE_INTEGER		ByteOffset OPTIONAL,
+	IN		PLONGLONG			ByteOffset OPTIONAL,
 	IN		PULONG				Key OPTIONAL);
 
 GENERATE_SYSCALL(NtRaiseHardError,					0x0110, 0x0130, 0x00, 0x18,
@@ -146,5 +146,47 @@ GENERATE_SYSCALL(NtSetInformationThread,			0x014F, 0x000A, 0x00, 0x10,
 	IN	THREADINFOCLASS		ThreadInformationClass,
 	IN	PVOID				ThreadInformation,
 	IN	ULONG				ThreadInformationLength);
+
+GENERATE_SYSCALL(NtNotifyChangeKey,					0x00AC, 0x00EB, 0x00, 0x28,
+	IN	HANDLE				KeyHandle,
+	IN	HANDLE				Event OPTIONAL,
+	IN	PIO_APC_ROUTINE		ApcRoutine OPTIONAL,
+	IN	PVOID				ApcContext OPTIONAL,
+	OUT	PIO_STATUS_BLOCK	IoStatusBlock,
+	IN	ULONG				CompletionFilter,
+	IN	BOOLEAN				WatchTree,
+	OUT	PVOID				Buffer OPTIONAL,
+	IN	ULONG				BufferSize,
+	IN	BOOLEAN				Asynchronous);
+
+GENERATE_SYSCALL(NtNotifyChangeMultipleKeys,		0x00AD, 0x00EC, 0x00, 0x30,
+	IN	HANDLE				MasterKeyHandle,
+	IN	ULONG				Count OPTIONAL,
+	IN	OBJECT_ATTRIBUTES	SlaveObjects[] OPTIONAL,
+	IN	HANDLE				Event OPTIONAL,
+	IN	PIO_APC_ROUTINE		ApcRoutine OPTIONAL,
+	IN	PVOID				ApcContext OPTIONAL,
+	OUT	PIO_STATUS_BLOCK	IoStatusBlock,
+	IN	ULONG				CompletionFilter,
+	IN	BOOLEAN				WatchTree,
+	OUT	PVOID				Buffer OPTIONAL,
+	IN	ULONG				BufferSize,
+	IN	BOOLEAN				Asynchronous);
+
+GENERATE_SYSCALL(NtCreateSection,					0x0054, 0x0047, 0x00, 0x1C,
+	OUT	PHANDLE				SectionHandle,
+	IN	ULONG				DesiredAccess,
+	IN	POBJECT_ATTRIBUTES	ObjectAttributes OPTIONAL,
+	IN	PLONGLONG			MaximumSize OPTIONAL,
+	IN	ULONG				PageAttributes,
+	IN	ULONG				SectionAttributes,
+	IN	HANDLE				FileHandle OPTIONAL);
+
+GENERATE_SYSCALL(NtQueryInformationProcess,			0x00EA, 0x0016, 0x00, 0x14,
+	IN	HANDLE				ProcessHandle,
+	IN	PROCESSINFOCLASS	ProcessInformationClass,
+	OUT	PVOID				ProcessInformation,
+	IN	ULONG				ProcessInformationLength,
+	OUT	PULONG				ReturnLength OPTIONAL);
 
 #endif

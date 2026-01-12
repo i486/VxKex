@@ -33,6 +33,7 @@ EXPORTS
 	GetWindowBand
 	GetProcessUIContextInformation @2521 NONAME
 	GetCurrentInputMessageSource
+	IsImmersiveProcess
 
 	;;
 	;; pointer.c
@@ -66,10 +67,12 @@ EXPORTS
 	GetDpiForMonitor
 	GetScaleFactorForMonitor
 	GetProcessDpiAwareness
+	GetProcessDpiAwarenessInternal
 	SetProcessDpiAwareness
 	GetThreadDpiAwarenessContext
 	SetThreadDpiAwarenessContext
 	SetProcessDpiAwarenessContext
+	SetProcessDpiAwarenessInternal
 	AdjustWindowRectExForDpi
 	GetAwarenessFromDpiAwarenessContext
 	GetWindowDpiAwarenessContext

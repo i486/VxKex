@@ -423,6 +423,29 @@ ULONG GetLogEntryRawIndex(
 	return State->FilteredLookupCache[EntryIndex];
 }
 
+// This function is rather inefficient as it was hacked in after the core backend
+// was already designed. It's used for the Ctrl+G "go to raw entry" functionality.
+ULONG GetLogEntryIndexFromRawIndex(
+	IN	ULONG	RawIndex)
+{
+	ULONG RawIndexOfItem;
+	ULONG Index;
+
+	Index = 0;
+
+	do {
+		RawIndexOfItem = GetLogEntryRawIndex(Index);
+
+		if (RawIndexOfItem == RawIndex) {
+			return Index;
+		}
+
+		++Index;
+	} until (RawIndexOfItem == RawIndex || RawIndexOfItem == -1);
+
+	return (ULONG) -1;
+}
+
 //
 // Get a log entry, respecting the current filters.
 //

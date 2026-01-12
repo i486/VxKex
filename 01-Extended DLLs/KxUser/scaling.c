@@ -85,6 +85,7 @@ KXUSERAPI BOOL WINAPI SetProcessDpiAwarenessContext(
 		break;
 	case DPI_AWARENESS_CONTEXT_SYSTEM_AWARE:
 	case DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE:
+	case DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2:
 		SetProcessDPIAware();
 		break;
 	default:
@@ -112,7 +113,7 @@ KXUSERAPI DPI_AWARENESS_CONTEXT WINAPI GetWindowDpiAwarenessContext(
 	return DPI_AWARENESS_CONTEXT_UNAWARE;
 }
 
-KXUSERAPI HRESULT WINAPI GetProcessDpiAwareness(
+KXUSERAPI BOOL WINAPI GetProcessDpiAwarenessInternal(
 	IN	HANDLE					ProcessHandle,
 	OUT	PROCESS_DPI_AWARENESS	*DpiAwareness)
 {
@@ -125,14 +126,30 @@ KXUSERAPI HRESULT WINAPI GetProcessDpiAwareness(
 		*DpiAwareness = PROCESS_DPI_UNAWARE;
 	}
 
+	return TRUE;
+}
+
+KXUSERAPI HRESULT WINAPI GetProcessDpiAwareness(
+	IN	HANDLE					ProcessHandle,
+	OUT	PROCESS_DPI_AWARENESS	*DpiAwareness)
+{
+	BOOLEAN Success;
+
+	Success = GetProcessDpiAwarenessInternal(ProcessHandle, DpiAwareness);
+
+	if (!Success) {
+		return HRESULT_FROM_WIN32(GetLastError());
+	}
+
 	return S_OK;
 }
 
-KXUSERAPI HRESULT WINAPI SetProcessDpiAwareness(
+KXUSERAPI BOOL WINAPI SetProcessDpiAwarenessInternal(
 	IN	PROCESS_DPI_AWARENESS	DpiAwareness)
 {
 	if (DpiAwareness >= PROCESS_MAX_DPI_AWARENESS) {
-		return E_INVALIDARG;
+		SetLastError(ERROR_INVALID_PARAMETER);
+		return FALSE;
 	}
 
 	if (DpiAwareness != PROCESS_DPI_UNAWARE) {
@@ -140,6 +157,20 @@ KXUSERAPI HRESULT WINAPI SetProcessDpiAwareness(
 		// no matter what, so there is no point in checking its
 		// return value.
 		SetProcessDPIAware();
+	}
+
+	return TRUE;
+}
+
+KXUSERAPI HRESULT WINAPI SetProcessDpiAwareness(
+	IN	PROCESS_DPI_AWARENESS	Awareness)
+{
+	BOOLEAN Success;
+	
+	Success = SetProcessDpiAwarenessInternal(Awareness);
+
+	if (!Success) {
+		return HRESULT_FROM_WIN32(GetLastError());
 	}
 
 	return S_OK;

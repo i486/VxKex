@@ -109,7 +109,11 @@ BOOL WINAPI DllMain(
 	}
 
 	if (Reason == DLL_PROCESS_VERIFIER) {
+		PPEB Peb;
+
 		ASSERT (KexData != NULL);
+
+		Peb = NtCurrentPeb();
 
 		//
 		// Open log file.
@@ -124,6 +128,18 @@ BOOL WINAPI DllMain(
 		//
 
 		KexHeInstallHandler();
+
+		//
+		// Log some basic information such as command-line parameters to
+		// the log.
+		//
+
+		KexLogInformationEvent(
+			L"Process created\r\n\r\n"
+			L"Full path to the EXE: %wZ\r\n"
+			L"Command line:         %wZ\r\n",
+			&Peb->ProcessParameters->ImagePathName,
+			&Peb->ProcessParameters->CommandLine);
 
 		//
 		// Try to get rid of as much Application verifier functionality as
@@ -148,15 +164,11 @@ BOOL WINAPI DllMain(
 			L"DisableForChild:      %d\r\n"
 			L"DisableAppSpecific:   %d\r\n"
 			L"WinVerSpoof:          %d\r\n"
-			L"StrongVersionSpoof:   0x%08lx\r\n"
-			L"BreakOnHardError:     %d\r\n"
-			L"DisableDllDirectory:  %d",
+			L"StrongVersionSpoof:   0x%08lx",
 			KexData->IfeoParameters.DisableForChild,
 			KexData->IfeoParameters.DisableAppSpecific,
 			KexData->IfeoParameters.WinVerSpoof,
-			KexData->IfeoParameters.StrongVersionSpoof,
-			KexData->IfeoParameters.BreakOnHardError,
-			KexData->IfeoParameters.DisableDllDirectory);
+			KexData->IfeoParameters.StrongVersionSpoof);
 
 		//
 		// Perform version spoofing, if required.
@@ -172,8 +184,8 @@ BOOL WINAPI DllMain(
 		if (!NT_SUCCESS(Status)) {
 			KexLogCriticalEvent(
 				L"Failed to initialize DLL rewrite subsystem\r\n\r\n"
-				L"NTSTATUS error code: %s",
-				KexRtlNtStatusToString(Status));
+				L"NTSTATUS error code: %s (0x%08lx)",
+				KexRtlNtStatusToString(Status), Status);
 
 			// Abort initialization of VxKex.
 			KexHeErrorBox(
@@ -182,6 +194,8 @@ BOOL WINAPI DllMain(
 				L"this problem may be caused by missing registry keys.\r\n"
 				L"If the problem persists, please disable VxKex for this "
 				L"program.");
+
+			NOT_REACHED;
 		}
 
 		//
@@ -199,13 +213,33 @@ BOOL WINAPI DllMain(
 		} else {
 			KexLogCriticalEvent(
 				L"Failed to register DLL notification callback\r\n\r\n"
-				L"NTSTATUS error code: %s",
-				KexRtlNtStatusToString(Status));
+				L"NTSTATUS error code: %s (0x%08lx)",
+				KexRtlNtStatusToString(Status), Status);
 
 			KexHeErrorBox(
 				L"VxKex could not start because the DLL notification callback "
 				L"could not be installed. If the problem persists, please disable "
 				L"VxKex for this program.");
+
+			NOT_REACHED;
+		}
+
+		//
+		// Perform any app-specific hacks that need to be done before any further
+		// process initialization occurs.
+		// This must be done before rewriting the imports of the main EXE because
+		// we might change the DLL rewrite settings based on what we detect here.
+		//
+
+		unless (KexData->IfeoParameters.DisableAppSpecific) {
+			// APPSPECIFICHACK: Environment variable hack for QBittorrent to fix
+			// bad kerning.
+			if (AshExeBaseNameIs(L"qbittorrent.exe")) {
+				AshApplyQBittorrentEnvironmentVariableHacks();
+			}
+
+			// APPSPECIFICHACK: Detect Chromium based on EXE exports.
+			AshPerformChromiumDetectionFromModuleExports(Peb->ImageBaseAddress);
 		}
 
 		//
@@ -220,27 +254,19 @@ BOOL WINAPI DllMain(
 		if (!NT_SUCCESS(Status) && Status != STATUS_IMAGE_NO_IMPORT_DIRECTORY) {
 			KexLogCriticalEvent(
 				L"Failed to rewrite DLL imports of the main process image.\r\n\r\n"
-				L"NTSTATUS error code: %s\r\n"
+				L"NTSTATUS error code: %s (0x%08lx)\r\n"
 				L"Image base address: 0x%p\r\n",
-				KexRtlNtStatusToString(Status),
+				KexRtlNtStatusToString(Status), Status,
 				NtCurrentPeb()->ImageBaseAddress);
 
 			KexHeErrorBox(
 				L"VxKex could not start because the DLL imports of the main "
 				L"process image could not be rewritten. If the problem persists, "
 				L"please disable VxKex for this program.");
+
+			NOT_REACHED;
 		}
 
-		// APPSPECIFICHACK: Environment variable hack for QBittorrent to fix
-		// bad kerning.
-		// APPSPECIFICHACK: Calibre requires the Qt6 ASH to be applied early.
-		unless (KexData->IfeoParameters.DisableAppSpecific) {
-			if (AshExeBaseNameIs(L"qbittorrent.exe")) {
-				AshApplyQBittorrentEnvironmentVariableHacks();
-			} else if (AshExeBaseNameIs(L"calibre.exe")) {
-				AshApplyQt6EnvironmentVariableHacks();
-			}
-		}
 	} else if (Reason == DLL_PROCESS_ATTACH && Descriptor == NULL) {
 		Status = LdrDisableThreadCalloutsForDll(DllBase);
 		ASSERT (NT_SUCCESS(Status));

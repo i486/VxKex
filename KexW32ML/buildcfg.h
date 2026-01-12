@@ -36,5 +36,7 @@
 #define NOSERVICE
 #define NOSOUND
 
+#pragma comment(lib, "advapi32")
+
 #define KW32MLDECLSPEC
 #define KEX_TARGET_TYPE_LIB

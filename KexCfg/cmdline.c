@@ -136,7 +136,9 @@ VOID KexCfgHandleCommandLine(
 		if (!isalpha(ExeFullPath[0]) || ExeFullPath[1] != ':' || ExeFullPath[2] != '\\') {
 			KexCfgMessageBox(
 				NULL,
-				L"The argument to /EXE must be an absolute path with a drive letter.",
+				L"The argument to /EXE must be an absolute path with a drive letter. "
+				L"If this program is on a network share, you must map the share as a "
+				L"network drive (right click -> Map network drive...).",
 				FRIENDLYAPPNAME,
 				MB_ICONERROR | MB_OK);
 
@@ -153,7 +155,8 @@ VOID KexCfgHandleCommandLine(
 			if (PathIsPrefix(WinDir, ExeFullPath) || PathIsPrefix(KexDir, ExeFullPath)) {
 				KexCfgMessageBox(
 					NULL,
-					L"The argument to /EXE cannot be in the Windows directory or the VxKex installation directory.",
+					L"The argument to /EXE cannot be in the Windows directory "
+					L"or the VxKex installation directory.",
 					FRIENDLYAPPNAME,
 					MB_ICONERROR | MB_OK);
 

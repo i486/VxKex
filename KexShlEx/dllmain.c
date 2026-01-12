@@ -35,7 +35,7 @@
 DEFINE_GUID(CLSID_KexShlEx, 0x9aaca888, 0xa5f5, 0x4c01, 0x85, 0x2e, 0x8a, 0x20, 0x5, 0xc1, 0xd4, 0x5f);
 
 HMODULE DllHandle = NULL;
-ULONG DllReferenceCount = 0;
+LONG DllReferenceCount = 0;
 
 //
 // CKexShlEx

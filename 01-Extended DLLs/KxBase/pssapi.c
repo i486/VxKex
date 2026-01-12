@@ -13,6 +13,9 @@
 //     implement them under Windows 7 if it is found that programs are making
 //     significant use of them.
 //
+//     As of 15-Mar-2024 the Python issue has been alleviated by this pull
+//     request I made: https://github.com/python/cpython/issues/116195
+//
 // Author:
 //
 //     vxiiduu (01-Mar-2024)
@@ -37,6 +40,7 @@ KXBASEAPI ULONG WINAPI PssCaptureSnapshot(
 	OUT	PHPSS				SnapshotHandle)
 {
 	KexLogWarningEvent(L"Stub API called: PssCaptureSnapshot");
+	KexDebugCheckpoint();
 	return ERROR_NOT_SUPPORTED;
 }
 
@@ -45,6 +49,7 @@ KXBASEAPI ULONG WINAPI PssFreeSnapshot(
 	IN	HPSS				SnapshotHandle)
 {
 	KexLogWarningEvent(L"Stub API called: PssFreeSnapshot");
+	KexDebugCheckpoint();
 	return ERROR_NOT_SUPPORTED;
 }
 
@@ -55,5 +60,6 @@ KXBASEAPI ULONG WINAPI PssQuerySnapshot(
 	IN	ULONG						BufferLength)
 {
 	KexLogWarningEvent(L"Stub API called: PssQuerySnapshot");
+	KexDebugCheckpoint();
 	return ERROR_NOT_SUPPORTED;
 }

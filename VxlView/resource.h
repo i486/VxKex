@@ -32,6 +32,8 @@
 #define IDD_ABOUT 160
 #define IDC_WEBSITELINK 161
 
+#define IDD_GOTORAW 170
+
 #define IDM_MAINMENU 201
 #define M_OPEN 202
 #define M_EXPORT 203
@@ -39,6 +41,7 @@
 #define M_COLUMNS 211
 #define M_ABOUT 221
 #define M_FIND 230
+#define M_GOTORAW 231
 
 #define IDM_COMPONENTLISTMENU 250
 #define M_SELECTALL 251

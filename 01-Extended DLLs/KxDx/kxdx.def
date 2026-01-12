@@ -1,6 +1,8 @@
 LIBRARY KxDx
 EXPORTS
 	CreateDXGIFactory2
+	
+	MFCreateDXGIDeviceManager
 
 	;; These must be exported with ordinal. A lot of programs import by ordinal
 	;; from d3d12 for some reason.

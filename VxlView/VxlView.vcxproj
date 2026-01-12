@@ -28,27 +28,23 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>Windows7.1SDK</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>Windows7.1SDK</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>Windows7.1SDK</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>Windows7.1SDK</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -102,8 +98,7 @@
       </AdditionalDependencies>
       <Profile>false</Profile>
       <SetChecksum>true</SetChecksum>
-      <DelayLoadDLLs>
-      </DelayLoadDLLs>
+      <DelayLoadDLLs>comdlg32.dll</DelayLoadDLLs>
       <SectionAlignment>
       </SectionAlignment>
     </Link>
@@ -139,8 +134,7 @@
       </AdditionalDependencies>
       <Profile>false</Profile>
       <SetChecksum>true</SetChecksum>
-      <DelayLoadDLLs>
-      </DelayLoadDLLs>
+      <DelayLoadDLLs>comdlg32.dll</DelayLoadDLLs>
       <SectionAlignment>
       </SectionAlignment>
     </Link>
@@ -183,8 +177,7 @@
       </AdditionalDependencies>
       <Profile>false</Profile>
       <SetChecksum>true</SetChecksum>
-      <DelayLoadDLLs>
-      </DelayLoadDLLs>
+      <DelayLoadDLLs>comdlg32.dll</DelayLoadDLLs>
       <SectionAlignment>
       </SectionAlignment>
     </Link>
@@ -226,8 +219,7 @@
       </AdditionalDependencies>
       <Profile>false</Profile>
       <SetChecksum>true</SetChecksum>
-      <DelayLoadDLLs>
-      </DelayLoadDLLs>
+      <DelayLoadDLLs>comdlg32.dll</DelayLoadDLLs>
       <SectionAlignment>
       </SectionAlignment>
     </Link>
@@ -245,6 +237,7 @@
     <ClCompile Include="details.c" />
     <ClCompile Include="filters.c" />
     <ClCompile Include="globals.c" />
+    <ClCompile Include="goto.c" />
     <ClCompile Include="helpabout.c" />
     <ClCompile Include="listview.c" />
     <ClCompile Include="statusbar.c" />

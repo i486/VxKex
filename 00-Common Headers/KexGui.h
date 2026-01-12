@@ -220,3 +220,10 @@ KEXGDECLSPEC INT KEXGAPI DpiScaleX(
 
 KEXGDECLSPEC INT KEXGAPI DpiScaleY(
 	IN	INT	PixelsY);
+
+//
+// locale.c
+//
+
+KEXGDECLSPEC LANGID KEXGAPI GetVxKexUserInterfaceLanguage(
+	VOID);

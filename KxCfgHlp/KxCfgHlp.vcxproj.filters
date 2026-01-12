@@ -30,9 +30,6 @@
     <ClCompile Include="setcfg.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="dllrewrt.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="kexdir.c">
       <Filter>Source Files</Filter>
     </ClCompile>

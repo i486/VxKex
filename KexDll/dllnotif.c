@@ -67,7 +67,6 @@ VOID NTAPI KexDllNotificationCallback(
 		BOOLEAN ShouldRewriteImports;
 
 		ShouldRewriteImports = KexShouldRewriteImportsOfDll(
-			NotificationData->BaseDllName,
 			NotificationData->FullDllName);
 
 		if (ShouldRewriteImports) {
@@ -77,22 +76,17 @@ VOID NTAPI KexDllNotificationCallback(
 				NotificationData->FullDllName);
 		}
 
-		// APPSPECIFICHACK: If Qt6 dlls gets loaded, apply environment variable ASH.
-		// We cannot apply this ASH unconditionally, because if a Qt5 application
-		// sees it, it will disable theming and look ugly and use a shitty file picker.
 		unless (KexData->IfeoParameters.DisableAppSpecific) {
-			STATIC BOOLEAN AlreadyApplied = FALSE;
-			UNICODE_STRING Qt6;
+			if (!(KexData->Flags & KEXDATA_FLAG_CHROMIUM) &&
+				ShouldRewriteImports &&
+				NT_SUCCESS(Status)) {
 
-			unless (AlreadyApplied) {
-				RtlInitConstantUnicodeString(&Qt6, L"Qt6Gui.dll");
+				//
+				// APPSPECIFICHACK: Perform heuristic-based Chromium detection if we don't
+				// already know that this is a Chromium process.
+				//
 
-				if (NotificationData->BaseDllName) {
-					if (KexRtlUnicodeStringEndsWith(NotificationData->FullDllName, &Qt6, TRUE)) {
-						AshApplyQt6EnvironmentVariableHacks();
-						AlreadyApplied = TRUE;
-					}
-				}
+				AshPerformChromiumDetectionFromLoadedDll(NotificationData);
 			}
 		}
 	}

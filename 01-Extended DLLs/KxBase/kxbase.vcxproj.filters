@@ -24,6 +24,9 @@
     <ClInclude Include="kxbasep.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="dnsp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.c">
@@ -81,6 +84,24 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="pssapi.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="cfgmgr.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="wldp.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="stubs.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="winhttp.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="token.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="dns.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

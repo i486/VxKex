@@ -507,3 +507,263 @@ KEXAPI NTSTATUS NTAPI KexLdrProtectImageImportSection(
 
 	return Status;
 }
+
+//
+// DllPath is a string containing semicolon-separated Win32 directory paths (similar
+// to the PATH environment variable).
+// DllName is a Win32 path.
+//
+// DllCharacteristics can be a combination of the following:
+//
+//   DLL_CHARACTERISTIC_IGNORE_CODE_AUTHZ_LEVEL	- equivalent to LOAD_IGNORE_CODE_AUTHZ_LEVEL
+//   DLL_CHARACTERISTIC_LOAD_AS_DATA			- equivalent to DONT_RESOLVE_DLL_REFERENCES
+//   DLL_CHARACTERISTIC_REQUIRE_SIGNATURE		- equivalent to LOAD_LIBRARY_REQUIRE_SIGNED_TARGET
+//
+KEXAPI NTSTATUS NTAPI KexLdrLoadDll(
+	IN	PCWSTR				DllPath OPTIONAL,
+	IN	PULONG				DllCharacteristicsIndirect OPTIONAL,
+	IN	PCUNICODE_STRING	DllName,
+	OUT	PPVOID				DllHandle)
+{
+	NTSTATUS Status;
+	PCWSTR OriginalDllPath;
+	ULONG DllCharacteristics;
+	UNICODE_STRING RewrittenDll;
+
+	ASSERT (VALID_UNICODE_STRING(DllName));
+	ASSERT (DllHandle != NULL);
+
+	OriginalDllPath = DllPath;
+	DllCharacteristics = DllCharacteristicsIndirect ? *DllCharacteristicsIndirect : 0;
+
+	//
+	// Very weird shit going on here, not sure why this is needed, but it is.
+	// This stuff was added in an update after Win7 SP1. If the least significant
+	// bit of DllPath is set, that means DllPath is actually a pointer to an array
+	// of 2 PCWSTRs. The first one is the regular DLL path and the 2nd one is an
+	// alternate path.
+	//
+
+	if (DllPath && (((ULONG_PTR) DllPath) & 1)) {
+		ULONG_PTR DllPathPointer;
+		PPCWSTR DllPathIndirect;
+
+		DllPathPointer = (ULONG_PTR) DllPath;
+		DllPathPointer &= ~1;
+		DllPathIndirect = (PPCWSTR) DllPathPointer;
+		DllPath = *DllPathIndirect;
+
+		// TODO: Better preserve original behaviors.
+		//ASSERT (DllPathIndirect[1] == NULL);
+	}
+
+	if (!NtCurrentTeb()->KexLdrShouldRewriteDll) {
+		// KxBase has not asked us to rewrite DLL names, so we won't.
+		goto BailOut;
+	}
+
+	if (DllCharacteristics & DLL_CHARACTERISTIC_LOAD_AS_DATA) {
+		// They are probably trying to get resources or something out of
+		// the DLL.
+		goto BailOut;
+	}
+
+	//
+	// Try to rewrite the DLL name or path.
+	//
+
+	RtlInitEmptyUnicodeStringFromTeb(&RewrittenDll);
+
+	Status = KexRewriteDllPath(DllName, &RewrittenDll);
+
+	ASSERT (NT_SUCCESS(Status) ||
+			Status == STATUS_STRING_MAPPER_ENTRY_NOT_FOUND ||
+			Status == STATUS_DLL_NOT_IN_SYSTEM_ROOT);
+
+	if (!NT_SUCCESS(Status)) {
+		goto BailOut;
+	}
+
+	//
+	// We've successfully rewritten the DLL name.
+	// Set the DLL search path to the default (NULL).
+	// Remove any problematic DLL characteristics.
+	//
+
+	DllName = &RewrittenDll;
+	DllPath = NULL;
+	DllCharacteristics &= ~DLL_CHARACTERISTIC_REQUIRE_SIGNATURE;
+	DllCharacteristicsIndirect = &DllCharacteristics;
+
+BailOut:
+	if (DllPath) {
+		PWSTR NewDllPathBuffer;
+		SIZE_T NewDllPathCch;
+		UNICODE_STRING NewDllPath;
+
+		//
+		// Prepend Kex3264Dir in front of the original DLL path.
+		//
+
+		NewDllPathCch = wcslen(DllPath) + KexRtlUnicodeStringCch(&KexData->Kex3264DirPath) + 1;
+		NewDllPathBuffer = StackAlloc(WCHAR, NewDllPathCch);
+		RtlInitEmptyUnicodeString(&NewDllPath, NewDllPathBuffer, NewDllPathCch * sizeof(WCHAR));
+
+		RtlCopyUnicodeString(&NewDllPath, &KexData->Kex3264DirPath);
+		RtlAppendUnicodeToString(&NewDllPath, DllPath);
+
+		KexRtlNullTerminateUnicodeString(&NewDllPath);
+		DllPath = NewDllPath.Buffer;
+
+		ASSERT (((ULONG_PTR) DllPath & 1) == 0);
+	}
+
+	Status = LdrLoadDll(
+		DllPath,
+		DllCharacteristicsIndirect,
+		DllName,
+		DllHandle);
+
+	if (!NT_SUCCESS(Status)) {
+		KexLogWarningEvent(
+			L"Failed to dynamically load %wZ.\r\n\r\n"
+			L"DllPath:            \"%s\"\r\n"
+			L"DllCharacteristics: 0x%08lx\r\n"
+			L"NTSTATUS error code: %s (0x%08lx)",
+			DllName,
+			DllPath,
+			DllCharacteristics,
+			KexRtlNtStatusToString(Status), Status);
+	}
+
+	return Status;
+}
+
+KEXAPI NTSTATUS NTAPI KexLdrGetDllHandleEx(
+	IN	ULONG				Flags,
+	IN	PCWSTR				DllPath OPTIONAL,
+	IN	PULONG				DllCharacteristics OPTIONAL,
+	IN	PCUNICODE_STRING	DllName,
+	OUT	PPVOID				DllHandle)
+{
+	NTSTATUS Status;
+	UNICODE_STRING RewrittenDll;
+
+	if (!NtCurrentTeb()->KexLdrShouldRewriteDll) {
+		goto BailOut;
+	}
+
+	//
+	// Try to rewrite DLL.
+	//
+
+	RtlInitEmptyUnicodeStringFromTeb(&RewrittenDll);
+
+	Status = KexRewriteDllPath(DllName, &RewrittenDll);
+
+	ASSERT (NT_SUCCESS(Status) ||
+			Status == STATUS_STRING_MAPPER_ENTRY_NOT_FOUND ||
+			Status == STATUS_DLL_NOT_IN_SYSTEM_ROOT);
+
+	if (!NT_SUCCESS(Status)) {
+		goto BailOut;
+	}
+
+	//
+	// The DLL was rewritten.
+	//
+
+	DllPath = NULL;
+	DllCharacteristics = NULL;
+	DllName = &RewrittenDll;
+
+BailOut:
+	return LdrGetDllHandleEx(
+		Flags,
+		DllPath,
+		DllCharacteristics,
+		DllName,
+		DllHandle);
+}
+
+KEXAPI NTSTATUS NTAPI KexLdrGetDllHandle(
+	IN	PCWSTR				DllPath OPTIONAL,
+	IN	PULONG				DllCharacteristics OPTIONAL,
+	IN	PCUNICODE_STRING	DllName,
+	OUT	PPVOID				DllHandle)
+{
+	return KexLdrGetDllHandleEx(
+		LDR_GET_DLL_HANDLE_EX_UNCHANGED_REFCOUNT,
+		DllPath,
+		DllCharacteristics,
+		DllName,
+		DllHandle);
+}
+
+KEXAPI NTSTATUS NTAPI KexLdrGetProcedureAddressEx(
+	IN	PVOID				DllHandle,
+	IN	PCANSI_STRING		ProcedureName OPTIONAL,
+	IN	ULONG				ProcedureNumber OPTIONAL,
+	OUT	PPVOID				ProcedureAddress,
+	IN	ULONG				Flags)
+{
+	NTSTATUS Status;
+
+	Status = LdrGetProcedureAddressEx(
+		DllHandle,
+		ProcedureName,
+		ProcedureNumber,
+		ProcedureAddress,
+		Flags);
+
+	if (!NT_SUCCESS(Status)) {
+		NTSTATUS Status2;
+		UNICODE_STRING FullDllName;
+		UNICODE_STRING BaseDllName;
+
+		RtlInitEmptyUnicodeStringFromTeb(&FullDllName);
+		Status2 = KexLdrGetDllFullName(DllHandle, &FullDllName);
+		ASSERT (NT_SUCCESS(Status2));
+
+		if (!NT_SUCCESS(Status2)) {
+			RtlInitConstantUnicodeString(&FullDllName, L"(unknown)");
+		}
+
+		Status2 = KexRtlPathFindFileName(&FullDllName, &BaseDllName);
+		ASSERT (NT_SUCCESS(Status2));
+
+		if (!NT_SUCCESS(Status2)) {
+			RtlInitConstantUnicodeString(&BaseDllName, L"(unknown)");
+		}
+
+		KexLogWarningEvent(
+			L"Failed to resolve %hZ (#%lu) from %wZ\r\n\r\n"
+			L"DLL base address:     0x%p\r\n"
+			L"Full path to the DLL: %wZ\r\n"
+			L"Flags:                0x%08lx\r\n"
+			L"NTSTATUS error code:  %s (0x%08lx)",
+			ProcedureName,
+			ProcedureNumber,
+			&BaseDllName,
+			DllHandle,
+			&FullDllName,
+			Flags,
+			KexRtlNtStatusToString(Status), Status);
+	}
+
+	return Status;
+}
+
+KEXAPI NTSTATUS NTAPI KexLdrGetProcedureAddress(
+	IN	PVOID				DllHandle,
+	IN	PCANSI_STRING		ProcedureName OPTIONAL,
+	IN	ULONG				ProcedureNumber OPTIONAL,
+	OUT	PPVOID				ProcedureAddress)
+{
+	return KexLdrGetProcedureAddressEx(
+		DllHandle,
+		ProcedureName,
+		ProcedureNumber,
+		ProcedureAddress,
+		0);
+}

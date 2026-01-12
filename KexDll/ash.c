@@ -49,11 +49,9 @@ KEXAPI BOOLEAN NTAPI AshExeBaseNameIs(
 //
 // This function is intended to be used like this:
 //
-//   if (AshModuleBaseNameIs(ReturnAddress(), L"kernel32"))
+//   if (AshModuleBaseNameIs(ReturnAddress(), L"kernel32.dll"))
 //
-// Do not include a .dll extension on ModuleName (but if you do, it won't
-// cause issues). If the ModuleName has an extension other than .dll (for
-// example, .pyd) then you do need to include the extension.
+// File extension (.dll, .exe etc.) is required.
 //
 KEXAPI BOOLEAN NTAPI AshModuleBaseNameIs(
 	IN	PVOID	AddressInsideModule,
@@ -63,7 +61,6 @@ KEXAPI BOOLEAN NTAPI AshModuleBaseNameIs(
 	UNICODE_STRING DllFullPath;
 	UNICODE_STRING DllBaseName;
 	UNICODE_STRING ComparisonBaseName;
-	UNICODE_STRING DotDll;
 
 	RtlInitEmptyUnicodeStringFromTeb(&DllFullPath);
 
@@ -82,8 +79,7 @@ KEXAPI BOOLEAN NTAPI AshModuleBaseNameIs(
 	}
 
 	//
-	// Process the DLL name to remove the leading path elements and the
-	// .dll extension.
+	// Convert full path into base name.
 	//
 
 	Status = KexRtlPathFindFileName(&DllFullPath, &DllBaseName);
@@ -93,17 +89,6 @@ KEXAPI BOOLEAN NTAPI AshModuleBaseNameIs(
 		return FALSE;
 	}
 
-	RtlInitConstantUnicodeString(&DotDll, L".dll");
-
-	if (KexRtlUnicodeStringEndsWith(&DllBaseName, &DotDll, TRUE)) {
-		// remove .dll extension from DLL name
-		DllBaseName.Length -= DotDll.Length;
-	}
-
-	//
-	// Process the comparison DLL name to remove the .dll extension.
-	//
-
 	Status = RtlInitUnicodeStringEx(&ComparisonBaseName, ModuleName);
 	ASSERT (NT_SUCCESS(Status));
 
@@ -111,29 +96,44 @@ KEXAPI BOOLEAN NTAPI AshModuleBaseNameIs(
 		return FALSE;
 	}
 
-	if (KexRtlUnicodeStringEndsWith(&ComparisonBaseName, &DotDll, TRUE)) {
-		// remove .dll extension, if present, from input DLL name to check against
-		DllBaseName.Length -= DotDll.Length;
-	}
-
 	return RtlEqualUnicodeString(&DllBaseName, &ComparisonBaseName, TRUE);
 }
 
-VOID AshApplyQt6EnvironmentVariableHacks(
-	VOID)
+//
+// As with AshModuleBaseNameIs, this is designed to be used with the
+// ReturnAddress() macro as the argument.
+//
+KEXAPI BOOLEAN NTAPI AshModuleIsWindowsModule(
+	IN	PVOID	AddressInsideModule)
 {
-	UNICODE_STRING VariableName;
-	UNICODE_STRING VariableValue;
-	
+	NTSTATUS Status;
+	UNICODE_STRING DllFullPath;
+
+	RtlInitEmptyUnicodeStringFromTeb(&DllFullPath);
+
 	//
-	// APPSPECIFICHACK: Some newer Qt6 apps require this in order to avoid trying
-	// and failing to load Windows Runtime DLLs.
+	// Get the name of the DLL in which the specified address resides.
 	//
 
-	KexLogInformationEvent(L"App-Specific Hack applied for Qt6");
-	RtlInitConstantUnicodeString(&VariableName, L"QT_QPA_PLATFORMTHEME");
-	RtlInitConstantUnicodeString(&VariableValue, L"null");
-	RtlSetEnvironmentVariable(NULL, &VariableName, &VariableValue);
+	Status = KexLdrGetDllFullNameFromAddress(
+		AddressInsideModule,
+		&DllFullPath);
+
+	ASSERT (NT_SUCCESS(Status));
+
+	if (!NT_SUCCESS(Status)) {
+		return FALSE;
+	}
+
+	//
+	// See if it starts with %SystemRoot%.
+	//
+
+	if (RtlPrefixUnicodeString(&KexData->WinDir, &DllFullPath, TRUE)) {
+		return TRUE;
+	} else {
+		return FALSE;
+	}
 }
 
 VOID AshApplyQBittorrentEnvironmentVariableHacks(
@@ -151,7 +151,7 @@ VOID AshApplyQBittorrentEnvironmentVariableHacks(
 	if (AshExeBaseNameIs(L"qbittorrent.exe")) {
 		KexLogInformationEvent(L"App-Specific Hack applied for qBittorrent");
 		RtlInitConstantUnicodeString(&VariableName, L"QT_SCALE_FACTOR");
-		RtlInitConstantUnicodeString(&VariableValue, L"1.000000001");
+		RtlInitConstantUnicodeString(&VariableValue, L"1.0000001");
 		RtlSetEnvironmentVariable(NULL, &VariableName, &VariableValue);
 	}
 }

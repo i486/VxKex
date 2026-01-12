@@ -80,7 +80,7 @@ HRESULT STDMETHODCALLTYPE CClassFactory_CreateInstance(
 		return E_OUTOFMEMORY;
 	}
 
-	++DllReferenceCount;
+	InterlockedIncrement(&DllReferenceCount);
 	CopyMemory(CKexShlEx, &IKexShlExTemplate, sizeof(IKexShlExTemplate));
 	return CKexShlEx_QueryInterface(CKexShlEx, RefIID, ObjectOut);
 }

@@ -108,13 +108,14 @@
 #define STATUS_KEXDATA_NOT_INITIALIZED			DEFINE_KEX_NTSTATUS(NTSTATUS_ERROR, 8)
 #define STATUS_KEXSETUP_FAILURE					DEFINE_KEX_NTSTATUS(NTSTATUS_ERROR, 9)
 #define STATUS_IMAGE_SECTION_NOT_FOUND			DEFINE_KEX_NTSTATUS(NTSTATUS_ERROR, 10)
-#define STATUS_DLL_NOT_IN_SYSTEM_ROOT				DEFINE_KEX_NTSTATUS(NTSTATUS_ERROR, 11)
+#define STATUS_DLL_NOT_IN_SYSTEM_ROOT			DEFINE_KEX_NTSTATUS(NTSTATUS_ERROR, 11)
 
 #define KEXDATA_FLAG_PROPAGATED				1	// Indicates that this process was spawned from a VxKex-enabled parent
 #define KEXDATA_FLAG_IFEO_OPTIONS_PRESENT	2	// Indicates that this process has VxKex options set in IFEO
 #define KEXDATA_FLAG_MSIEXEC				4	// Indicates that this process is %SystemRoot%\system32\msiexec.exe
 #define KEXDATA_FLAG_ENABLED_FOR_MSI		8	// Indicates that this MSI has VxKex enabled.
-#define KEXDATA_FLAG_DISABLE_LOGGING		16	// Log files are not created.
+#define KEXDATA_FLAG_DISABLE_LOGGING		16	// Log files are not to be created.
+#define KEXDATA_FLAG_CHROMIUM				32	// This is a Chromium-based application (Chrome, Edge, Electron, QtWebEngine, etc.)
 
 #define KEX_STRONGSPOOF_SHAREDUSERDATA	1
 #define KEX_STRONGSPOOF_REGISTRY		2
@@ -262,21 +263,6 @@ typedef enum _KEX_WIN_VER_SPOOF {
 	WinVerSpoofMax		// should always be the last value
 } TYPEDEF_TYPE_NAME(KEX_WIN_VER_SPOOF);
 
-typedef enum _KEX_D3D12_IMPLEMENTATION {
-	D3D12AutomaticImplementation,		// auto select
-	D3D12NoImplementation,				// do not rewrite
-	D3D12StubImplementation,			// use KxDx d3d12 stubs
-	D3D12MicrosoftImplementation,		// use Microsoft D3D12on7
-	D3D12MaximumImplementation
-} TYPEDEF_TYPE_NAME(KEX_D3D12_IMPLEMENTATION);
-
-typedef enum _KEX_DNSAPI_IMPLEMENTATION {
-	DnsapiAutomaticImplementation,		// auto select
-	DnsapiNoImplementation,				// do not rewrite
-	DnsapiWindows8Implementation,		// use dnsw8.dll from windows 8
-	DnsapiMaximumImplementation
-} TYPEDEF_TYPE_NAME(KEX_DNSAPI_IMPLEMENTATION);
-
 //
 // These variable names are present under the IFEO key for each executable
 // with a KEX_ prefix. For example:
@@ -294,10 +280,6 @@ typedef struct _KEX_IFEO_PARAMETERS {
 	ULONG						DisableAppSpecific;
 	KEX_WIN_VER_SPOOF			WinVerSpoof;
 	ULONG						StrongVersionSpoof;				// KEX_STRONGSPOOF_*
-	ULONG						BreakOnHardError;
-	ULONG						DisableDllDirectory;
-	KEX_D3D12_IMPLEMENTATION	D3D12Implementation;
-	KEX_DNSAPI_IMPLEMENTATION	DnsapiImplementation;
 } TYPEDEF_TYPE_NAME(KEX_IFEO_PARAMETERS);
 
 //
@@ -308,14 +290,18 @@ typedef struct _KEX_IFEO_PARAMETERS {
 typedef struct _KEX_PROCESS_DATA {
 	ULONG					Flags;						// KEXDATA_FLAG_*
 	KEX_IFEO_PARAMETERS		IfeoParameters;
-	UNICODE_STRING			WinDir;						// e.g. C:\Windows
-	UNICODE_STRING			KexDir;						// e.g. C:\Program Files\VxKex
+	UNICODE_STRING			WinDir;						// e.g. "C:\Windows"
+	UNICODE_STRING			KexDir;						// e.g. "C:\Program Files\VxKex"
 	UNICODE_STRING			LogDir;
+	UNICODE_STRING			Kex3264DirPath;				// e.g. "C:\Program Files\VxKex\Kex64;"
 	UNICODE_STRING			ImageBaseName;				// e.g. program.exe
 	VXLHANDLE				LogHandle;
 	PVOID					KexDllBase;
 	PVOID					SystemDllBase;				// NTDLL base address
 	PVOID					NativeSystemDllBase;
+	PVOID					BaseDllBase;				// Kernel32 base address
+	HANDLE					BaseNamedObjects;			// object directory handle
+	HANDLE					UntrustedNamedObjects;
 } TYPEDEF_TYPE_NAME(KEX_PROCESS_DATA);
 
 #pragma endregion
@@ -413,7 +399,7 @@ KEXAPI NTSTATUS NTAPI KexRtlDeleteStringMapper(
 KEXAPI NTSTATUS NTAPI KexRtlInsertEntryStringMapper(
 	IN		PKEX_RTL_STRING_MAPPER		StringMapper,
 	IN		PCUNICODE_STRING			Key,
-	IN		PCUNICODE_STRING			Value OPTIONAL);
+	IN		PCUNICODE_STRING			Value);
 
 KEXAPI NTSTATUS NTAPI KexRtlLookupEntryStringMapper(
 	IN		PKEX_RTL_STRING_MAPPER			StringMapper,
@@ -475,6 +461,11 @@ KEXAPI VOID NTAPI KexRtlClearBit(
 	IN	PRTL_BITMAP	BitmapHeader,
 	IN	ULONG		BitNumber);
 
+KEXAPI NTSTATUS NTAPI KexRtlCreateUntrustedDirectoryObject(
+	OUT	PHANDLE				DirectoryHandle,
+	IN	ACCESS_MASK			DesiredAccess,
+	IN	POBJECT_ATTRIBUTES	ObjectAttributes);
+
 #ifdef KEX_ARCH_X64
 #  define KexRtlCurrentProcessBitness() (64)
 #else
@@ -495,59 +486,6 @@ KEXAPI VOID NTAPI KexRtlClearBit(
 #define KexRtlAnsiStringBufferCch(AnsiString) ((AnsiString)->MaximumLength)
 #define KexRtlEndOfUnicodeString(UnicodeString) ((UnicodeString)->Buffer + KexRtlUnicodeStringCch(UnicodeString))
 #define KexRtlCopyMemory(Destination, Source, Cb) __movsb((PUCHAR) (Destination), (PUCHAR) (Source), (Cb))
-
-#define KEX_RTL_BAG(Type) struct { ULONG NumberOfItems; ULONG MaximumNumberOfItems; Type *Items; }
-typedef KEX_RTL_BAG(VOID) TYPEDEF_TYPE_NAME(KEX_RTL_GENERIC_BAG);
-
-FORCEINLINE VOID KexRtlInitializeBagHelper(
-	IN OUT	PKEX_RTL_GENERIC_BAG	Bag,
-	IN		ULONG					ElementSize)
-{
-	Bag->Items = RtlAllocateHeap(
-		RtlProcessHeap(),
-		HEAP_GENERATE_EXCEPTIONS,
-		12 * ElementSize);
-}
- 
-FORCEINLINE VOID KexRtlResizeBagHelper(
-	IN OUT	PKEX_RTL_GENERIC_BAG	Bag,
-	IN		ULONG					ElementSize)
-{
-	if (Bag->NumberOfItems > Bag->MaximumNumberOfItems) {
-		Bag->MaximumNumberOfItems *= 2;
-	} else if (Bag->NumberOfItems < Bag->MaximumNumberOfItems / 4) {
-		Bag->MaximumNumberOfItems /= 2;	
-	} else {
-		return;
-	}
-
-	Bag->Items = RtlReAllocateHeap(
-		RtlProcessHeap(),
-		HEAP_GENERATE_EXCEPTIONS,
-		Bag->Items,
-		Bag->MaximumNumberOfItems * ElementSize);
-}
-
-#define KexRtlInitializeBag(Bag, ItemCount) KexRtlInitializeBagHelper((PKEX_RTL_GENERIC_BAG) (Bag), sizeof((Bag)->Items[0]) * (ItemCount ? ItemCount : 4))
-#define KexRtlDeleteBag(Bag) do { \
-		RtlFreeHeap(RtlProcessHeap(), 0, (Bag)->Items); \
-		RtlZeroMemory((Bag), sizeof(KEX_RTL_GENERIC_BAG)); \
-	} while (0)
-
-#define KexRtlInsertItemBag(Bag, Item) \
-	do { \
-		++(Bag)->NumberOfItems; \
-		KexRtlResizeBagHelper((PKEX_RTL_GENERIC_BAG) (Bag), sizeof((Bag)->Items[0])); \
-		(Bag)->Items[(Bag)->NumberOfItems - 1] = Item; \
-	} while (0)
-
-#define KexRtlRemoveItemBag(Bag, Index) \
-	do { \
-		(Bag)->Items[Index] = (Bag)->Items[--(Bag)->NumberOfItems]; \
-		KexRtlResizeBagHelper((PKEX_RTL_GENERIC_BAG) (Bag), sizeof((Bag)->Items[0])); \
-	} while(0)
-
-#define ForEachBagItem(Bag, Item, Index) for (Index = 0; Index < (Bag)->NumberOfItems, Item = (Bag)->Items[Index]; ++Index)
 
 #define ForEachArrayItem(Array, Index) for (Index = 0; Index < ARRAYSIZE(Array); ++Index)
 
@@ -610,6 +548,199 @@ KEXAPI NTSTATUS NTAPI KexHkInstallBasicHook(
 
 KEXAPI NTSTATUS NTAPI KexHkRemoveBasicHook(
 	IN		PKEX_BASIC_HOOK_CONTEXT	HookContext);
+
+#pragma endregion
+
+#pragma region Ash* functions
+
+KEXAPI BOOLEAN NTAPI AshExeBaseNameIs(
+	IN	PCWSTR	ExeName);
+
+KEXAPI BOOLEAN NTAPI AshModuleBaseNameIs(
+	IN	PVOID	AddressInsideModule,
+	IN	PCWSTR	ModuleName);
+
+KEXAPI BOOLEAN NTAPI AshModuleIsWindowsModule(
+	IN	PVOID	AddressInsideModule);
+
+#pragma endregion
+
+#pragma region Vxl* functions
+
+//
+// vxlopcl.c
+//
+
+KEXAPI NTSTATUS NTAPI VxlOpenLog(
+	OUT		PVXLHANDLE			LogHandle,
+	IN		PUNICODE_STRING		SourceApplication OPTIONAL,
+	IN		POBJECT_ATTRIBUTES	ObjectAttributes,
+	IN		ACCESS_MASK			DesiredAccess,
+	IN		ULONG				CreateDisposition);
+
+KEXAPI NTSTATUS NTAPI VxlCloseLog(
+	IN OUT	PVXLHANDLE		LogHandle);
+
+//
+// vxlquery.c
+//
+
+KEXAPI NTSTATUS NTAPI VxlQueryInformationLog(
+	IN		VXLHANDLE		LogHandle,
+	IN		VXLLOGINFOCLASS	LogInformationClass,
+	OUT		PVOID			Buffer OPTIONAL,
+	IN OUT	PULONG			BufferSize);
+
+//
+// vxlwrite.c
+//
+
+#define VxlWriteLog(LogHandle, SourceComponent, Severity, ...) \
+	VxlWriteLogEx( \
+		LogHandle, \
+		SourceComponent, \
+		__FILEW__, \
+		__LINE__, \
+		__FUNCTIONW__, \
+		Severity, \
+		__VA_ARGS__)
+
+#define KexLogEvent(Severity, ...) \
+	VxlWriteLog(KexData->LogHandle, KEX_COMPONENT, Severity, __VA_ARGS__)
+
+#define KexLogCriticalEvent(...)	KexLogEvent(LogSeverityCritical, __VA_ARGS__)
+#define KexLogErrorEvent(...)		KexLogEvent(LogSeverityError, __VA_ARGS__)
+#define KexLogWarningEvent(...)		KexLogEvent(LogSeverityWarning, __VA_ARGS__)
+#define KexLogInformationEvent(...)	KexLogEvent(LogSeverityInformation, __VA_ARGS__)
+#define KexLogDetailEvent(...)		KexLogEvent(LogSeverityDetail, __VA_ARGS__)
+
+#if defined(_DEBUG) || defined(RELEASE_DEBUGLOGS_ENABLED)
+#  define KexLogDebugEvent(...)		KexLogEvent(LogSeverityDebug, __VA_ARGS__)
+#else
+#  define KexLogDebugEvent(...)
+#endif
+
+KEXAPI NTSTATUS CDECL VxlWriteLogEx(
+	IN		VXLHANDLE		LogHandle OPTIONAL,
+	IN		PCWSTR			SourceComponent OPTIONAL,
+	IN		PCWSTR			SourceFile OPTIONAL,
+	IN		ULONG			SourceLine,
+	IN		PCWSTR			SourceFunction OPTIONAL,
+	IN		VXLSEVERITY		Severity,
+	IN		PCWSTR			Format,
+	IN		...);
+
+//
+// vxlread.c
+//
+
+KEXAPI NTSTATUS NTAPI VxlReadLog(
+	IN		VXLHANDLE		LogHandle,
+	IN		ULONG			LogEntryIndex,
+	OUT		PVXLLOGENTRY	Entry);
+
+KEXAPI NTSTATUS NTAPI VxlReadMultipleEntriesLog(
+	IN		VXLHANDLE		LogHandle,
+	IN		ULONG			LogEntryIndexStart,
+	IN		ULONG			LogEntryIndexEnd,
+	OUT		PVXLLOGENTRY	Entry[]);
+
+//
+// vxlsever.c
+//
+
+KEXAPI PCWSTR NTAPI VxlSeverityToText(
+	IN		VXLSEVERITY		Severity,
+	IN		BOOLEAN			LongDescription);
+
+//
+// dllrewrt.c
+//
+
+KEXAPI NTSTATUS NTAPI KexRewriteDllPath(
+	IN	PCUNICODE_STRING	DllPath,
+	OUT	PUNICODE_STRING		RewrittenDllName);
+
+//
+// kexhe.c
+//
+
+VOID KexMessageBox(
+	IN	ULONG	Flags,
+	IN	PCWSTR	Caption OPTIONAL,
+	IN	PCWSTR	Message OPTIONAL);
+
+VOID KexMessageBoxF(
+	IN	ULONG	Flags,
+	IN	PCWSTR	Caption OPTIONAL,
+	IN	PCWSTR	Message OPTIONAL,
+	IN	...);
+
+//
+// cpiwbypa.c
+//
+
+KEXAPI NTSTATUS NTAPI KexPatchCpiwSubsystemVersionCheck(
+	VOID);
+
+//
+// System Service Extensions/Hooks
+//
+
+NTSTATUS NTAPI Ext_NtQueryInformationThread(
+	IN	HANDLE				ThreadHandle,
+	IN	THREADINFOCLASS		ThreadInformationClass,
+	OUT	PVOID				ThreadInformation,
+	IN	ULONG				ThreadInformationLength,
+	OUT	PULONG				ReturnLength OPTIONAL);
+
+NTSTATUS NTAPI Ext_NtSetInformationThread(
+	IN	HANDLE				ThreadHandle,
+	IN	THREADINFOCLASS		ThreadInformationClass,
+	IN	PVOID				ThreadInformation,
+	IN	ULONG				ThreadInformationLength);
+
+NTSTATUS NTAPI Ext_NtNotifyChangeKey(
+	IN	HANDLE				KeyHandle,
+	IN	HANDLE				Event OPTIONAL,
+	IN	PIO_APC_ROUTINE		ApcRoutine OPTIONAL,
+	IN	PVOID				ApcContext OPTIONAL,
+	OUT	PIO_STATUS_BLOCK	IoStatusBlock,
+	IN	ULONG				CompletionFilter,
+	IN	BOOLEAN				WatchTree,
+	OUT	PVOID				Buffer OPTIONAL,
+	IN	ULONG				BufferSize,
+	IN	BOOLEAN				Asynchronous);
+
+NTSTATUS NTAPI Ext_NtNotifyChangeMultipleKeys(
+	IN	HANDLE				MasterKeyHandle,
+	IN	ULONG				Count OPTIONAL,
+	IN	OBJECT_ATTRIBUTES	SlaveObjects[] OPTIONAL,
+	IN	HANDLE				Event OPTIONAL,
+	IN	PIO_APC_ROUTINE		ApcRoutine OPTIONAL,
+	IN	PVOID				ApcContext OPTIONAL,
+	OUT	PIO_STATUS_BLOCK	IoStatusBlock,
+	IN	ULONG				CompletionFilter,
+	IN	BOOLEAN				WatchTree,
+	OUT	PVOID				Buffer OPTIONAL,
+	IN	ULONG				BufferSize,
+	IN	BOOLEAN				Asynchronous);
+
+NTSTATUS NTAPI Ext_NtCreateSection(
+	OUT	PHANDLE				SectionHandle,
+	IN	ULONG				DesiredAccess,
+	IN	POBJECT_ATTRIBUTES	ObjectAttributes OPTIONAL,
+	IN	PLONGLONG			MaximumSize OPTIONAL,
+	IN	ULONG				PageAttributes,
+	IN	ULONG				SectionAttributes,
+	IN	HANDLE				FileHandle OPTIONAL);
+
+NTSTATUS NTAPI Ext_NtQueryInformationProcess(
+	IN	HANDLE				ProcessHandle,
+	IN	PROCESSINFOCLASS	ProcessInformationClass,
+	OUT	PVOID				ProcessInformation,
+	IN	ULONG				ProcessInformationLength,
+	OUT	PULONG				ReturnLength OPTIONAL);
 
 #pragma endregion
 
@@ -689,7 +820,7 @@ KEXAPI NTSTATUS NTAPI KexNtWriteFile(
 	OUT		PIO_STATUS_BLOCK	IoStatusBlock,
 	IN		PVOID				Buffer,
 	IN		ULONG				Length,
-	IN		PLARGE_INTEGER		ByteOffset OPTIONAL,
+	IN		PLONGLONG			ByteOffset OPTIONAL,
 	IN		PULONG				Key OPTIONAL);
 
 KEXAPI NTSTATUS NTAPI KexNtRaiseHardError(
@@ -713,135 +844,46 @@ KEXAPI NTSTATUS NTAPI KexNtSetInformationThread(
 	IN	PVOID				ThreadInformation,
 	IN	ULONG				ThreadInformationLength);
 
-#pragma endregion
+KEXAPI NTSTATUS NTAPI KexNtNotifyChangeKey(
+	IN	HANDLE				KeyHandle,
+	IN	HANDLE				Event OPTIONAL,
+	IN	PIO_APC_ROUTINE		ApcRoutine OPTIONAL,
+	IN	PVOID				ApcContext OPTIONAL,
+	OUT	PIO_STATUS_BLOCK	IoStatusBlock,
+	IN	ULONG				CompletionFilter,
+	IN	BOOLEAN				WatchTree,
+	OUT	PVOID				Buffer OPTIONAL,
+	IN	ULONG				BufferSize,
+	IN	BOOLEAN				Asynchronous);
 
-#pragma region Ash* functions
+KEXAPI NTSTATUS NTAPI KexNtNotifyChangeMultipleKeys(
+	IN	HANDLE				MasterKeyHandle,
+	IN	ULONG				Count OPTIONAL,
+	IN	OBJECT_ATTRIBUTES	SlaveObjects[] OPTIONAL,
+	IN	HANDLE				Event OPTIONAL,
+	IN	PIO_APC_ROUTINE		ApcRoutine OPTIONAL,
+	IN	PVOID				ApcContext OPTIONAL,
+	OUT	PIO_STATUS_BLOCK	IoStatusBlock,
+	IN	ULONG				CompletionFilter,
+	IN	BOOLEAN				WatchTree,
+	OUT	PVOID				Buffer OPTIONAL,
+	IN	ULONG				BufferSize,
+	IN	BOOLEAN				Asynchronous);
 
-KEXAPI BOOLEAN NTAPI AshExeBaseNameIs(
-	IN	PCWSTR	ExeName);
+KEXAPI NTSTATUS NTAPI KexNtCreateSection(
+	OUT	PHANDLE				SectionHandle,
+	IN	ULONG				DesiredAccess,
+	IN	POBJECT_ATTRIBUTES	ObjectAttributes OPTIONAL,
+	IN	PLONGLONG			MaximumSize OPTIONAL,
+	IN	ULONG				PageAttributes,
+	IN	ULONG				SectionAttributes,
+	IN	HANDLE				FileHandle OPTIONAL);
 
-KEXAPI BOOLEAN NTAPI AshModuleBaseNameIs(
-	IN	PVOID	AddressInsideModule,
-	IN	PCWSTR	ModuleName);
-
-#pragma endregion
-
-#pragma region Vxl* functions
-
-//
-// vxlopcl.c
-//
-
-KEXAPI NTSTATUS NTAPI VxlOpenLog(
-	OUT		PVXLHANDLE			LogHandle,
-	IN		PUNICODE_STRING		SourceApplication OPTIONAL,
-	IN		POBJECT_ATTRIBUTES	ObjectAttributes,
-	IN		ACCESS_MASK			DesiredAccess,
-	IN		ULONG				CreateDisposition);
-
-KEXAPI NTSTATUS NTAPI VxlCloseLog(
-	IN OUT	PVXLHANDLE		LogHandle);
-
-//
-// vxlquery.c
-//
-
-KEXAPI NTSTATUS NTAPI VxlQueryInformationLog(
-	IN		VXLHANDLE		LogHandle,
-	IN		VXLLOGINFOCLASS	LogInformationClass,
-	OUT		PVOID			Buffer OPTIONAL,
-	IN OUT	PULONG			BufferSize);
-
-//
-// vxlwrite.c
-//
-
-#define VxlWriteLog(LogHandle, SourceComponent, Severity, ...) \
-	VxlWriteLogEx( \
-		LogHandle, \
-		SourceComponent, \
-		__FILEW__, \
-		__LINE__, \
-		__FUNCTIONW__, \
-		Severity, \
-		__VA_ARGS__)
-
-#define KexLogEvent(Severity, ...) \
-	VxlWriteLog(KexData->LogHandle, KEX_COMPONENT, Severity, __VA_ARGS__)
-
-#define KexLogCriticalEvent(...)	KexLogEvent(LogSeverityCritical, __VA_ARGS__)
-#define KexLogErrorEvent(...)		KexLogEvent(LogSeverityError, __VA_ARGS__)
-#define KexLogWarningEvent(...)		KexLogEvent(LogSeverityWarning, __VA_ARGS__)
-#define KexLogInformationEvent(...)	KexLogEvent(LogSeverityInformation, __VA_ARGS__)
-#define KexLogDetailEvent(...)		KexLogEvent(LogSeverityDetail, __VA_ARGS__)
-
-#if defined(_DEBUG) || defined(RELEASE_DEBUGLOGS_ENABLED)
-#  define KexLogDebugEvent(...)		KexLogEvent(LogSeverityDebug, __VA_ARGS__)
-#else
-#  define KexLogDebugEvent(...)
-#endif
-
-KEXAPI NTSTATUS CDECL VxlWriteLogEx(
-	IN		VXLHANDLE		LogHandle,
-	IN		PCWSTR			SourceComponent OPTIONAL,
-	IN		PCWSTR			SourceFile OPTIONAL,
-	IN		ULONG			SourceLine,
-	IN		PCWSTR			SourceFunction OPTIONAL,
-	IN		VXLSEVERITY		Severity,
-	IN		PCWSTR			Format,
-	IN		...);
-
-//
-// vxlread.c
-//
-
-KEXAPI NTSTATUS NTAPI VxlReadLog(
-	IN		VXLHANDLE		LogHandle,
-	IN		ULONG			LogEntryIndex,
-	OUT		PVXLLOGENTRY	Entry);
-
-KEXAPI NTSTATUS NTAPI VxlReadMultipleEntriesLog(
-	IN		VXLHANDLE		LogHandle,
-	IN		ULONG			LogEntryIndexStart,
-	IN		ULONG			LogEntryIndexEnd,
-	OUT		PVXLLOGENTRY	Entry[]);
-
-//
-// vxlsever.c
-//
-
-KEXAPI PCWSTR NTAPI VxlSeverityToText(
-	IN		VXLSEVERITY		Severity,
-	IN		BOOLEAN			LongDescription);
-
-//
-// dllrewrt.c
-//
-
-KEXAPI NTSTATUS NTAPI KexRewriteDllPath(
-	IN	PCUNICODE_STRING	DllPath,
-	OUT	PUNICODE_STRING		RewrittenDllName);
-
-//
-// kexhe.c
-//
-
-VOID KexMessageBox(
-	IN	ULONG	Flags,
-	IN	PCWSTR	Caption OPTIONAL,
-	IN	PCWSTR	Message OPTIONAL);
-
-VOID KexMessageBoxF(
-	IN	ULONG	Flags,
-	IN	PCWSTR	Caption OPTIONAL,
-	IN	PCWSTR	Message OPTIONAL,
-	IN	...);
-
-//
-// cpiwbypa.c
-//
-
-KEXAPI NTSTATUS NTAPI KexPatchCpiwSubsystemVersionCheck(
-	VOID);
+KEXAPI NTSTATUS NTAPI KexNtQueryInformationProcess(
+	IN	HANDLE				ProcessHandle,
+	IN	PROCESSINFOCLASS	ProcessInformationClass,
+	OUT	PVOID				ProcessInformation,
+	IN	ULONG				ProcessInformationLength,
+	OUT	PULONG				ReturnLength OPTIONAL);
 
 #pragma endregion

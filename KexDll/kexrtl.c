@@ -804,6 +804,50 @@ KEXAPI NTSTATUS NTAPI KexRtlNullTerminateUnicodeString(
 	return STATUS_SUCCESS;
 }
 
+// Create an object directory which is accessible to untrusted processes.
+KEXAPI NTSTATUS NTAPI KexRtlCreateUntrustedDirectoryObject(
+	OUT	PHANDLE				DirectoryHandle,
+	IN	ACCESS_MASK			DesiredAccess,
+	IN	POBJECT_ATTRIBUTES	ObjectAttributes)
+{
+	NTSTATUS Status;
+	SECURITY_DESCRIPTOR SecurityDescriptor;
+	BYTE UntrustedSidBuffer[] = {1, 1, 0, 0, 0, 0, 0, 16, 0, 0, 0, 0};
+	BYTE SaclBuffer[sizeof(UntrustedSidBuffer) + sizeof(ACL) + sizeof(ACE_HEADER) + sizeof(ACCESS_MASK)];
+	PSID UntrustedSid;
+	PACL Sacl;
+
+	ASSERT (DirectoryHandle != NULL);
+	ASSERT (ObjectAttributes != NULL);
+	ASSERT (ObjectAttributes->SecurityDescriptor == NULL);
+
+	UntrustedSid = (PSID)UntrustedSidBuffer;
+	Sacl = (PACL) SaclBuffer;
+
+	Status = RtlCreateAcl(Sacl, sizeof(SaclBuffer), ACL_REVISION);
+	ASSERT (NT_SUCCESS(Status));
+	Status = RtlAddMandatoryAce(Sacl, ACL_REVISION, 0, UntrustedSid, SYSTEM_MANDATORY_LABEL_ACE_TYPE, 0);
+	ASSERT (NT_SUCCESS(Status));
+
+	Status = RtlCreateSecurityDescriptor(&SecurityDescriptor, SECURITY_DESCRIPTOR_REVISION);
+	ASSERT (NT_SUCCESS(Status));
+	Status = RtlSetDaclSecurityDescriptor(&SecurityDescriptor, TRUE, NULL, FALSE);
+	ASSERT (NT_SUCCESS(Status));
+	Status = RtlSetSaclSecurityDescriptor(&SecurityDescriptor, TRUE, Sacl, FALSE);
+	ASSERT (NT_SUCCESS(Status));
+
+	ObjectAttributes->SecurityDescriptor = &SecurityDescriptor;
+
+	Status = NtCreateDirectoryObject(
+		DirectoryHandle,
+		DesiredAccess,
+		ObjectAttributes);
+
+	ObjectAttributes->SecurityDescriptor = NULL;
+
+	return Status;
+}
+
 // Compatible with RtlSetBit from win8+.
 KEXAPI VOID NTAPI KexRtlSetBit(
 	IN	PRTL_BITMAP	BitmapHeader,
@@ -890,4 +934,33 @@ KEXAPI NTSTATUS NTAPI KexRtlSubscribeWnfStateChangeNotification(
 	ULONG		SerializationGroupIndex)
 {
 	return STATUS_NOT_IMPLEMENTED;
+}
+
+#ifndef _M_X64
+typedef PVOID TYPEDEF_TYPE_NAME(RUNTIME_FUNCTION);
+#endif
+
+KEXAPI NTSTATUS NTAPI KexRtlAddGrowableFunctionTable(
+	OUT	PPVOID				DynamicTable,
+	IN	PRUNTIME_FUNCTION	FunctionTable,
+	IN	ULONG				EntryCount,
+	IN	ULONG				MaximumEntryCount,
+	IN	ULONG_PTR			RangeBase,
+	IN	ULONG_PTR			RangeEnd)
+{
+#ifdef _M_X64
+	BOOLEAN Success;
+
+	Success = RtlAddFunctionTable(FunctionTable, EntryCount, RangeBase);
+
+	if (Success) {
+		*DynamicTable = NULL;
+		return STATUS_SUCCESS;
+	} else {
+		return STATUS_UNSUCCESSFUL;
+	}
+#else
+	ASSERT (FALSE);
+	return STATUS_NOT_IMPLEMENTED;
+#endif
 }

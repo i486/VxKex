@@ -66,13 +66,6 @@ typedef BOOLEAN (CALLBACK *PKXCFG_ENUMERATE_CONFIGURATION_CALLBACK) (
 	IN	PVOID							ExtraParameter);
 
 //
-// Public data
-//
-
-EXTERN CONST PCWSTR KxCfgDllRedirects[][2];
-EXTERN CONST ULONG KxCfgNumberOfDllRedirects;
-
-//
 // Public functions
 //
 

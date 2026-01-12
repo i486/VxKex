@@ -26,6 +26,10 @@ GENERATE_SYSCALL KexNtWriteFile,								0005h
 GENERATE_SYSCALL KexNtRaiseHardError,							0130h
 GENERATE_SYSCALL KexNtQueryInformationThread,					0022h
 GENERATE_SYSCALL KexNtSetInformationThread,                     000Ah
+GENERATE_SYSCALL KexNtNotifyChangeKey,							00EBh
+GENERATE_SYSCALL KexNtNotifyChangeMultipleKeys,					00ECh
+GENERATE_SYSCALL KexNtCreateSection,							0047h
+GENERATE_SYSCALL KexNtQueryInformationProcess,					0016h
 
 _TEXT ENDS
 

@@ -45,6 +45,9 @@
     <ClCompile Include="vxlview.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="goto.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="backendp.h">

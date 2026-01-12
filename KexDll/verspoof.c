@@ -34,7 +34,7 @@ PCWSTR HumanReadableWinVerSpoof[] = {
 
 UNICODE_STRING CSDVersionUnicodeString;
 
-STATIC NTSTATUS NTAPI KexpRtlGetVersionHookForDotNet(
+STATIC NTSTATUS NTAPI KexpRtlGetVersionHook(
 	OUT	PRTL_OSVERSIONINFOEXW	Version)
 {
 	PPEB Peb;
@@ -72,16 +72,30 @@ STATIC NTSTATUS NTAPI KexpRtlGetVersionHookForDotNet(
 		}
 	}
 
-	//
-	// As far as I can tell, System.Private.CoreLib is what tells "managed code" the
-	// Windows version, so that's all we need to spoof.
-	// This method might be usable for other .NET applications as well, but I haven't
-	// tested enough .NET applications that require version spoofing to know for
-	// sure, which is why this remains an app-specific hack and not just a general
-	// version spoof for .NET applications.
-	//
+	if (AshModuleIsWindowsModule(ReturnAddress()) &&
+		!AshModuleBaseNameIs(ReturnAddress(), L"kernelbase.dll") &&
+		!AshModuleBaseNameIs(ReturnAddress(), L"ntdll.dll")) {
 
-	if (AshModuleBaseNameIs(ReturnAddress(), L"System.Private.CoreLib")) {
+		//
+		// WinInet calls RtlGetVersion at some point in its DllMain and if we
+		// don't return 6.1 then it will cause problems with connectivity.
+		//
+		// We'll return the real Windows version for all Windows DLLs except
+		// for kernelbase and ntdll, which call RtlGetVersion and can leak the
+		// real version number to the target application.
+		//
+
+		Version->dwMajorVersion	= 6;
+		Version->dwMinorVersion	= 1;
+		Version->dwBuildNumber	= 7601;
+	} else if (AshModuleBaseNameIs(ReturnAddress(), L"System.Private.CoreLib.dll")) {
+		//
+		// As far as I can tell, System.Private.CoreLib is what tells "managed code" the
+		// Windows version, so that's all we need to spoof.
+		// Keep in mind that we need all this code here because the PEB version is not
+		// spoofed for .NET applications because it will break .NET.
+		//
+
 		Version->szCSDVersion[0] = '\0';
 
 		if (Version->dwOSVersionInfoSize == sizeof(RTL_OSVERSIONINFOEXW)) {
@@ -138,9 +152,7 @@ STATIC VOID NTAPI KexpRtlGetNtVersionNumbersHook(
 	OUT	PULONG	MinorVersion OPTIONAL,
 	OUT	PULONG	BuildNumber OPTIONAL)
 {
-	NTSTATUS Status;
 	PPEB Peb;
-	UNICODE_STRING CallerDll;
 	ULONG ReturnMajorVersion;
 	ULONG ReturnMinorVersion;
 	ULONG ReturnBuildNumber;
@@ -154,25 +166,16 @@ STATIC VOID NTAPI KexpRtlGetNtVersionNumbersHook(
 	// If a call to this function comes from a native Windows DLL, we will
 	// return the real version numbers.
 	//
-	// The C-runtime DLL checks to see if it's running on the intended OS
+	// MSVCRT.DLL checks to see if it's running on the intended OS
 	// version and will fail in its DllMain if that isn't the case.
 	//
 
-	RtlInitEmptyUnicodeStringFromTeb(&CallerDll);
-	Status = KexLdrGetDllFullNameFromAddress(ReturnAddress(), &CallerDll);
-	if (!NT_SUCCESS(Status)) {
-		goto Exit;
+	if (AshModuleIsWindowsModule(ReturnAddress())) {
+		ReturnMajorVersion = 6;
+		ReturnMinorVersion = 1;
+		ReturnBuildNumber = 7601;
 	}
 
-	if (NT_SUCCESS(Status)) {
-		if (RtlPrefixUnicodeString(&KexData->WinDir, &CallerDll, TRUE)) {
-			ReturnMajorVersion = 6;
-			ReturnMinorVersion = 1;
-			ReturnBuildNumber = 7601;
-		}
-	}
-
-Exit:
 	if (MajorVersion) {
 		*MajorVersion = ReturnMajorVersion;
 	}
@@ -205,12 +208,23 @@ VOID KexApplyVersionSpoof(
 		ARRAY_LOOKUP_BOUNDS_CHECKED(HumanReadableWinVerSpoof, KexData->IfeoParameters.WinVerSpoof));
 
 	//
-	// APPSPECIFICHACK: Spoof version of HandBrake without breaking .NET
+	// Hook RtlGetVersion specially because its return value needs to be different
+	// depending on what module is calling it.
+	//
+
+	KexHkInstallBasicHook(RtlGetVersion, KexpRtlGetVersionHook, NULL);
+
+	//
+	// APPSPECIFICHACK: Spoof version of .NET applications without breaking .NET
+	// Only leave the RtlGetVersion hook active and leave everything else the same.
 	//
 
 	unless (KexData->IfeoParameters.DisableAppSpecific) {
-		if (AshExeBaseNameIs(L"HandBrake.exe") || AshExeBaseNameIs(L"HandBrake.Worker.exe")) {
-			KexHkInstallBasicHook(RtlGetVersion, KexpRtlGetVersionHookForDotNet, NULL);
+		if (AshExeBaseNameIs(L"HandBrake.exe") ||
+			AshExeBaseNameIs(L"HandBrake.Worker.exe") ||
+			AshExeBaseNameIs(L"osu!.exe") ||
+			AshExeBaseNameIs(L"paintdotnet.exe")) {
+			
 			return;
 		}
 	}
