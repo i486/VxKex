@@ -42,6 +42,24 @@
     <ClCompile Include="glprstat.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="uiview.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="actfact.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="uisettings.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="robuffer.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="uri.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="launcher.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="kxcom.def">

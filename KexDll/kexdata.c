@@ -25,41 +25,28 @@
 #include "buildcfg.h"
 #include "kexdllp.h"
 
-// The default data in here is used in case something fails in
-// KexDataInitialize.
+STATIC WCHAR KexDirBuffer[MAX_PATH];
+STATIC WCHAR LogDirBuffer[MAX_PATH];
+STATIC WCHAR ImageBaseNameBuffer[MAX_PATH];
+STATIC WCHAR Kex3264DirBuffer[MAX_PATH];
 
-STATIC WCHAR WinDir_Buffer[MAX_PATH];
-STATIC WCHAR KexDir_Buffer[MAX_PATH];
-STATIC WCHAR ImageBaseName_Buffer[MAX_PATH];
-
-// A note on this structure - KexDll must be compiled with /GF- (disable
-// string pooling) or otherwise an access violation will occur. We don't want
-// the string literals going into read-only memory.
 KEX_PROCESS_DATA _KexData = {
 	0,															// Flags
-	
-	{															// IfeoParameters
-		FALSE,													// DisableForChild
-		FALSE,													// DisableAppSpecific
-		WinVerSpoofNone,										// WinVerSpoof
-		FALSE,													// StrongVersionSpoof
-		FALSE,													// BreakOnHardError
-		FALSE,													// DisableDllDirectory
-		D3D12AutomaticImplementation,							// D3D12Implementation
-		DnsapiAutomaticImplementation,							// DnsapiImplementation
-	},
+	{0},														// IfeoParameters
 
-	// make sure the trailing spaces are preserved such that the length of the buffer
-	// is 260 wchars
-	RTL_CONSTANT_STRING(L"C:\\Windows                                                                                                                                                                                                                                                         "),
-	RTL_CONSTANT_STRING(L"C:\\Program Files\\VxKex                                                                                                                                                                                                                                            "),
-	RTL_CONSTANT_STRING(L"C:\\ProgramData\\VxKex\\Logs                                                                                                                                                                                                                                        "),
-	RTL_CONSTANT_STRING(L"UNKNOWN.EXE                                                                                                                                                                                                                                                         "),
-	
+	{0, 0, NULL},												// WinDir
+	{0, ARRAYSIZE(KexDirBuffer),		KexDirBuffer},			// KexDir
+	{0, ARRAYSIZE(LogDirBuffer),		LogDirBuffer},			// LogDir
+	{0, ARRAYSIZE(Kex3264DirBuffer),	Kex3264DirBuffer},		// Kex3264Dir
+	{0, ARRAYSIZE(ImageBaseNameBuffer),	ImageBaseNameBuffer},	// ImageBaseName
+
 	NULL,														// LogHandle
 	NULL,														// KexDllBase
 	NULL,														// SystemDllBase
 	NULL,														// NativeSystemDllBase
+	NULL,														// BaseDllBase
+	NULL,														// BaseNamedObjects
+	NULL,														// UntrustedBaseNamedObjects
 };
 
 PKEX_PROCESS_DATA KexData = NULL;
@@ -321,38 +308,6 @@ STATIC NTSTATUS KexpInitializeIfeoParameters(
 		sizeof(IfeoParameters->StrongVersionSpoof),
 		NULL);
 
-	NoKexOptionsInRegistry &= LdrQueryImageFileKeyOption(
-		IfeoKeyHandle,
-		L"KEX_BreakOnHardError",
-		REG_DWORD,
-		&IfeoParameters->BreakOnHardError,
-		sizeof(IfeoParameters->BreakOnHardError),
-		NULL);
-
-	NoKexOptionsInRegistry &= LdrQueryImageFileKeyOption(
-		IfeoKeyHandle,
-		L"KEX_DisableDllDirectory",
-		REG_DWORD,
-		&IfeoParameters->DisableDllDirectory,
-		sizeof(IfeoParameters->DisableDllDirectory),
-		NULL);
-
-	NoKexOptionsInRegistry &= LdrQueryImageFileKeyOption(
-		IfeoKeyHandle,
-		L"KEX_D3D12Implementation",
-		REG_DWORD,
-		&IfeoParameters->D3D12Implementation,
-		sizeof(IfeoParameters->D3D12Implementation),
-		NULL);
-
-	NoKexOptionsInRegistry &= LdrQueryImageFileKeyOption(
-		IfeoKeyHandle,
-		L"KEX_DnsapiImplementation",
-		REG_DWORD,
-		&IfeoParameters->DnsapiImplementation,
-		sizeof(IfeoParameters->DnsapiImplementation),
-		NULL);
-
 	SafeClose(IfeoKeyHandle);
 
 Exit:
@@ -367,6 +322,8 @@ Exit:
 KEXAPI NTSTATUS NTAPI KexDataInitialize(
 	OUT	PPKEX_PROCESS_DATA	KexDataOut OPTIONAL)
 {
+	NTSTATUS Status;
+
 	if (KexData) {
 		if (KexDataOut) {
 			*KexDataOut = KexData;
@@ -386,6 +343,22 @@ KEXAPI NTSTATUS NTAPI KexDataInitialize(
 	KexpInitializeIfeoParameters(&_KexData);
 	KexpInitializeGlobalConfig();
 	KexpInitializeLocalConfig();
+
+	//
+	// Assemble Kex3264Dir
+	//
+
+	RtlCopyUnicodeString(&_KexData.Kex3264DirPath, &_KexData.KexDir);
+
+	if (KexIs64BitBuild) {
+		Status = RtlAppendUnicodeToString(&_KexData.Kex3264DirPath, L"\\Kex64;");
+	} else {
+		Status = RtlAppendUnicodeToString(&_KexData.Kex3264DirPath, L"\\Kex32;");
+	}
+
+	if (!NT_SUCCESS(Status)) {
+		return Status;
+	}
 
 	//
 	// Get NTDLL base address.

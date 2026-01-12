@@ -253,3 +253,18 @@ VOID HandleListViewContextMenu(
 		SetWindowText(StatusBarWindow, L"Text copied to clipboard.");
 	}
 }
+
+VOID SelectListViewItemByIndex(
+	IN	ULONG	Index)
+{
+	ListView_SetItemState(
+		ListViewWindow,
+		Index,
+		LVNI_SELECTED | LVNI_FOCUSED,
+		LVNI_SELECTED | LVNI_FOCUSED);
+
+	ListView_EnsureVisible(
+		ListViewWindow,
+		Index,
+		FALSE);
+}

@@ -22,6 +22,11 @@ If you are a developer, source code is provided as a 7z file on the releases pag
 FAQ
 ===
 
+**Q: Does it work for games???**
+
+**A:** At the moment, VxKex is not intended for games, so you will probably have limited
+success. I hope to address this shortcoming in a future release.
+
 **Q: What applications are supported?**
 
 **A:** The list of compatible applications includes, but is not limited to:
@@ -54,7 +59,7 @@ with VxKex, for more information.
 extremely minimal. No background services are used, no global hooks are
 installed, and the shell extensions and DLLs that are loaded have minimal
 impact and can be disabled if needed. You can rest assured that your Windows 7
-will remain as stable as always.
+will remain as stable as it always is.
 
 **Q: Do I need to have specific updates installed?**
 
@@ -66,6 +71,11 @@ idea to install that one. The Windows 7 platform update also helps.
 **Q: If I have ESUs (Extended Security Updates) installed, can I use VxKex?**
 
 **A:** Yes. There is no problem with ESUs.
+
+**Q: Do console applications work with VxKex?**
+
+**A:** Yes. After you have enabled VxKex for a program you can use it through the
+command prompt as normal.
 
 **Q: Can I use this with Windows 8 or 8.1?**
 

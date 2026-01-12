@@ -25,6 +25,7 @@
 #include <KxBase.h>
 
 EXTERN PKEX_PROCESS_DATA KexData;
+EXTERN HANDLE KsecDD;
 
 //
 // module.c
@@ -72,24 +73,6 @@ KXBASEAPI HMODULE WINAPI Ext_LoadLibraryExW(
 	IN	HANDLE	FileHandle,
 	IN	ULONG	Flags);
 
-KXBASEAPI DLL_DIRECTORY_COOKIE WINAPI Ext_AddDllDirectory(
-	IN	PCWSTR	NewDirectory);
-
-KXBASEAPI BOOL WINAPI Ext_RemoveDllDirectory(
-	IN	DLL_DIRECTORY_COOKIE	Cookie);
-
-KXBASEAPI BOOL WINAPI Ext_SetDefaultDllDirectories(
-	IN	ULONG	DirectoryFlags);
-
-//
-// heap.c
-//
-
-KXBASEAPI HANDLE WINAPI KxBasepHeapCreateHook(
-	IN	ULONG	Flags,
-	IN	SIZE_T	InitialSize,
-	IN	SIZE_T	MaximumSize);
-
 //
 // time.c
 //
@@ -108,9 +91,25 @@ PLARGE_INTEGER BaseFormatTimeOut(
 	OUT	PLARGE_INTEGER	TimeOut,
 	IN	ULONG			Milliseconds);
 
+HANDLE WINAPI BaseGetNamedObjectDirectory(
+	VOID);
+
+HANDLE WINAPI BaseGetUntrustedNamedObjectDirectory(
+	VOID);
+
+PVOID BaseGetBaseDllHandle(
+	VOID);
+
 //
 // dllpath.c
 //
 
 VOID KxBaseAddKex3264ToBaseDefaultPath(
+	VOID);
+
+//
+// crypto.c
+//
+
+NTSTATUS BaseInitializeCrypto(
 	VOID);

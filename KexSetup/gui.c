@@ -426,10 +426,10 @@ DWORD WINAPI WaitForElevatedProcessEnd(
 
 	if (WaitResult == WAIT_TIMEOUT) {
 		ErrorBoxF(L"The elevated setup process appears to have stopped responding.", ExitCode);
-		DestroyWindow(MainWindow);
+		SendMessage(MainWindow, WM_USER + 3, 0, 0);
 	} else if (!NT_SUCCESS(ExitCode)) {
-		ErrorBoxF(L"The elevated setup process exited with an error code: 0x%08I32x", ExitCode);
-		DestroyWindow(MainWindow);
+		ErrorBoxF(L"The elevated setup process exited with an error code: 0x%08lx", ExitCode);
+		SendMessage(MainWindow, WM_USER + 3, 0, 0);
 	} else {
 		// Instead of calling SetScene directly, we need to ask the main thread
 		// to do it. Calling SetScene directly works but subtly breaks the
@@ -593,6 +593,9 @@ INT_PTR CALLBACK DialogProc(
 			NULL);
 	} else if (Message == WM_USER + 2) {
 		SetScene(CurrentScene + 1);
+	} else if (Message == WM_USER + 3) {
+		// sent after displaying a fatal error dialog to the user
+		EndDialog(Window, 0);
 	} else {
 		return FALSE;
 	}

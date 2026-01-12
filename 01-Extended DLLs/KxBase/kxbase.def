@@ -4,7 +4,8 @@ EXPORTS
 	;; VxKex New Functions
 	;;
 
-	ResolveDelayLoadedAPI				= kxnt.LdrResolveDelayLoadedAPI
+	ResolveDelayLoadedAPI				= KexDll.KexLdrResolveDelayLoadedAPI
+	EventSetInformation					= KexDll.KexEtwEventSetInformation
 
 	;; thread.c
 	GetThreadDescription
@@ -32,8 +33,27 @@ EXPORTS
 	PssFreeSnapshot
 	PssQuerySnapshot
 
+	;; cfgmgr.c
+	CM_Register_Notification
+
+	;; wldp.c
+	WldpQueryWindowsLockdownMode
+
+	;; module.c
+	LoadPackagedLibrary
+
 	;; misc.c
 	GetOsSafeBootMode
+	GetFirmwareType
+
+	;; winhttp.c
+	WinHttpCreateProxyResolver
+	WinHttpGetProxyForUrlEx
+	WinHttpGetProxyResult
+	WinHttpFreeProxyResult
+
+	;; dns.c
+	DnsQueryEx
 
 	;; file.c
 	CreateFile2
@@ -48,10 +68,15 @@ EXPORTS
 
 	;; time.c
 	GetSystemTimePreciseAsFileTime
+	QueryUnbiasedInterruptTimePrecise
 
 	;; appmodel.c
 	GetCurrentPackageFullName
 	GetCurrentPackageId
+	GetPackageFamilyName
+	GetApplicationUserModelId
+	GetCurrentApplicationUserModelId
+	GetPackagesByPackageFamily
 	AppPolicyGetProcessTerminationMethod
 	CreateAppContainerProfile
 	DeleteAppContainerProfile
@@ -68,8 +93,8 @@ EXPORTS
 
 	;; synch.c
 	WaitOnAddress
-	WakeByAddressSingle					= kxnt.RtlWakeAddressSingle
-	WakeByAddressAll					= kxnt.RtlWakeAddressAll
+	WakeByAddressSingle					= KexDll.KexRtlWakeAddressSingle
+	WakeByAddressAll					= KexDll.KexRtlWakeAddressAll
 
 	;; wow64.c
 	IsWow64Process2
@@ -79,9 +104,16 @@ EXPORTS
 	OfferVirtualMemory
 	ReclaimVirtualMemory
 	PrefetchVirtualMemory
-
-	;; verspoof.c
-	GetVersionExA						= Ext_GetVersionExA
+	CreateFileMappingFromApp
+	MapViewOfFileFromApp
+	VirtualAllocFromApp
+	VirtualProtectFromApp
+	OpenFileMappingFromApp
+	MapViewOfFileNuma2
+	UnmapViewOfFile2
+	UnmapViewOfFileEx
+	MapViewOfFile3
+	MapViewOfFile3FromApp
 
 	;; KexPathCch
 	PathAllocCanonicalize
@@ -111,6 +143,10 @@ EXPORTS
 	;; VxKex Extended Functions
 	;;
 
+	;; process.c
+	IsProcessInJob						= Ext_IsProcessInJob
+	UpdateProcThreadAttribute			= Ext_UpdateProcThreadAttribute
+
 	;; module.c
 	GetModuleHandleA					= Ext_GetModuleHandleA
 	GetModuleHandleW					= Ext_GetModuleHandleW
@@ -122,7 +158,18 @@ EXPORTS
 	LoadLibraryW						= Ext_LoadLibraryW
 	LoadLibraryExA						= Ext_LoadLibraryExA
 	LoadLibraryExW						= Ext_LoadLibraryExW
-	GetProcAddress						= Ext_GetProcAddress
 	AddDllDirectory						= Ext_AddDllDirectory
 	RemoveDllDirectory					= Ext_RemoveDllDirectory
 	SetDefaultDllDirectories			= Ext_SetDefaultDllDirectories
+
+	;; verspoof.c
+	GetVersionExA						= Ext_GetVersionExA
+
+	;; stubs.c
+	DuplicateHandle						= Ext_DuplicateHandle
+
+	;; verspoof.c
+	GetFileVersionInfoW					= Ext_GetFileVersionInfoW
+
+	;; heap.c
+	HeapCreate							= Ext_HeapCreate

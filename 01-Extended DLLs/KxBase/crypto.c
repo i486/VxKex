@@ -2,25 +2,24 @@
 #include "kxbasep.h"
 #include <bcrypt.h>
 
-//
-// This function creates random data and places it into the specified
-// buffer.
-//
-KXBASEAPI BOOL WINAPI ProcessPrng(
-	OUT	PBYTE	Buffer,
-	IN	SIZE_T	BufferCb)
+HANDLE KsecDD = NULL;
+
+NTSTATUS BaseInitializeCrypto(
+	VOID)
 {
 	NTSTATUS Status;
-	HANDLE KsecDD;
 	UNICODE_STRING DeviceName;
 	OBJECT_ATTRIBUTES ObjectAttributes;
 	IO_STATUS_BLOCK IoStatusBlock;
 
-	ASSERT (Buffer != NULL);
-	ASSERT (BufferCb <= ULONG_MAX);
-
 	RtlInitConstantUnicodeString(&DeviceName, L"\\Device\\KsecDD");
-	InitializeObjectAttributes(&ObjectAttributes, &DeviceName, OBJ_CASE_INSENSITIVE, NULL, NULL);
+
+	InitializeObjectAttributes(
+		&ObjectAttributes,
+		&DeviceName,
+		OBJ_CASE_INSENSITIVE,
+		NULL,
+		NULL);
 
 	Status = NtOpenFile(
 		&KsecDD,
@@ -31,10 +30,33 @@ KXBASEAPI BOOL WINAPI ProcessPrng(
 		FILE_SYNCHRONOUS_IO_NONALERT);
 
 	ASSERT (NT_SUCCESS(Status));
+	ASSERT (VALID_HANDLE(KsecDD));
 
-	if (!NT_SUCCESS(Status)) {
-		return FALSE;
+	return Status;
+}
+
+//
+// This function creates random data and places it into the specified
+// buffer.
+//
+KXBASEAPI BOOL WINAPI ProcessPrng(
+	OUT	PBYTE	Buffer,
+	IN	SIZE_T	BufferCb)
+{
+	NTSTATUS Status;
+	IO_STATUS_BLOCK IoStatusBlock;
+
+	ASSERT (Buffer != NULL);
+	ASSERT (BufferCb <= ULONG_MAX);
+
+	if (!KsecDD) {
+		Status = BaseInitializeCrypto();
+		if (!NT_SUCCESS(Status)) {
+			return FALSE;
+		}
 	}
+
+	ASSERT (VALID_HANDLE(KsecDD));
 
 	Status = NtDeviceIoControlFile(
 		KsecDD,
@@ -49,8 +71,6 @@ KXBASEAPI BOOL WINAPI ProcessPrng(
 		(ULONG) BufferCb);
 
 	ASSERT (NT_SUCCESS(Status));
-	SafeClose(KsecDD);
-
 	return NT_SUCCESS(Status);
 }
 

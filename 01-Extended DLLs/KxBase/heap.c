@@ -1,7 +1,7 @@
 #include "buildcfg.h"
 #include "kxbasep.h"
 
-KXBASEAPI HANDLE WINAPI KxBasepHeapCreateHook(
+KXBASEAPI HANDLE WINAPI Ext_HeapCreate(
 	IN	ULONG	Flags,
 	IN	SIZE_T	InitialSize,
 	IN	SIZE_T	MaximumSize)
@@ -45,17 +45,6 @@ KXBASEAPI HANDLE WINAPI KxBasepHeapCreateHook(
 	if (HeapHandle == NULL) {
 		RtlSetLastWin32Error(ERROR_NOT_ENOUGH_MEMORY);
 	}
-
-	KexLogDebugEvent(
-		L"HeapCreate called\r\n\r\n"
-		L"Flags:       0x%08lx\r\n"
-		L"InitialSize: %Iu\r\n"
-		L"MaximumSize: %Iu\r\n"
-		L"HeapHandle:  0x%p",
-		Flags,
-		InitialSize,
-		MaximumSize,
-		HeapHandle);
 
 	return HeapHandle;
 }

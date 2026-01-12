@@ -102,7 +102,7 @@ VOID EntryPoint(
 			if (*CommandLine != '"') {
 				// Expected matching quote, but reached end of string.
 				// Malformed command line without an end quote.
-				CriticalErrorBoxF(L"Malformed command line. Closing quote must be supplied.");
+				CriticalErrorBoxF(L"Malformed command line. A closing quote must be supplied.");
 				NOT_REACHED;
 			}
 		}

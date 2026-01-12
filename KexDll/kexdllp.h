@@ -36,10 +36,14 @@
 
 #define MB_OK					0x00000000
 
-ULONG KexDllProtectedFunctionExceptionFilter(
-	IN	PCWSTR				FunctionName,
-	IN	NTSTATUS			ExceptionCode,
-	IN	PEXCEPTION_POINTERS	ExceptionPointers);
+//
+// Data type definitions
+//
+
+typedef enum _KEX_DWRITE_IMPLEMENTATION {
+	DWriteNoImplementation,
+	DWriteWindows10Implementation
+} TYPEDEF_TYPE_NAME(KEX_DWRITE_IMPLEMENTATION);
 
 //
 // Protected Function Macros should be used on every function in KexDll.
@@ -55,6 +59,11 @@ ULONG KexDllProtectedFunctionExceptionFilter(
 // PROTECTED_FUNCTION_END_BOOLEAN returns FALSE instead of a NTSTATUS.
 //
 
+ULONG KexDllProtectedFunctionExceptionFilter(
+	IN	PCWSTR				FunctionName,
+	IN	NTSTATUS			ExceptionCode,
+	IN	PEXCEPTION_POINTERS	ExceptionPointers);
+
 #if DISABLE_PROTECTED_FUNCTION == FALSE
 #  define PROTECTED_FUNCTION { try
 
@@ -67,24 +76,88 @@ ULONG KexDllProtectedFunctionExceptionFilter(
 #  define PROTECTED_FUNCTION_END
 #endif
 
-EXTERN PKEX_PROCESS_DATA KexData;
+//
+// ash.c
+//
+
+VOID AshApplyQBittorrentEnvironmentVariableHacks(
+	VOID);
+
+//
+// ashcrsup.c
+//
+
+NTSTATUS AshPerformChromiumDetectionFromLoadedDll(
+	IN	PCLDR_DLL_NOTIFICATION_DATA	NotificationData);
+
+NTSTATUS AshPerformChromiumDetectionFromModuleExports(
+	IN	PVOID	ModuleBase);
+
+//
+// ashselec.c
+//
+
+NTSTATUS AshSelectDWriteImplementation(
+	IN	KEX_DWRITE_IMPLEMENTATION	Implementation);
+
+//
+// avrf.c
+//
+
+NTSTATUS KexDisableAVrf(
+	VOID);
+
+//
+// dllnotif.c
+//
 
 VOID NTAPI KexDllNotificationCallback(
 	IN	LDR_DLL_NOTIFICATION_REASON	Reason,
 	IN	PCLDR_DLL_NOTIFICATION_DATA	NotificationData,
 	IN	PVOID						Context);
 
+//
+// dllpath.c
+//
+
+NTSTATUS KexpAddKex3264ToDllPath(
+	VOID);
+
+//
+// dllrewrt.c
+//
+
 NTSTATUS KexInitializeDllRewrite(
 	VOID);
 
 BOOLEAN KexShouldRewriteImportsOfDll(
-	IN	PCUNICODE_STRING	BaseDllName,
 	IN	PCUNICODE_STRING	FullDllName);
 
 NTSTATUS KexRewriteImageImportDirectory(
-	IN	PVOID				ImageBase,
-	IN	PCUNICODE_STRING	BaseImageName,
-	IN	PCUNICODE_STRING	FullImageName);
+	IN	PVOID					ImageBase,
+	IN	PCUNICODE_STRING		BaseImageName,
+	IN	PCUNICODE_STRING		FullImageName);
+
+NTSTATUS KexRewriteDllPath(
+	IN	PCUNICODE_STRING	DllPath,
+	OUT	PUNICODE_STRING		RewrittenDllNameOut);
+
+NTSTATUS KexAddDllRewriteEntry(
+	IN	PCUNICODE_STRING	DllName,
+	IN	PCUNICODE_STRING	RewrittenDllName);
+
+NTSTATUS KexRemoveDllRewriteEntry(
+	IN	PCUNICODE_STRING	DllName);
+
+//
+// kexdata.c
+//
+
+EXTERN PKEX_PROCESS_DATA KexData;
+
+//
+// kexhe.c
+//
 
 NTSTATUS KexHeInstallHandler(
 	VOID);
@@ -92,26 +165,22 @@ NTSTATUS KexHeInstallHandler(
 NORETURN VOID KexHeErrorBox(
 	IN	PCWSTR	ErrorMessage);
 
-NTSTATUS KexpAddKex3264ToDllPath(
-	VOID);
-
-NTSTATUS KexDisableAVrf(
-	VOID);
-
-VOID KexApplyVersionSpoof(
-	VOID);
+//
+// logging.c
+//
 
 NTSTATUS KexOpenVxlLogForCurrentApplication(
 	OUT	PVXLHANDLE	LogHandle);
 
-VOID AshApplyQt6EnvironmentVariableHacks(
-	VOID);
+//
+// verspoof.c
+//
 
-VOID AshApplyQBittorrentEnvironmentVariableHacks(
+VOID KexApplyVersionSpoof(
 	VOID);
 
 //
-// Logging (VXL)
+// vxlpriv.c
 //
 
 NTSTATUS VxlpFlushLogFileHeader(
@@ -138,19 +207,3 @@ NTSTATUS VxlpFindOrCreateSourceFunctionIndex(
 NTSTATUS VxlpBuildIndex(
 	IN	VXLHANDLE			LogHandle);
 
-//
-// System Service Extensions/Hooks
-//
-
-NTSTATUS NTAPI KexpNtQueryInformationThreadHook(
-	IN	HANDLE				ThreadHandle,
-	IN	THREADINFOCLASS		ThreadInformationClass,
-	OUT	PVOID				ThreadInformation,
-	IN	ULONG				ThreadInformationLength,
-	OUT	PULONG				ReturnLength OPTIONAL);
-
-NTSTATUS NTAPI KexpNtSetInformationThreadHook(
-	IN	HANDLE				ThreadHandle,
-	IN	THREADINFOCLASS		ThreadInformationClass,
-	IN	PVOID				ThreadInformation,
-	IN	ULONG				ThreadInformationLength);

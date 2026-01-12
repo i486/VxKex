@@ -53,6 +53,8 @@ BOOLEAN ExportLogWithPrompt(
 	VOID);
 ULONG GetLogEntryRawIndex(
 	IN	ULONG	EntryIndex);
+ULONG GetLogEntryIndexFromRawIndex(
+	IN	ULONG	RawIndex);
 PLOGENTRYCACHEENTRY GetLogEntry(
 	IN	ULONG	EntryIndex);
 VOID SetBackendFilters(
@@ -111,6 +113,14 @@ extern CONST HWND StatusBarWindow;
 extern CONST HWND DetailsWindow;
 extern CONST HWND FilterWindow;
 
+// goto.c
+
+INT_PTR CALLBACK GotoRawDlgProc(
+	IN	HWND	Window,
+	IN	UINT	Message,
+	IN	WPARAM	WParam,
+	IN	LPARAM	LParam);
+
 // helpabout.c
 
 INT_PTR CALLBACK AboutWndProc(
@@ -131,6 +141,8 @@ VOID PopulateListViewItem(
 	IN	LPLVITEM	Item);
 VOID HandleListViewContextMenu(
 	IN	PPOINT	ClickPoint);
+VOID SelectListViewItemByIndex(
+	IN	ULONG	Index);
 
 // statusbar.c
 

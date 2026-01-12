@@ -276,7 +276,7 @@ VOID KexSetupSupersedeFile(
 {
 	BOOLEAN Success;
 
-	Success = SupersedeFile(SourceFile, TargetFile);
+	Success = SupersedeFile(SourceFile, TargetFile, KexSetupTransactionHandle);
 
 	if (!Success) {
 		ErrorBoxF(

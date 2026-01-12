@@ -129,6 +129,9 @@ INT_PTR CALLBACK MainWndProc(
 			Edit_SetSel(FocusedWindow, 0, INT_MAX);
 			SetFocus(FocusedWindow);
 			break;
+		case M_GOTORAW:
+			DialogBox(NULL, MAKEINTRESOURCE(IDD_GOTORAW), MainWindow, GotoRawDlgProc);
+			break;
 		case M_SELECTALL:
 			FocusedWindow = GetFocus();
 			GetClassName(FocusedWindow, ClassName, ARRAYSIZE(ClassName));

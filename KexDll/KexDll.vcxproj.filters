@@ -24,6 +24,9 @@
     <ClInclude Include="kexdllp.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="redirects.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.c">
@@ -117,6 +120,24 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="cpiwbypa.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ntreg.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ntsect.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ntps.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="etw.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ashcrsup.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ashselec.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -28,27 +28,23 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>Windows7.1SDK</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>Windows7.1SDK</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>Windows7.1SDK</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>Windows7.1SDK</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -103,6 +99,7 @@
       <AdditionalDependencies>
       </AdditionalDependencies>
       <SetChecksum>true</SetChecksum>
+      <DelayLoadDLLs>ole32.dll;comdlg32.dll;user32.dll;shell32.dll;comctl32.dll;gdi32.dll</DelayLoadDLLs>
     </Link>
     <ResourceCompile>
       <AdditionalIncludeDirectories>$(SolutionDir)\00-Common Headers</AdditionalIncludeDirectories>
@@ -136,6 +133,7 @@
       <AdditionalDependencies>
       </AdditionalDependencies>
       <SetChecksum>true</SetChecksum>
+      <DelayLoadDLLs>ole32.dll;comdlg32.dll;user32.dll;shell32.dll;comctl32.dll;gdi32.dll</DelayLoadDLLs>
     </Link>
     <ResourceCompile>
       <AdditionalIncludeDirectories>$(SolutionDir)\00-Common Headers</AdditionalIncludeDirectories>
@@ -175,6 +173,7 @@
       <AdditionalDependencies>
       </AdditionalDependencies>
       <SetChecksum>true</SetChecksum>
+      <DelayLoadDLLs>ole32.dll;comdlg32.dll;user32.dll;shell32.dll;comctl32.dll;gdi32.dll</DelayLoadDLLs>
     </Link>
     <ResourceCompile>
       <AdditionalIncludeDirectories>$(SolutionDir)\00-Common Headers</AdditionalIncludeDirectories>
@@ -214,6 +213,7 @@
       <AdditionalDependencies>
       </AdditionalDependencies>
       <SetChecksum>true</SetChecksum>
+      <DelayLoadDLLs>ole32.dll;comdlg32.dll;user32.dll;shell32.dll;comctl32.dll;gdi32.dll</DelayLoadDLLs>
     </Link>
     <ResourceCompile>
       <AdditionalIncludeDirectories>$(SolutionDir)\00-Common Headers</AdditionalIncludeDirectories>

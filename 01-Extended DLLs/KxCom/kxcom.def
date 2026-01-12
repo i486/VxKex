@@ -4,12 +4,17 @@ EXPORTS
 	RoInitialize
 	RoUninitialize
 	RoGetActivationFactory
+	RoActivateInstance
 	RoOriginateError
 	RoOriginateErrorW
+	RoTransformError
+	RoTransformErrorW
 	RoGetAgileReference
 	RoOriginateLanguageException
+	RoGetBufferMarshaler
 
 	GetRestrictedErrorInfo
+	SetRestrictedErrorInfo
 
 	;;
 	;; mta.c
@@ -33,3 +38,7 @@ EXPORTS
 	WindowsStringHasEmbeddedNull
 	WindowsSubstring
 	WindowsSubstringWithSpecifiedLength
+	WindowsConcatString
+	WindowsPreallocateStringBuffer
+	WindowsDeleteStringBuffer
+	WindowsPromoteStringBuffer

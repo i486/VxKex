@@ -342,12 +342,14 @@ KEXAPI NTSTATUS NTAPI KexInitializePropagation(
 			(PPVOID) &NativeNtOpenKeyRva);
 
 		ASSERT (NT_SUCCESS(Status));
+		ASSERT (NativeNtOpenKeyRva != 0);
 
 		if (!NT_SUCCESS(Status)) {
 			return Status;
 		}
 
 		NativeNtOpenKeyRva = VA_TO_RVA(KexData->NativeSystemDllBase, NativeNtOpenKeyRva);
+		ASSERT (NativeNtOpenKeyRva != 0);
 
 		//
 		// We're a 32 bit process, but we might need to write data to 64-bit processes.
@@ -356,6 +358,7 @@ KEXAPI NTSTATUS NTAPI KexInitializePropagation(
 
 		RtlInitConstantAnsiString(&NtWow64QueryInformationProcess64Name, "NtWow64QueryInformationProcess64");
 		RtlInitConstantAnsiString(&NtWow64WriteVirtualMemory64Name, "NtWow64WriteVirtualMemory64");
+		ASSERT (KexData->SystemDllBase != NULL);
 
 		Status = LdrGetProcedureAddress(
 			KexData->SystemDllBase,
@@ -364,6 +367,7 @@ KEXAPI NTSTATUS NTAPI KexInitializePropagation(
 			(PPVOID) &NtWow64QueryInformationProcess64);
 
 		ASSERT (NT_SUCCESS(Status));
+		ASSERT (NtWow64QueryInformationProcess64 != NULL);
 
 		if (!NT_SUCCESS(Status)) {
 			KexLogWarningEvent(
@@ -380,6 +384,7 @@ KEXAPI NTSTATUS NTAPI KexInitializePropagation(
 			(PPVOID) &NtWow64WriteVirtualMemory64);
 
 		ASSERT (NT_SUCCESS(Status));
+		ASSERT (NtWow64WriteVirtualMemory64 != NULL);
 
 		if (!NT_SUCCESS(Status)) {
 			KexLogWarningEvent(
@@ -388,9 +393,6 @@ KEXAPI NTSTATUS NTAPI KexInitializePropagation(
 				KexRtlNtStatusToString(Status), Status);
 			return Status;
 		}
-
-		ASSERT (NtWow64QueryInformationProcess64 != NULL);
-		ASSERT (NtWow64WriteVirtualMemory64 != NULL);
 	} else if (KexRtlCurrentProcessBitness() == 64) {
 		UNICODE_STRING Wow64NtdllPath;
 		OBJECT_ATTRIBUTES ObjectAttributes;
@@ -497,7 +499,11 @@ KEXAPI NTSTATUS NTAPI KexInitializePropagation(
 		}
 
 		Wow64NtOpenKeyRva = VA_TO_RVA(Wow64NtdllMappedBase, Wow64NtOpenKeyRva);
+	} else {
+		NOT_REACHED;
 	}
+
+	ASSERT (NativeNtOpenKeyRva != 0 || Wow64NtOpenKeyRva != 0);
 
 	//
 	// Install a permanent hook, because our hook function will directly do
@@ -547,6 +553,8 @@ STATIC NTSTATUS NTAPI KexpNtCreateUserProcessHook(
 
 	PVOID IfeoParametersBaseAddress;
 	SIZE_T IfeoParametersSize;
+
+	RemoteNtOpenKey = 0;
 
 	ModifiedProcessDesiredAccess = ProcessDesiredAccess;
 	ModifiedThreadDesiredAccess = ThreadDesiredAccess;
@@ -704,9 +712,19 @@ STATIC NTSTATUS NTAPI KexpNtCreateUserProcessHook(
 		PVOID RemoteNtdllBase;
 
 		RemoteNtdllBase = KexLdrGetRemoteSystemDllBase(*ProcessHandle);
-		ASSERT (RemoteNtdllBase != NULL);
 
-		if (RemoteNtdllBase == NULL) {
+		//
+		// Make sure the remote NTDLL base was found and looks valid.
+		//
+
+		ASSERT (RemoteNtdllBase != NULL);
+		ASSERT ((ULONG_PTR) RemoteNtdllBase >= 0x70000000);
+		ASSERT ((ULONG_PTR) RemoteNtdllBase <= 0x7FFD0000);
+
+		if (RemoteNtdllBase == NULL ||
+			(ULONG_PTR) RemoteNtdllBase < 0x70000000 ||
+			(ULONG_PTR) RemoteNtdllBase > 0x7FFD0000) {
+
 			KexLogWarningEvent(L"Failed to get NTDLL address in the child process.");
 			goto BailOut;
 		}
@@ -716,13 +734,17 @@ STATIC NTSTATUS NTAPI KexpNtCreateUserProcessHook(
 		if (ChildProcessBitness == 64) {
 			// Child is 64 bit, we are 32 bit.
 			ASSERT (KexRtlCurrentProcessBitness() == 32);
+			ASSERT (NativeNtOpenKeyRva != 0);
 			RemoteNtOpenKey = (ULONG_PTR) RVA_TO_VA(RemoteNtdllBase, NativeNtOpenKeyRva);
 		} else {
 			// Child is 32 bit, we are 64 bit.
 			ASSERT (KexRtlCurrentProcessBitness() == 64);
+			ASSERT (Wow64NtOpenKeyRva != 0);
 			RemoteNtOpenKey = (ULONG_PTR) RVA_TO_VA(RemoteNtdllBase, Wow64NtOpenKeyRva);
 		}
 	}
+
+	ASSERT (RemoteNtOpenKey != 0);
 
 	//
 	// Create hook template.

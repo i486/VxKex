@@ -26,6 +26,7 @@
 // Revision History:
 //
 //     vxiiduu              08-Feb-2024  Initial creation.
+//     vxiiduu              14-Mar-2024  Fix a multiselect-related bug.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -53,7 +54,7 @@ HRESULT STDMETHODCALLTYPE CKexShlEx_QueryInterface(
 		return E_NOINTERFACE;
 	}
 
-	++This->RefCount;
+	InterlockedIncrement(&This->RefCount);
 	return S_OK;
 }
 
@@ -76,7 +77,7 @@ HRESULT STDMETHODCALLTYPE CKexShlEx_QueryInterface_thunk1(
 ULONG STDMETHODCALLTYPE CKexShlEx_AddRef(
 	IN	IKexShlEx	*This)
 {
-	return ++This->RefCount;
+	return InterlockedIncrement(&This->RefCount);
 }
 
 ULONG STDMETHODCALLTYPE CKexShlEx_AddRef_thunk0(
@@ -94,8 +95,12 @@ ULONG STDMETHODCALLTYPE CKexShlEx_AddRef_thunk1(
 ULONG STDMETHODCALLTYPE CKexShlEx_Release(
 	IN	IKexShlEx		*This)
 {
-	if (--This->RefCount == 0) {
-		--DllReferenceCount;
+	LONG NewRefCount;
+
+	NewRefCount = InterlockedDecrement(&NewRefCount);
+
+	if (NewRefCount == 0) {
+		InterlockedDecrement(&DllReferenceCount);
 		SafeFree(This);
 		return 0;
 	}
@@ -154,7 +159,7 @@ HRESULT STDMETHODCALLTYPE CKexShlEx_Initialize(
 		// If the user selects multiple files before opening properties,
 		// we don't want to display any property sheet page.
 		ReleaseStgMedium(&StorageMedium);
-		return S_OK;
+		return E_FAIL;
 	}
 
 	DragQueryFile(Drop, 0, This->ExeFullPath, ARRAYSIZE(This->ExeFullPath));
@@ -223,10 +228,12 @@ HRESULT STDMETHODCALLTYPE CKexShlEx_AddPages(
 
 	ASSERT (This != NULL);
 	ASSERT (AddPage != NULL);
-	ASSERT (This->ExeFullPath[0] != '\0');
 
 	// adjustor
 	This = (IKexShlEx *) (((ULONG_PTR) This) - sizeof(PVOID));
+
+	ASSERT (This != NULL);
+	ASSERT (This->ExeFullPath[0] != '\0');
 
 	GetWindowsDirectory(WinDir, ARRAYSIZE(WinDir));
 	Success = KxCfgGetKexDir(KexDir, ARRAYSIZE(KexDir));

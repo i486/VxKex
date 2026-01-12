@@ -166,3 +166,57 @@ KXBASEAPI HRESULT WINAPI CopyFile2(
 		return HRESULT_FROM_WIN32(GetLastError());
 	}
 }
+
+//KXBASEAPI HANDLE WINAPI Ext_CreateFileMappingW(
+//	IN	HANDLE					FileHandle,
+//	IN	PSECURITY_ATTRIBUTES	SecurityAttributes OPTIONAL,
+//	IN	ULONG					PageProtection,
+//	IN	ULONG					MaximumSizeHigh,
+//	IN	ULONG					MaximumSizeLow,
+//	IN	PCWSTR					Name OPTIONAL)
+//{
+//	HANDLE SectionHandle;
+//	WCHAR GeneratedName[64];
+//
+//	//
+//	// Windows 7 ignores security attributes on unnamed sections. Chromium checks
+//	// this and crashes. In order to solve this problem we will give a random name
+//	// to any unnamed section that has a security descriptor.
+//	//
+//
+//	if (SecurityAttributes && SecurityAttributes->lpSecurityDescriptor && !Name) {
+//		ULONGLONG RandomIdentifier;
+//		PTEB Teb;
+//
+//		//
+//		// Create a random identifier.
+//		//
+//
+//		Teb = NtCurrentTeb();
+//		NtQuerySystemTime((PLONGLONG) &RandomIdentifier);
+//		RandomIdentifier *= (ULONG_PTR) Teb->ClientId.UniqueThread;
+//		RandomIdentifier *= RtlRandomEx((PULONG) &RandomIdentifier);
+//
+//		StringCchPrintf(
+//			GeneratedName,
+//			ARRAYSIZE(GeneratedName),
+//			L"VxKexRandomSectionName_%016I64x",
+//			RandomIdentifier);
+//
+//		Name = GeneratedName;
+//	}
+//
+//	SectionHandle = CreateFileMappingW(
+//		FileHandle,
+//		SecurityAttributes,
+//		PageProtection,
+//		MaximumSizeHigh,
+//		MaximumSizeLow,
+//		Name);
+//
+//	if (SectionHandle == NULL && Name == GeneratedName) {
+//		KexDebugCheckpoint();
+//	}
+//
+//	return SectionHandle;
+//}

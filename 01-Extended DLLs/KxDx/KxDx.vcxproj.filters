@@ -38,6 +38,9 @@
     <ClCompile Include="dx12stub.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="mfdevmgr.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="kxdx.def">

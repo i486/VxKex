@@ -81,3 +81,10 @@ KXUSERAPI BOOL WINAPI GetCurrentInputMessageSource(
 	MessageSource->OriginId = IMO_UNAVAILABLE;
 	return TRUE;
 }
+
+KXUSERAPI BOOL WINAPI IsImmersiveProcess(
+	IN	HANDLE	ProcessHandle)
+{
+	SetLastError(ERROR_SUCCESS);
+	return FALSE;
+}

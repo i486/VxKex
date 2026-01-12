@@ -90,43 +90,20 @@ NTSTATUS KexpAddKex3264ToDllPath(
 	NTSTATUS Status;
 	PUNICODE_STRING DllPath;
 	UNICODE_STRING NewDllPath;
-	UNICODE_STRING Prepend;
 	USHORT DllPathOriginalLength;
+	
+	ASSERT (VALID_UNICODE_STRING(&KexData->Kex3264DirPath));
+	ASSERT (KexData->Kex3264DirPath.Length != 0);
 
 	DllPath = &NtCurrentPeb()->ProcessParameters->DllPath;
 	DllPathOriginalLength = DllPath->Length;
-
-	//
-	// Create a scratch buffer for the data we will prepend to DllPath.
-	//
-
-	RtlInitEmptyUnicodeStringFromTeb(&Prepend);
-
-	//
-	// Build up the prepend string (KexDir + \Kex32; or \Kex64;)
-	//
-
-	Status = RtlAppendUnicodeStringToString(&Prepend, &KexData->KexDir);
-	if (!NT_SUCCESS(Status)) {
-		return Status;
-	}
-
-	if (KexIs64BitBuild) {
-		Status = RtlAppendUnicodeToString(&Prepend, L"\\Kex64;");
-	} else {
-		Status = RtlAppendUnicodeToString(&Prepend, L"\\Kex32;");
-	}
-
-	if (!NT_SUCCESS(Status)) {
-		return Status;
-	}
 
 	//
 	// Call a helper function to shrink DllPath by *at least* the length
 	// of our prepend string.
 	//
 
-	Status = KexpShrinkDllPathLength(DllPath, DllPath->Length - Prepend.Length);
+	Status = KexpShrinkDllPathLength(DllPath, DllPath->Length - KexData->Kex3264DirPath.Length);
 	if (!NT_SUCCESS(Status)) {
 		return Status;
 	}
@@ -136,14 +113,14 @@ NTSTATUS KexpAddKex3264ToDllPath(
 	//
 
 	NewDllPath.Length = 0;
-	NewDllPath.MaximumLength = DllPath->Length + Prepend.Length;
+	NewDllPath.MaximumLength = DllPath->Length + KexData->Kex3264DirPath.Length;
 	NewDllPath.Buffer = StackAlloc(WCHAR, KexRtlUnicodeStringBufferCch(&NewDllPath));
 
 	//
 	// Build the new DllPath.
 	//
 
-	Status = RtlAppendUnicodeStringToString(&NewDllPath, &Prepend);
+	Status = RtlAppendUnicodeStringToString(&NewDllPath, &KexData->Kex3264DirPath);
 	if (!NT_SUCCESS(Status)) {
 		return Status;
 	}

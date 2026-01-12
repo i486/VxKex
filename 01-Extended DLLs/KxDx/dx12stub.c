@@ -18,7 +18,7 @@ KXDXAPI HRESULT WINAPI D3D12CreateDevice(
 		*Device = NULL;
 	}
 
-	return E_NOTIMPL;
+	return DXGI_ERROR_UNSUPPORTED;
 }
 
 KXDXAPI HRESULT WINAPI D3D12CreateRootSignatureDeserializer(
@@ -31,7 +31,7 @@ KXDXAPI HRESULT WINAPI D3D12CreateRootSignatureDeserializer(
 		*Deserializer = NULL;
 	}
 
-	return E_NOTIMPL;
+	return DXGI_ERROR_UNSUPPORTED;
 }
 
 KXDXAPI HRESULT WINAPI D3D12CreateVersionedRootSignatureDeserializer(
@@ -44,7 +44,7 @@ KXDXAPI HRESULT WINAPI D3D12CreateVersionedRootSignatureDeserializer(
 		*Deserializer = NULL;
 	}
 
-	return E_NOTIMPL;
+	return DXGI_ERROR_UNSUPPORTED;
 }
 
 KXDXAPI HRESULT WINAPI D3D12EnableExperimentalFeatures(
@@ -53,7 +53,7 @@ KXDXAPI HRESULT WINAPI D3D12EnableExperimentalFeatures(
 	IN	PVOID	ConfigurationStructs,
 	IN	PULONG	ConfigurationStructSizes)
 {
-	return E_NOTIMPL;
+	return DXGI_ERROR_UNSUPPORTED;
 }
 
 KXDXAPI HRESULT WINAPI D3D12GetDebugInterface(
@@ -64,7 +64,7 @@ KXDXAPI HRESULT WINAPI D3D12GetDebugInterface(
 		*DebugInterface = NULL;
 	}
 
-	return E_NOTIMPL;
+	return E_NOINTERFACE;
 }
 
 KXDXAPI HRESULT WINAPI D3D12GetInterface(
@@ -76,7 +76,7 @@ KXDXAPI HRESULT WINAPI D3D12GetInterface(
 		*Interface = NULL;
 	}
 
-	return E_NOTIMPL;
+	return E_NOINTERFACE;
 }
 
 KXDXAPI HRESULT WINAPI D3D12SerializeRootSignature(

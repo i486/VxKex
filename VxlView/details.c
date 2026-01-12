@@ -29,7 +29,7 @@ VOID InitializeDetailsWindow(
 	SendMessage(EditControlWindow, WM_SETFONT, (WPARAM) EditControlFont, MAKELPARAM(TRUE, 0));
 	Edit_SetTabStops(EditControlWindow, 1, &TabStops);
 	Edit_SetReadOnly(EditControlWindow, TRUE);
-	
+
 	ResetDetailsWindow();
 }
 

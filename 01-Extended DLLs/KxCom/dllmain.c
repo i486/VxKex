@@ -1,3 +1,5 @@
+#define KXCOM_WANT_INITGUID
+
 #include "buildcfg.h"
 #include "kxcomp.h"
 

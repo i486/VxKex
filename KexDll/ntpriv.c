@@ -6,8 +6,8 @@
 //
 // Abstract:
 //
-//     Re-implementations of some small non-exported NTDLL functions.
-//     Mostly based on decompilation of Win7 NTDLL.
+//     Re-implementations of some small non-exported functions.
+//     Mostly based on decompilation of Win7.
 //
 // Author:
 //
@@ -19,11 +19,15 @@
 //     vxiiduu              06-Nov-2022  Add LdrpFindLoadedDllByHandle
 //                                       Remove incorrect comment (LdrpHeap is
 //                                       actually the same as the process heap)
+//     vxiiduu              08-Mar-2024  Add BaseGetNamedObjectDirectory.
+//     vxiiduu              11-Mar-2024  Move BaseGetNamedObjectDirectory to
+//                                       KxBase.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "buildcfg.h"
 #include "kexdllp.h"
+#include <KxBase.h>
 
 PLDR_DATA_TABLE_ENTRY NTAPI LdrpAllocateDataTableEntry(
 	IN	PVOID	DllBase)

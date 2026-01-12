@@ -135,9 +135,18 @@
 #    undef __cplusplus
 #  endif
 
+// attempt to make vxkex build with newer sdk's as well.
+// no guarantees. if you install the win10 sdk and it doesn't build, tough luck.
+// don't ask me to make shit build on your windows 11 with newest SDK.
+#  define _WIN32_WINNT 0x0601
+
 #  include <Windows.h>
 #  include <NtDll.h>
 #  include <StdArg.h>
+
+#  ifdef KEX_TARGET_TYPE_SYS
+#    include <NtKrnl.h>
+#  endif
 
 #  ifdef __INTELLISENSE__
 #    undef NULL
@@ -182,9 +191,14 @@
 #  endif
 
 #  include <KexAssert.h>
-#  include <KexStrSafe.h>
-#  include <KexPathCch.h>
-#  include <SafeAlloc.h>
+
+#  ifdef KEX_TARGET_TYPE_SYS
+#    include <NtStrSafe.h>
+#  else
+#    include <KexStrSafe.h>
+#    include <KexPathCch.h>
+#    include <SafeAlloc.h>
+#  endif
 #pragma endregion
 
 #pragma region Extended Language Constructs
@@ -213,6 +227,9 @@
 // Note that not all HRESULT codes can be mapped to a valid Win32 error code.
 //
 #  define WIN32_FROM_HRESULT(x) (HRESULT_CODE(x))
+
+#  define LODWORD(ull) ((ULONG) (ull))
+#  define HIDWORD(ull) ((ULONG) ((ULONGLONG) (ull) >> 32))
 
 //
 // Convert a relative virtual address (e.g. as found in PE image files) to a
@@ -246,7 +263,13 @@
 // this macro, so you will have to special-case it in any code that uses
 // process handles.
 //
-#  define VALID_HANDLE(Handle) ((Handle != NULL) && (Handle != INVALID_HANDLE_VALUE))
+#  define VALID_HANDLE(Handle) \
+	(((Handle) != NULL) && \
+	 ((Handle) != INVALID_HANDLE_VALUE) && \
+	 !(((ULONG_PTR) (Handle)) & 3) && \
+	 (((ULONG_PTR) (Handle)) <= ULONG_MAX))
+
+#  define KexDebugCheckpoint() if (KexIsDebugBuild && NtCurrentPeb()->BeingDebugged) __debugbreak()
 
 #  define InterlockedIncrement16 _InterlockedIncrement16
 #  define InterlockedDecrement16 _InterlockedDecrement16

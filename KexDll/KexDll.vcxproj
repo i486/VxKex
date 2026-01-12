@@ -28,27 +28,23 @@
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>Windows7.1SDK</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>Windows7.1SDK</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>Windows7.1SDK</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>Windows7.1SDK</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -95,7 +91,7 @@
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <CallingConvention>StdCall</CallingConvention>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <StringPooling>false</StringPooling>
+      <StringPooling>true</StringPooling>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <MinimalRebuild>false</MinimalRebuild>
       <ExceptionHandling>false</ExceptionHandling>
@@ -135,7 +131,7 @@
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <CallingConvention>StdCall</CallingConvention>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <StringPooling>false</StringPooling>
+      <StringPooling>true</StringPooling>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <MinimalRebuild>false</MinimalRebuild>
       <ExceptionHandling>false</ExceptionHandling>
@@ -177,12 +173,12 @@
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <CallingConvention>StdCall</CallingConvention>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <StringPooling>false</StringPooling>
+      <StringPooling>true</StringPooling>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <MinimalRebuild>false</MinimalRebuild>
       <ExceptionHandling>false</ExceptionHandling>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
-      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <FavorSizeOrSpeed>Size</FavorSizeOrSpeed>
       <OmitFramePointers>true</OmitFramePointers>
     </ClCompile>
@@ -224,12 +220,12 @@
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <CallingConvention>StdCall</CallingConvention>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <StringPooling>false</StringPooling>
+      <StringPooling>true</StringPooling>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <MinimalRebuild>false</MinimalRebuild>
       <ExceptionHandling>false</ExceptionHandling>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
-      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <FavorSizeOrSpeed>Size</FavorSizeOrSpeed>
       <OmitFramePointers>true</OmitFramePointers>
     </ClCompile>
@@ -261,10 +257,13 @@
     <ClInclude Include="..\00-Common Headers\KexDll.h" />
     <ClInclude Include="buildcfg.h" />
     <ClInclude Include="kexdllp.h" />
+    <ClInclude Include="redirects.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="apiset.c" />
     <ClCompile Include="ash.c" />
+    <ClCompile Include="ashcrsup.c" />
+    <ClCompile Include="ashselec.c" />
     <ClCompile Include="avrf.c" />
     <ClCompile Include="cpiwbypa.c" />
     <ClCompile Include="dload.c" />
@@ -272,6 +271,7 @@
     <ClCompile Include="dllnotif.c" />
     <ClCompile Include="dllpath.c" />
     <ClCompile Include="dllrewrt.c" />
+    <ClCompile Include="etw.c" />
     <ClCompile Include="except.c" />
     <ClCompile Include="kexdata.c" />
     <ClCompile Include="kexhe.c" />
@@ -280,6 +280,9 @@
     <ClCompile Include="kexrtl.c" />
     <ClCompile Include="logging.c" />
     <ClCompile Include="ntpriv.c" />
+    <ClCompile Include="ntps.c" />
+    <ClCompile Include="ntreg.c" />
+    <ClCompile Include="ntsect.c" />
     <ClCompile Include="ntthread.c" />
     <ClCompile Include="propagte.c" />
     <ClCompile Include="rtlwoa.c" />

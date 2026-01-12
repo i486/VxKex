@@ -3,6 +3,11 @@ EXPORTS
 
 	LdrResolveDelayLoadedAPI					= KexDll.KexLdrResolveDelayLoadedAPI
 	LdrGetDllFullName							= KexDll.KexLdrGetDllFullName
+	LdrLoadDll									= KexDll.KexLdrLoadDll
+	LdrGetDllHandle								= KexDll.KexLdrGetDllHandle
+	LdrGetDllHandleEx							= KexDll.KexLdrGetDllHandleEx
+	LdrGetProcedureAddress						= KexDll.KexLdrGetProcedureAddress
+	LdrGetProcedureAddressEx					= KexDll.KexLdrGetProcedureAddressEx
 
 	RtlWaitOnAddress							= KexDll.KexRtlWaitOnAddress
 	RtlWakeAddressAll							= KexDll.KexRtlWakeAddressAll
@@ -17,5 +22,22 @@ EXPORTS
 	RtlQueryWnfStateData						= KexDll.KexRtlQueryWnfStateData
 	RtlPublishWnfStateData						= KexDll.KexRtlPublishWnfStateData
 	RtlSubscribeWnfStateChangeNotification		= KexDll.KexRtlSubscribeWnfStateChangeNotification
+	RtlAddGrowableFunctionTable					= KexDll.KexRtlAddGrowableFunctionTable
 
 	ApiSetQueryApiSetPresence					= KexDll.ApiSetQueryApiSetPresence
+
+	EtwEventSetInformation						= KexDll.KexEtwEventSetInformation
+
+	NtQueryInformationThread					= KexDll.Ext_NtQueryInformationThread
+	NtSetInformationThread						= KexDll.Ext_NtSetInformationThread
+	NtQueryInformationProcess					= KexDll.Ext_NtQueryInformationProcess
+	NtNotifyChangeKey							= KexDll.Ext_NtNotifyChangeKey
+	NtNotifyChangeMultipleKeys					= KexDll.Ext_NtNotifyChangeMultipleKeys
+	NtCreateSection								= KexDll.Ext_NtCreateSection
+
+	ZwQueryInformationThread					= KexDll.Ext_NtQueryInformationThread
+	ZwSetInformationThread						= KexDll.Ext_NtSetInformationThread
+	ZwQueryInformationProcess					= KexDll.Ext_NtQueryInformationProcess
+	ZwNotifyChangeKey							= KexDll.Ext_NtNotifyChangeKey
+	ZwNotifyChangeMultipleKeys					= KexDll.Ext_NtNotifyChangeMultipleKeys
+	ZwCreateSection								= KexDll.Ext_NtCreateSection
