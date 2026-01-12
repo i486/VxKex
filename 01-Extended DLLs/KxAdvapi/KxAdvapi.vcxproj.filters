@@ -18,12 +18,21 @@
     <ClInclude Include="buildcfg.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="kxadvapip.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\00-Common Headers\KxAdvApi.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="forwards.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="reggval.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

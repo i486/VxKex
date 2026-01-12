@@ -25,32 +25,34 @@ KXMIAPI BOOL WINAPI Ext_GetFileVersionInfoW(
 	//
 	// APPSPECIFICHACK: Spoof kernel32.dll version for Chromium.
 	//
-	if (KexData->Flags & KEXDATA_FLAG_CHROMIUM) {
-		ASSERT (FileName != NULL);
+	unless (KexData->IfeoParameters.DisableAppSpecific) {
+		if (KexData->Flags & KEXDATA_FLAG_CHROMIUM) {
+			ASSERT (FileName != NULL);
 
-		if (StringEqual(FileName, L"kernel32.dll") || StringEqual(FileName, L"kernelbase.dll")) {
-			PVERHEAD VerHead;
+			if (StringEqual(FileName, L"kernel32.dll") || StringEqual(FileName, L"kernelbase.dll")) {
+				PVERHEAD VerHead;
 
-			ASSERT (VersionInfo != NULL);
-			ASSERT (BufferCb >= sizeof(VERHEAD));
+				ASSERT (VersionInfo != NULL);
+				ASSERT (BufferCb >= sizeof(VERHEAD));
 
-			if (BufferCb < sizeof(VERHEAD)) {
-				// bail out and don't do anything
-				return Success;
+				if (BufferCb < sizeof(VERHEAD)) {
+					// bail out and don't do anything
+					return Success;
+				}
+
+				VerHead = (PVERHEAD) VersionInfo;
+
+				KexLogDebugEvent(
+					L"Spoofing Kernel32/Kernelbase file version for Chromium\r\n\r\n"
+					L"Original dwFileVersionMS = 0x%08lx\r\n"
+					L"Original dwFileVersionLS = 0x%08lx\r\n",
+					VerHead->vsf.dwFileVersionMS,
+					VerHead->vsf.dwFileVersionLS);
+
+				// 10.0.10240.0 (Windows 10 1504, aka "RTM")
+				VerHead->vsf.dwFileVersionMS = 0x000A0000;
+				VerHead->vsf.dwFileVersionLS = 0x28000000;
 			}
-
-			VerHead = (PVERHEAD) VersionInfo;
-
-			KexLogDebugEvent(
-				L"Spoofing Kernel32/Kernelbase file version for Chromium\r\n\r\n"
-				L"Original dwFileVersionMS = 0x%08lx\r\n"
-				L"Original dwFileVersionLS = 0x%08lx\r\n",
-				VerHead->vsf.dwFileVersionMS,
-				VerHead->vsf.dwFileVersionLS);
-
-			// 10.0.10240.0 (Windows 10 1504, aka "RTM")
-			VerHead->vsf.dwFileVersionMS = 0x000A0000;
-			VerHead->vsf.dwFileVersionLS = 0x28000000;
 		}
 	}
 

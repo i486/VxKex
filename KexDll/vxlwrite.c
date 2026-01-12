@@ -15,6 +15,8 @@
 // Revision History:
 //
 //     vxiiduu              08-Jan-2023  Move from critical section to SRW lock
+//     vxiiduu              13-May-2025  Allow Release builds to do DbgPrints even
+//                                       when logging is turned off
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -41,12 +43,18 @@ NTSTATUS CDECL VxlWriteLogEx(
 	PTEB Teb;
 	IO_STATUS_BLOCK IoStatusBlock;
 	LONGLONG EndOfFileOffset;
+	BOOLEAN BeingDebugged;
+
+	BeingDebugged = NtCurrentPeb()->BeingDebugged;
 
 	//
 	// param validation
 	//
 
-	if (KexIsReleaseBuild && LogHandle == NULL) {
+	if (!BeingDebugged && LogHandle == NULL) {
+		// If we are not running under a debugger and the log handle is NULL (e.g. if the
+		// log file failed to open or if the user disabled logging) we will fail right
+		// away in order to avoid wasting CPU time.
 		return STATUS_INVALID_HANDLE;
 	}
 
@@ -127,7 +135,7 @@ NTSTATUS CDECL VxlWriteLogEx(
 		// debugging console.
 		//
 
-		if (NtCurrentPeb()->BeingDebugged) {
+		if (BeingDebugged) {
 			DbgPrint("VXL (%ws): %ws\r\n", SourceComponent, FileEntry->Text);
 		}
 

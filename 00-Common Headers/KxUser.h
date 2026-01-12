@@ -267,6 +267,10 @@ BOOL WINAPI GetPointerDeviceRects(
 BOOL WINAPI EnableMouseInPointer(
 	IN	BOOL	Enable);
 
+KXUSERAPI BOOL WINAPI RegisterPointerDeviceNotifications(
+	IN	HWND	Window,
+	IN	BOOL	NotifyRange);
+
 //
 // scaling.c
 //
@@ -368,3 +372,6 @@ KXUSERAPI BOOL WINAPI UnregisterSuspendResumeNotification(
 
 KXUSERAPI BOOL WINAPI IsImmersiveProcess(
 	IN	HANDLE	ProcessHandle);
+
+KXUSERAPI BOOL WINAPI IsWindowArranged(
+	IN	HWND	Window);

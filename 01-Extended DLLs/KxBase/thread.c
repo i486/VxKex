@@ -15,6 +15,8 @@
 // Revision History:
 //
 //     vxiiduu               07-Nov-2022  Initial creation.
+//     vxiiduu               29-Apr-2025  Add SetThreadpoolTimerEx and
+//                                        GetSystemCpuSetInformation from dotexe
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -347,4 +349,28 @@ KXBASEAPI BOOL WINAPI GetThreadSelectedCpuSetMasks(
 	}
 
 	return TRUE;
+}
+
+KXBASEAPI BOOL WINAPI SetThreadpoolTimerEx(
+	IN OUT	PTP_TIMER	pti,
+	IN		PFILETIME	pftDueTime OPTIONAL,
+	IN		DWORD		msPeriod,
+	IN		DWORD		msWindowLength OPTIONAL)
+{
+	BOOLEAN ThreadpoolTimerSet;
+
+	ThreadpoolTimerSet = IsThreadpoolTimerSet(pti);
+	SetThreadpoolTimer(pti, pftDueTime, msPeriod, msWindowLength);
+	return ThreadpoolTimerSet;
+}
+
+KXBASEAPI BOOL WINAPI GetSystemCpuSetInformation(
+	PVOID	Information,
+	ULONG	BufferLength,
+	PULONG	ReturnedLength,
+	HANDLE	Process,
+	ULONG	Flags)
+{
+	SetLastError(ERROR_NOT_SUPPORTED);
+	return FALSE;
 }

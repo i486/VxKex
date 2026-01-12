@@ -14,6 +14,7 @@ EXPORTS
 	KexRtlFindUnicodeSubstring
 	KexRtlAdvanceUnicodeString
 	KexRtlRetreatUnicodeString
+	KexRtlSetUnicodeStringBufferEnd
 	KexRtlShiftUnicodeString
 	KexRtlWriteProcessMemory
 	KexRtlCreateDirectoryRecursive
@@ -29,6 +30,7 @@ EXPORTS
 	KexRtlBatchApplyStringMapper
 	KexRtlSectionTableFromRva
 	KexRtlNullTerminateUnicodeString
+	KexRtlUnicodeStringContainsEmbeddedNull
 	KexRtlCreateUntrustedDirectoryObject
 	KexRtlGenerateRandomData
 

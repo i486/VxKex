@@ -521,7 +521,7 @@ typedef struct DECLSPEC_ALIGN(8) _MEM_EXTENDED_PARAMETER {
 
 typedef struct _MEM_ADDRESS_REQUIREMENTS {
 	PVOID	LowestStartingAddress;
-	PVOID	HighestStartingAddress;
+	PVOID	HighestEndingAddress;
 	SIZE_T	Alignment;
 } TYPEDEF_TYPE_NAME(MEM_ADDRESS_REQUIREMENTS);
 
@@ -3928,6 +3928,11 @@ NTSYSAPI NTSTATUS NTAPI RtlDowncaseUnicodeString(
 
 NTSYSAPI VOID NTAPI RtlFreeUnicodeString(
 	IN OUT	PUNICODE_STRING	UnicodeString);
+
+NTSYSAPI BOOLEAN NTAPI RtlEqualString(
+	IN	PCANSI_STRING	String1,
+	IN	PCANSI_STRING	String2,
+	IN	BOOLEAN			CaseInsensitive);
 
 NTSYSAPI BOOLEAN NTAPI RtlEqualUnicodeString(
 	IN	PCUNICODE_STRING	String1,

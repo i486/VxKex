@@ -1,5 +1,6 @@
 #include "buildcfg.h"
 #include <KexComm.h>
+#include <KexDll.h>
 #include <WinDNS.h>
 #include <WinHTTP.h>
 

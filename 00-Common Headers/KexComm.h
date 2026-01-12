@@ -65,14 +65,6 @@
 #  define KexIsReleaseBuild TRUE
 #endif
 
-#ifdef KEX_ARCH_X64
-#  define KexIs32BitBuild FALSE
-#  define KexIs64BitBuild TRUE
-#else
-#  define KexIs32BitBuild TRUE
-#  define KexIs64BitBuild FALSE
-#endif
-
 #pragma region Header Includes
 // these two must be included before other headers (esp. KexStrSafe.h), or
 // undefined symbol errors can occur
@@ -184,7 +176,7 @@
 #  include <KexTypes.h>
 #  include <KexVer.h>
 
-#  if defined(KEX_ENV_WIN32) && !defined(KEX_TARGET_TYPE_LIB)
+#  if defined(KEX_ENV_WIN32) && !defined(KEX_TARGET_TYPE_LIB) && !defined(KEX_NO_EXTRA_LIBS)
 #    include <KexGui.h>
 #    include <KexW32ML.h>
 #    include <KxCfgHlp.h>

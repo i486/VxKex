@@ -16,6 +16,8 @@ EXPORTS
 	SetThreadSelectedCpuSetMasks
 	GetThreadSelectedCpuSets
 	GetThreadSelectedCpuSetMasks
+	SetThreadpoolTimerEx
+	GetSystemCpuSetInformation
 
 	;; process.c
 	GetProcessInformation
@@ -73,6 +75,8 @@ EXPORTS
 	GetPackageFullName
 	GetPackagesByPackageFamily
 	PackageFamilyNameFromFullName
+	GetPackagePathByFullName
+	GetPackagePathByFullName2
 
 	;; synch.c
 	WaitOnAddress
@@ -97,6 +101,8 @@ EXPORTS
 	UnmapViewOfFileEx
 	MapViewOfFile3
 	MapViewOfFile3FromApp
+	VirtualAlloc2
+	VirtualAlloc2FromApp
 
 	;; KexPathCch
 	PathAllocCanonicalize

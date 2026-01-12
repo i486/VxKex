@@ -1,5 +1,7 @@
 #include "buildcfg.h"
-#include <KexComm.h>
+#include "kxadvapip.h"
+
+PKEX_PROCESS_DATA KexData = NULL;
 
 BOOL WINAPI DllMain(
 	IN	HMODULE		DllHandle,

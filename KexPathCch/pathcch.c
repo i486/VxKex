@@ -344,6 +344,12 @@ WINPATHCCHAPI HRESULT WINAPI PathCchCanonicalize(
 	return PathCchCanonicalizeEx(lpszPathOut, cchPathOut, lpszPathIn, PATHCCH_NONE);
 }
 
+//
+// TODO: PathCchCanonicalizeEx needs to be reworked. It's not very accurate.
+// 10-2024: Fixed bug which caused \\?\ to be prepended unnecessarily to the output,
+// which made Python >3.10 stop working.
+//
+
 // Test results:
 // NULL														-> Access violation
 // <empty string>											-> \
@@ -388,8 +394,17 @@ WINPATHCCHAPI HRESULT WINAPI PathCchCanonicalizeEx(
 	PWSTR lpszOriginalPathOut = lpszPathOut;
 	SIZE_T cchOriginalPathOut = cchPathOut;
 	SIZE_T cchPathIn;
-	BOOL bLongPathAllowed = (dwFlags & (PATHCCH_ALLOW_LONG_PATHS | PATHCCH_ENSURE_IS_EXTENDED_LENGTH_PATH));
+	BOOL bLongPathAllowed;
 	HRESULT hr;
+
+	unless (cchPathOut > MAX_PATH) {
+		// From MSDN:
+		// PATHCCH_ALLOW_LONG_PATHS (0x00000001)
+		// "Note that cchPathOut must be greater than MAX_PATH. If it is not, this flag is ignored."
+		dwFlags &= ~PATHCCH_ALLOW_LONG_PATHS;
+	}
+
+	bLongPathAllowed = (dwFlags & (PATHCCH_ALLOW_LONG_PATHS | PATHCCH_ENSURE_IS_EXTENDED_LENGTH_PATH));
 
 	if (lpszPathOut == lpszPathIn) {
 		return E_INVALIDARG;

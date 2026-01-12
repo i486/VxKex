@@ -43,3 +43,4 @@
 #define KEX_ENV_NATIVE
 #define KEX_TARGET_TYPE_DLL
 #define KEX_COMPONENT L"KxNt"
+#define KEX_NO_EXTRA_LIBS

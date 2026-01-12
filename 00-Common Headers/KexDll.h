@@ -109,6 +109,7 @@
 #define STATUS_KEXSETUP_FAILURE					DEFINE_KEX_NTSTATUS(NTSTATUS_ERROR, 9)
 #define STATUS_IMAGE_SECTION_NOT_FOUND			DEFINE_KEX_NTSTATUS(NTSTATUS_ERROR, 10)
 #define STATUS_DLL_NOT_IN_SYSTEM_ROOT			DEFINE_KEX_NTSTATUS(NTSTATUS_ERROR, 11)
+#define STATUS_PATH_TOO_SHORT					DEFINE_KEX_NTSTATUS(NTSTATUS_ERROR, 12)
 
 #define KEXDATA_FLAG_PROPAGATED				1	// Indicates that this process was spawned from a VxKex-enabled parent
 #define KEXDATA_FLAG_IFEO_OPTIONS_PRESENT	2	// Indicates that this process has VxKex options set in IFEO
@@ -368,6 +369,10 @@ KEXAPI VOID NTAPI KexRtlRetreatUnicodeString(
 	OUT	PUNICODE_STRING	String,
 	IN	USHORT			RetreatCb);
 
+KEXAPI NTSTATUS NTAPI KexRtlSetUnicodeStringBufferEnd(
+	OUT	PUNICODE_STRING	String,
+	IN	PCWCHAR			NewEnd);
+
 KEXAPI NTSTATUS NTAPI KexRtlShiftUnicodeString(
 	IN OUT	PUNICODE_STRING	String,
 	IN		USHORT			ShiftCch,
@@ -436,6 +441,9 @@ KEXAPI PIMAGE_SECTION_HEADER NTAPI KexRtlSectionTableFromRva(
 	IN	ULONG				ImageRva);
 
 KEXAPI NTSTATUS NTAPI KexRtlNullTerminateUnicodeString(
+	IN OUT	PUNICODE_STRING	String);
+
+KEXAPI BOOLEAN NTAPI KexRtlUnicodeStringContainsEmbeddedNull(
 	IN	PUNICODE_STRING	String);
 
 KEXAPI NTSTATUS NTAPI KexRtlWaitOnAddress(
@@ -491,6 +499,7 @@ KEXAPI NTSTATUS NTAPI KexRtlGenerateRandomData(
 #define KexRtlAnsiStringCch(AnsiString) ((AnsiString)->Length)
 #define KexRtlAnsiStringBufferCch(AnsiString) ((AnsiString)->MaximumLength)
 #define KexRtlEndOfUnicodeString(UnicodeString) ((UnicodeString)->Buffer + KexRtlUnicodeStringCch(UnicodeString))
+#define KexRtlEndOfUnicodeStringBuffer(UnicodeString) ((UnicodeString)->Buffer + KexRtlUnicodeStringBufferCch(UnicodeString))
 #define KexRtlCopyMemory(Destination, Source, Cb) __movsb((PUCHAR) (Destination), (PUCHAR) (Source), (Cb))
 
 #define ForEachArrayItem(Array, Index) for (Index = 0; Index < ARRAYSIZE(Array); ++Index)

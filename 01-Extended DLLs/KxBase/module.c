@@ -25,6 +25,8 @@
 //										   GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS
 //										   flag is passed.
 //     vxiiduu              13-Mar-2024    Move most of the code here to kexldr.
+//     vxiiduu              13-May-2025    Make Chromium compat code respect the
+//                                         IfeoParameters->DisableAppSpecific value.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -89,12 +91,15 @@ KXBASEAPI HMODULE WINAPI Ext_GetModuleHandleW(
 	// the export forwarders in KxNt. Neither does it properly work with stubs,
 	// because they actually scan the instruction code of system calls.
 	//
-	if ((KexData->Flags & KEXDATA_FLAG_CHROMIUM) &&
-		ModuleName != NULL &&
-		StringEqual(ModuleName, L"ntdll.dll")) {
 
-		KexLogDebugEvent(L"Not rewriting NTDLL for Chromium compatibility");
-		return (HMODULE) KexData->SystemDllBase;
+	unless (KexData->IfeoParameters.DisableAppSpecific) {
+		if ((KexData->Flags & KEXDATA_FLAG_CHROMIUM) &&
+			ModuleName != NULL &&
+			StringEqual(ModuleName, L"ntdll.dll")) {
+
+			KexLogDebugEvent(L"Not rewriting NTDLL for Chromium compatibility");
+			return (HMODULE) KexData->SystemDllBase;
+		}
 	}
 
 	InterceptedKernelBaseLoaderCallEntry(&ReEntrant);

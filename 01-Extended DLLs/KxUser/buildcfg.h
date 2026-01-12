@@ -48,3 +48,4 @@
 #define KEX_TARGET_TYPE_DLL
 #define KEX_ENV_WIN32
 #define KEX_COMPONENT L"KxUser"
+#define KEX_NO_EXTRA_LIBS

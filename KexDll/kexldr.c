@@ -725,6 +725,31 @@ KEXAPI NTSTATUS NTAPI KexLdrGetProcedureAddressEx(
 {
 	NTSTATUS Status;
 
+	unless (KexData->IfeoParameters.DisableAppSpecific) {
+		if (KexData->Flags & KEXDATA_FLAG_CHROMIUM) {
+			//
+			// APPSPECIFICHACK: Hide VirtualAlloc2 from Chromium-based processes
+			// in order to force Chromium into using compatibility code for pre-win10
+			// systems.
+			//
+			// Pitfall: this workaround applies to all code in the process, not just
+			// Chromium. If any applications include Chromium AND require VirtualAlloc2
+			// for something else, then we will have to figure out another solution.
+			//
+
+			if (ProcedureName != NULL) {
+				ANSI_STRING VirtualAlloc2ProcName;
+
+				RtlInitConstantAnsiString(&VirtualAlloc2ProcName, "VirtualAlloc2");
+
+				if (RtlEqualString(ProcedureName, &VirtualAlloc2ProcName, FALSE)) {
+					KexLogDebugEvent(L"VirtualAlloc2 hidden from Chromium process");
+					return STATUS_PROCEDURE_NOT_FOUND;
+				}
+			}
+		}
+	}
+
 	Status = LdrGetProcedureAddressEx(
 		DllHandle,
 		ProcedureName,

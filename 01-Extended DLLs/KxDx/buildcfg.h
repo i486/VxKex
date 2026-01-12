@@ -45,3 +45,4 @@
 #define KEX_ENV_WIN32
 #define KEX_TARGET_TYPE_DLL
 #define KEX_COMPONENT L"KxDx"
+#define KEX_NO_EXTRA_LIBS

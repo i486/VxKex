@@ -28,7 +28,7 @@
 BOOLEAN IsWow64(
 	VOID)
 {
-	if (KexIs64BitBuild) {
+	if (KexRtlCurrentProcessBitness() == 64) {
 		return FALSE;
 	} else {
 		BOOLEAN Success;

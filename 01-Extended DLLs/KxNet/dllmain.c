@@ -1,5 +1,5 @@
 #include "buildcfg.h"
-#include <KexComm.h>
+#include "kxnetp.h"
 
 PKEX_PROCESS_DATA KexData = NULL;
 

@@ -2,7 +2,7 @@
 //
 // Module Name:
 //
-//     kexdllp.h
+//     kxbasep.h
 //
 // Abstract:
 //
