@@ -45,7 +45,7 @@ NTSTATUS NTAPI Ext_NtQueryInformationThread(
 		// Check for THREAD_QUERY_LIMITED_INFORMATION access.
 		//
 
-		Status = NtQueryObject(
+		Status = KexNtQueryObject(
 			ThreadHandle,
 			ObjectBasicInformation,
 			&ThreadHandleInformation,
@@ -71,7 +71,7 @@ NTSTATUS NTAPI Ext_NtQueryInformationThread(
 			ThreadInformationClass);
 	}
 
-	return NtQueryInformationThread(
+	return KexNtQueryInformationThread(
 		ThreadHandle,
 		ThreadInformationClass,
 		ThreadInformation,
@@ -89,7 +89,7 @@ NTSTATUS NTAPI Ext_NtSetInformationThread(
 	// TODO: Implement ThreadNameInformation
 	//
 
-	return NtSetInformationThread(
+	return KexNtSetInformationThread(
 		ThreadHandle,
 		ThreadInformationClass,
 		ThreadInformation,

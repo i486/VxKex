@@ -24,9 +24,6 @@
     <ClInclude Include="kxbasep.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="dnsp.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.c">
@@ -62,19 +59,10 @@
     <ClCompile Include="time.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="dllpath.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="process.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="power.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="verspoof.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="crypto.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="misc.c">
@@ -89,19 +77,10 @@
     <ClCompile Include="cfgmgr.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="wldp.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="stubs.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="winhttp.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="token.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="dns.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

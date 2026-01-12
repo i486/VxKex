@@ -28,7 +28,7 @@ BOOLEAN VklCreateProcess(
 		PWSTR ArgumentsWithExeName;
 
 		//
-		// We are opening an EXE or batch file. Use CreateProcess to do this.
+		// We are opening an EXE. Use CreateProcess to do this.
 		//
 
 		ParentProcessHandle = NULL;

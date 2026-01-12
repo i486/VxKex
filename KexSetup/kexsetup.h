@@ -85,6 +85,13 @@ VOID KexSetupPerformActions(
 	VOID);
 
 //
+// prereq.c
+//
+
+VOID KexSetupCheckForPrerequisites(
+	VOID);
+
+//
 // util.c
 //
 

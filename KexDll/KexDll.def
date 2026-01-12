@@ -63,6 +63,7 @@ EXPORTS
 	KexLdrGetDllHandleEx
 	KexLdrGetProcedureAddress
 	KexLdrGetProcedureAddressEx
+
 	KexLdrResolveDelayLoadedAPI
 
 	ApiSetQueryApiSetPresence
@@ -87,13 +88,6 @@ EXPORTS
 	VxlReadMultipleEntriesLog
 	VxlSeverityToText
 
-	Ext_NtQueryInformationThread
-	Ext_NtSetInformationThread
-	Ext_NtQueryInformationProcess
-	Ext_NtNotifyChangeKey
-	Ext_NtNotifyChangeMultipleKeys
-	Ext_NtCreateSection
-
 	KexNtQuerySystemTime
 	KexNtCreateUserProcess
 	KexNtProtectVirtualMemory
@@ -110,3 +104,4 @@ EXPORTS
 	KexNtNotifyChangeKey
 	KexNtNotifyChangeMultipleKeys
 	KexNtCreateSection
+	KexNtAssignProcessToJobObject

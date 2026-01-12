@@ -37,7 +37,7 @@
 //
 // Log hard errors.
 //
-STATIC NTSTATUS NTAPI KexpNtRaiseHardErrorHook(
+NTSTATUS NTAPI Ext_NtRaiseHardError(
 	IN	NTSTATUS	ErrorStatus,
 	IN	ULONG		NumberOfParameters,
 	IN	ULONG		UnicodeStringParameterMask,
@@ -126,25 +126,6 @@ BailOut:
 
 	return Status;
 } PROTECTED_FUNCTION_END
-
-NTSTATUS KexHeInstallHandler(
-	VOID)
-{
-	NTSTATUS Status;
-
-	Status = KexHkInstallBasicHook(NtRaiseHardError, KexpNtRaiseHardErrorHook, NULL);
-
-	if (NT_SUCCESS(Status)) {
-		KexLogInformationEvent(L"Successfully installed hard error handler.");
-	} else {
-		KexLogErrorEvent(
-			L"Failed to install hard error handler\r\n\r\n"
-			L"NTSTATUS error code: %s",
-			KexRtlNtStatusToString(Status));
-	}
-
-	return Status;
-}
 
 VOID KexMessageBox(
 	IN	ULONG	Flags,

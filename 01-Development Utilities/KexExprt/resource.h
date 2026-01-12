@@ -10,6 +10,7 @@
 #define IDC_RBDEF				107
 #define IDC_RBPRAGMA			108
 #define IDC_RESULT				109
+#define IDC_INCLUDEORDINALS		110
 
 #define IDA_ACCELERATORS		120
 #define M_SELECTALL				121

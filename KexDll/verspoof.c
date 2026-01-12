@@ -34,7 +34,7 @@ PCWSTR HumanReadableWinVerSpoof[] = {
 
 UNICODE_STRING CSDVersionUnicodeString;
 
-STATIC NTSTATUS NTAPI KexpRtlGetVersionHook(
+STATIC NTSTATUS NTAPI Ext_RtlGetVersion(
 	OUT	PRTL_OSVERSIONINFOEXW	Version)
 {
 	PPEB Peb;
@@ -147,7 +147,7 @@ STATIC NTSTATUS NTAPI KexpRtlGetVersionHook(
 	return STATUS_SUCCESS;
 }
 
-STATIC VOID NTAPI KexpRtlGetNtVersionNumbersHook(
+STATIC VOID NTAPI Ext_RtlGetNtVersionNumbers(
 	OUT	PULONG	MajorVersion OPTIONAL,
 	OUT	PULONG	MinorVersion OPTIONAL,
 	OUT	PULONG	BuildNumber OPTIONAL)
@@ -212,7 +212,7 @@ VOID KexApplyVersionSpoof(
 	// depending on what module is calling it.
 	//
 
-	KexHkInstallBasicHook(RtlGetVersion, KexpRtlGetVersionHook, NULL);
+	KexHkInstallBasicHook(RtlGetVersion, Ext_RtlGetVersion, NULL);
 
 	//
 	// APPSPECIFICHACK: Spoof version of .NET applications without breaking .NET
@@ -223,7 +223,8 @@ VOID KexApplyVersionSpoof(
 		if (AshExeBaseNameIs(L"HandBrake.exe") ||
 			AshExeBaseNameIs(L"HandBrake.Worker.exe") ||
 			AshExeBaseNameIs(L"osu!.exe") ||
-			AshExeBaseNameIs(L"paintdotnet.exe")) {
+			AshExeBaseNameIs(L"paintdotnet.exe") ||
+			AshExeBaseNameIs(L"ChocolateyGui.exe")) {
 			
 			return;
 		}
@@ -284,7 +285,7 @@ VOID KexApplyVersionSpoof(
 	// replace it with a custom function.
 	//
 
-	KexHkInstallBasicHook(RtlGetNtVersionNumbers, KexpRtlGetNtVersionNumbersHook, NULL);
+	KexHkInstallBasicHook(RtlGetNtVersionNumbers, Ext_RtlGetNtVersionNumbers, NULL);
 
 	//
 	// Strong version spoofing is anything that involves runtime performance

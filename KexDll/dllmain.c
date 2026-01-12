@@ -122,14 +122,6 @@ BOOL WINAPI DllMain(
 		KexOpenVxlLogForCurrentApplication(&KexData->LogHandle);
 
 		//
-		// Install VxKex hard error handler.
-		// This is responsible for displaying the custom error messages e.g.
-		// when a DLL is not found.
-		//
-
-		KexHeInstallHandler();
-
-		//
 		// Log some basic information such as command-line parameters to
 		// the log.
 		//
@@ -159,7 +151,7 @@ BOOL WINAPI DllMain(
 		// finalized, so print them out to the log.
 		//
 
-		KexLogDebugEvent(
+		KexLogInformationEvent(
 			L"IfeoParameters values are finalized.\r\n\r\n"
 			L"DisableForChild:      %d\r\n"
 			L"DisableAppSpecific:   %d\r\n"
@@ -169,6 +161,19 @@ BOOL WINAPI DllMain(
 			KexData->IfeoParameters.DisableAppSpecific,
 			KexData->IfeoParameters.WinVerSpoof,
 			KexData->IfeoParameters.StrongVersionSpoof);
+
+		//
+		// Hook any other NT system calls we are going to hook.
+		//
+
+		KexHkInstallBasicHook(NtQueryInformationThread, Ext_NtQueryInformationThread, NULL);
+		KexHkInstallBasicHook(NtSetInformationThread, Ext_NtSetInformationThread, NULL);
+		KexHkInstallBasicHook(NtQueryInformationProcess, Ext_NtQueryInformationProcess, NULL);
+		KexHkInstallBasicHook(NtNotifyChangeKey, Ext_NtNotifyChangeKey, NULL);
+		KexHkInstallBasicHook(NtNotifyChangeMultipleKeys, Ext_NtNotifyChangeMultipleKeys, NULL);
+		KexHkInstallBasicHook(NtCreateSection, Ext_NtCreateSection, NULL);
+		KexHkInstallBasicHook(NtRaiseHardError, Ext_NtRaiseHardError, NULL);
+		KexHkInstallBasicHook(NtAssignProcessToJobObject, Ext_NtAssignProcessToJobObject, NULL);
 
 		//
 		// Perform version spoofing, if required.
@@ -181,22 +186,7 @@ BOOL WINAPI DllMain(
 		//
 
 		Status = KexInitializeDllRewrite();
-		if (!NT_SUCCESS(Status)) {
-			KexLogCriticalEvent(
-				L"Failed to initialize DLL rewrite subsystem\r\n\r\n"
-				L"NTSTATUS error code: %s (0x%08lx)",
-				KexRtlNtStatusToString(Status), Status);
-
-			// Abort initialization of VxKex.
-			KexHeErrorBox(
-				L"VxKex could not start because the DLL rewrite subsystem "
-				L"could not be initialized. Try to reinstall VxKex, since "
-				L"this problem may be caused by missing registry keys.\r\n"
-				L"If the problem persists, please disable VxKex for this "
-				L"program.");
-
-			NOT_REACHED;
-		}
+		ASSERT (NT_SUCCESS(Status));
 
 		//
 		// Register our DLL load/unload callback.
@@ -208,21 +198,7 @@ BOOL WINAPI DllMain(
 			NULL,
 			&DllNotificationCookie);
 
-		if (NT_SUCCESS(Status)) {
-			KexLogInformationEvent(L"Successfully registered DLL notification callback.");
-		} else {
-			KexLogCriticalEvent(
-				L"Failed to register DLL notification callback\r\n\r\n"
-				L"NTSTATUS error code: %s (0x%08lx)",
-				KexRtlNtStatusToString(Status), Status);
-
-			KexHeErrorBox(
-				L"VxKex could not start because the DLL notification callback "
-				L"could not be installed. If the problem persists, please disable "
-				L"VxKex for this program.");
-
-			NOT_REACHED;
-		}
+		ASSERT (NT_SUCCESS(Status));
 
 		//
 		// Perform any app-specific hacks that need to be done before any further

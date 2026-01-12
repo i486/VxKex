@@ -552,9 +552,6 @@ KEXAPI NTSTATUS NTAPI KexLdrLoadDll(
 		DllPathPointer &= ~1;
 		DllPathIndirect = (PPCWSTR) DllPathPointer;
 		DllPath = *DllPathIndirect;
-
-		// TODO: Better preserve original behaviors.
-		//ASSERT (DllPathIndirect[1] == NULL);
 	}
 
 	if (!NtCurrentTeb()->KexLdrShouldRewriteDll) {

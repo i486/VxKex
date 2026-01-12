@@ -43,6 +43,13 @@ BOOL WINAPI DllMain(
 		KexLogDebugEvent(L"DllMain called with DLL_PROCESS_ATTACH");
 
 		//
+		// Get the base address of Kernel32 and store it in KexData.
+		//
+
+		BaseGetBaseDllHandle();
+		ASSERT (KexData->BaseDllBase != NULL);
+
+		//
 		// If we are doing SharedUserData-based version spoofing, we need to
 		// hook GetSystemTime and GetSystemTimeAsFileTime.
 		//
@@ -64,13 +71,6 @@ BOOL WINAPI DllMain(
 
 		KexData->BaseNamedObjects = BaseGetNamedObjectDirectory();
 		KexData->UntrustedNamedObjects = BaseGetUntrustedNamedObjectDirectory();
-
-		//
-		// Get the base address of Kernel32 and store it in KexData.
-		//
-
-		BaseGetBaseDllHandle();
-		ASSERT (KexData->BaseDllBase != NULL);
 	}
 
 	return TRUE;

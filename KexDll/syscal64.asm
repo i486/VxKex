@@ -30,6 +30,7 @@ GENERATE_SYSCALL KexNtNotifyChangeKey,							00EBh
 GENERATE_SYSCALL KexNtNotifyChangeMultipleKeys,					00ECh
 GENERATE_SYSCALL KexNtCreateSection,							0047h
 GENERATE_SYSCALL KexNtQueryInformationProcess,					0016h
+GENERATE_SYSCALL KexNtAssignProcessToJobObject,					0085h
 
 _TEXT ENDS
 

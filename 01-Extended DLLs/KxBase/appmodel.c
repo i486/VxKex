@@ -31,6 +31,24 @@ KXBASEAPI LONG WINAPI GetCurrentPackageId(
 	return APPMODEL_ERROR_NO_PACKAGE;
 }
 
+KXBASEAPI LONG WINAPI GetPackageFullName(
+	IN		HANDLE	ProcessHandle,
+	IN OUT	PULONG	NameLength,
+	OUT		PWSTR	PackageFullName OPTIONAL)
+{
+	if (!ProcessHandle || !NameLength || *NameLength && !PackageFullName) {
+		return ERROR_INVALID_PARAMETER;
+	}
+
+	*NameLength = 0;
+
+	if (PackageFullName) {
+		PackageFullName[0] = '\0';
+	}
+
+	return APPMODEL_ERROR_NO_PACKAGE;
+}
+
 KXBASEAPI LONG WINAPI GetPackageFamilyName(
 	IN		HANDLE	ProcessHandle,
 	IN OUT	PULONG	NameLength,
@@ -76,75 +94,6 @@ KXBASEAPI LONG WINAPI AppPolicyGetProcessTerminationMethod(
 
 	*Policy = 0;
 	return ERROR_SUCCESS;
-}
-
-KXBASEAPI HRESULT WINAPI CreateAppContainerProfile(
-	IN	PCWSTR				AppContainerName,
-	IN	PCWSTR				DisplayName,
-	IN	PCWSTR				Description,
-	IN	PSID_AND_ATTRIBUTES	Capabilities,
-	IN	ULONG				NumberOfCapabilities,
-	OUT	PSID				*AppContainerSid)
-{
-	KexLogWarningEvent(
-		L"CreateAppContainerProfile called: %s\r\n\r\n"
-		L"DisplayName:          %s\r\n"
-		L"NumberOfCapabilities: %lu",
-		AppContainerName,
-		DisplayName,
-		Description,
-		NumberOfCapabilities);
-
-	KexDebugCheckpoint();
-
-	return E_NOTIMPL;
-}
-
-KXBASEAPI HRESULT WINAPI DeleteAppContainerProfile(
-	IN	PCWSTR	AppContainerName)
-{
-	KexLogWarningEvent(
-		L"DeleteAppContainerProfile called: %s",
-		AppContainerName);
-
-	KexDebugCheckpoint();
-
-	return S_OK;
-}
-
-KXBASEAPI HRESULT WINAPI DeriveAppContainerSidFromAppContainerName(
-	IN	PCWSTR	AppContainerName,
-	OUT	PSID	*AppContainerSid)
-{
-	KexLogWarningEvent(
-		L"DeriveAppContainerSidFromAppContainerName called: %s",
-		AppContainerName);
-
-	KexDebugCheckpoint();
-
-	return E_NOTIMPL;
-}
-
-KXBASEAPI HRESULT WINAPI GetAppContainerFolderPath(
-	IN	PCWSTR	AppContainerName,
-	OUT	PPWSTR	FolderPath)
-{
-	KexLogWarningEvent(
-		L"GetAppContainerFolderPath called: %s",
-		AppContainerName);
-
-	KexDebugCheckpoint();
-
-	return E_NOTIMPL;
-}
-
-KXBASEAPI HRESULT WINAPI GetAppContainerRegistryLocation(
-	IN	REGSAM	DesiredAccess,
-	OUT	PHKEY	AppContainerKey)
-{
-	KexLogWarningEvent(L"GetAppContainerRegistryLocation called");
-	KexDebugCheckpoint();
-	return E_NOTIMPL;
 }
 
 KXBASEAPI HRESULT WINAPI AppXGetPackageSid(
@@ -201,4 +150,28 @@ KXBASEAPI LONG WINAPI GetCurrentApplicationUserModelId(
 	OUT		PWSTR	Buffer)
 {
 	return APPMODEL_ERROR_NO_APPLICATION;
+}
+
+KXBASEAPI LONG WINAPI AppPolicyGetWindowingModel(
+	IN	HANDLE						ProcessToken,
+	OUT	PAPP_POLICY_WINDOWING_MODEL	WindowingModel)
+{
+	if (!ProcessToken || !WindowingModel) {
+		return ERROR_INVALID_PARAMETER;
+	}
+
+	*WindowingModel = AppPolicyWindowingModel_ClassicDesktop;
+	return ERROR_SUCCESS;
+}
+
+KXBASEAPI LONG WINAPI AppPolicyGetThreadInitializationType(
+	IN	HANDLE									ProcessToken,
+	OUT	PAPP_POLICY_THREAD_INITIALIZATION_TYPE	InitializationType)
+{
+	if (!ProcessToken || !InitializationType) {
+		return ERROR_INVALID_PARAMETER;
+	}
+
+	*InitializationType = AppPolicyThreadInitializationType_None;
+	return ERROR_SUCCESS;
 }

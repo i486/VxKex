@@ -33,7 +33,7 @@
 #include "buildcfg.h"
 #include "kexdllp.h"
 
-STATIC NTSTATUS NTAPI KexpNtCreateUserProcessHook(
+STATIC NTSTATUS NTAPI Ext_NtCreateUserProcess(
     OUT		CONST PHANDLE						ProcessHandle,
     OUT		CONST PHANDLE						ThreadHandle,
     IN		CONST ACCESS_MASK					ProcessDesiredAccess,
@@ -510,7 +510,7 @@ KEXAPI NTSTATUS NTAPI KexInitializePropagation(
 	// a syscall when it wants to call the original function.
 	//
 
-	Status = KexHkInstallBasicHook(&NtCreateUserProcess, KexpNtCreateUserProcessHook, NULL);
+	Status = KexHkInstallBasicHook(&NtCreateUserProcess, Ext_NtCreateUserProcess, NULL);
 
 	if (NT_SUCCESS(Status)) {
 		KexLogInformationEvent(L"Successfully initialized propagation system.");
@@ -524,7 +524,7 @@ KEXAPI NTSTATUS NTAPI KexInitializePropagation(
 	return Status;
 }
 
-STATIC NTSTATUS NTAPI KexpNtCreateUserProcessHook(
+STATIC NTSTATUS NTAPI Ext_NtCreateUserProcess(
     OUT		CONST PHANDLE						ProcessHandle,
     OUT		CONST PHANDLE						ThreadHandle,
     IN		CONST ACCESS_MASK					ProcessDesiredAccess,

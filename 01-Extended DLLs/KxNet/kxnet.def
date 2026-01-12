@@ -1,0 +1,13 @@
+LIBRARY KxNet
+EXPORTS
+	;; dns.c
+	DnsQueryEx
+
+	;; winhttp.c
+	WinHttpCreateProxyResolver
+	WinHttpGetProxyForUrlEx
+	WinHttpGetProxyResult
+	WinHttpFreeProxyResult
+
+	;; winsock.c
+	GetHostNameW

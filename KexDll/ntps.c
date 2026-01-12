@@ -19,7 +19,7 @@ NTSTATUS NTAPI Ext_NtQueryInformationProcess(
 		KexDebugCheckpoint();
 	}
 
-	return NtQueryInformationProcess(
+	return KexNtQueryInformationProcess(
 		ProcessHandle,
 		ProcessInformationClass,
 		ProcessInformation,

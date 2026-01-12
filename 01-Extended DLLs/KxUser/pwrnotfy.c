@@ -1,6 +1,6 @@
 #include "buildcfg.h"
 #include "kxuserp.h"
-#include <KxBase.h>
+#include <KxMi.h>
 
 STATIC ULONG CALLBACK PowerSuspendResumeCallback(
 	IN	PVOID	Context OPTIONAL,

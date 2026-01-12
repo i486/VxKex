@@ -23,18 +23,6 @@
 #include "buildcfg.h"
 #include "kexdllp.h"
 
-VOID NTAPI KexpApplicationVerifierStopHook (
-    IN	ULONG_PTR		Code,
-    IN	PCHAR			Message,
-    IN	ULONG_PTR		Param1,
-	IN	PCHAR			Description1,
-	IN	ULONG_PTR		Param2,
-	IN	PCHAR			Description2,
-    IN	ULONG_PTR		Param3,
-	IN	PCHAR			Description3,
-    IN	ULONG_PTR		Param4,
-	IN	PCHAR			Description4);
-
 //
 // Disable as many application verifier functionality as we can.
 // This reduces the intrusiveness of VxKex, and also does stuff like stopping
@@ -91,20 +79,4 @@ NTSTATUS KexDisableAVrf(
 	}
 
 	return STATUS_SUCCESS;
-}
-
-VOID NTAPI KexpApplicationVerifierStopHook (
-    IN	ULONG_PTR		Code,
-    IN	PCHAR			Message,
-    IN	ULONG_PTR		Param1,
-	IN	PCHAR			Description1,
-	IN	ULONG_PTR		Param2,
-	IN	PCHAR			Description2,
-    IN	ULONG_PTR		Param3,
-	IN	PCHAR			Description3,
-    IN	ULONG_PTR		Param4,
-	IN	PCHAR			Description4)
-{
-	// TODO: Figure out what this hook is supposed to be attached to
-	return;
 }
