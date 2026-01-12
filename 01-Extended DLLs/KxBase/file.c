@@ -240,3 +240,97 @@ KXBASEAPI BOOL WINAPI GetFileInformationByName(
 	RtlSetLastWin32Error(ERROR_NOT_SUPPORTED);
 	return FALSE;
 }
+
+KXBASEAPI BOOL WINAPI Ext_DeviceIoControl(
+	IN		HANDLE			DeviceHandle,
+	IN		ULONG			IoControlCode,
+	IN		PVOID			InBuffer OPTIONAL,
+	IN		ULONG			InBufferSize,
+	OUT		PVOID			OutBuffer OPTIONAL,
+	IN		ULONG			OutBufferSize,
+	OUT		PULONG			BytesReturned OPTIONAL,
+	IN OUT	LPOVERLAPPED	Overlapped OPTIONAL)
+{
+	ULONG DummyBytesReturned;
+
+	//
+	// Microsoft's documentation lists the BytesReturned (lpBytesReturned) parameter
+	// as being optional. However, on Windows 7, the BytesReturned parameter is only
+	// really optional when the Overlapped parameter is non-null.
+	//
+	// To summarize:
+	//
+	// Parameter combination                       | Result (Win7)    | Result (Win8)
+	// --------------------------------------------+------------------+---------------
+	// Overlapped == NULL && BytesReturned != NULL | OK               | OK
+	// Overlapped == NULL && BytesReturned == NULL | Access violation | OK
+	// Overlapped != NULL && BytesReturned == NULL | OK               | OK
+	// Overlapped != NULL && BytesReturned != NULL | OK               | OK
+	//
+	// This is a discrepancy in behavior which was silently changed in Win8. An
+	// additional check was added to the branch of code which is executed when
+	// Overlapped == NULL.
+	//
+	// The fix is very simple, as you can see:
+	//
+
+	if (BytesReturned == NULL) {
+		BytesReturned = &DummyBytesReturned;
+	}
+
+	return DeviceIoControl(
+		DeviceHandle,
+		IoControlCode,
+		InBuffer,
+		InBufferSize,
+		OutBuffer,
+		OutBufferSize,
+		BytesReturned,
+		Overlapped);
+}
+
+KXBASEAPI BOOL WINAPI Ext_ReadFile(
+	IN		HANDLE			FileHandle,
+	OUT		PVOID			Buffer,
+	IN		ULONG			NumberOfBytesToRead,
+	OUT		PULONG			NumberOfBytesRead OPTIONAL,
+	IN OUT	LPOVERLAPPED	Overlapped OPTIONAL)
+{
+	ULONG DummyNumberOfBytesRead;
+
+	// See comment in Ext_DeviceIoControl for why this is necessary.
+	// They changed the behavior of ReadFile in Windows 8 as well.
+	if (NumberOfBytesRead == NULL) {
+		NumberOfBytesRead = &DummyNumberOfBytesRead;
+	}
+
+	return ReadFile(
+		FileHandle,
+		Buffer,
+		NumberOfBytesToRead,
+		NumberOfBytesRead,
+		Overlapped);
+}
+
+KXBASEAPI BOOL WINAPI Ext_WriteFile(
+	IN		HANDLE			FileHandle,
+	IN		PCVOID			Buffer,
+	IN		ULONG			NumberOfBytesToWrite,
+	OUT		PULONG			NumberOfBytesWritten OPTIONAL,
+	IN OUT	LPOVERLAPPED	Overlapped OPTIONAL)
+{
+	ULONG DummyNumberOfBytesWritten;
+
+	// See comment in Ext_DeviceIoControl for why this is necessary.
+	// They changed the behavior of WriteFile in Windows 8 as well.
+	if (NumberOfBytesWritten == NULL) {
+		NumberOfBytesWritten = &DummyNumberOfBytesWritten;
+	}
+
+	return WriteFile(
+		FileHandle,
+		Buffer,
+		NumberOfBytesToWrite,
+		NumberOfBytesWritten,
+		Overlapped);
+}

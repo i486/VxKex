@@ -40,6 +40,7 @@
 #define KXDXAPI
 
 #pragma comment(lib, "dxgi.lib")
+#pragma comment(lib, "d2d1.lib")
 #pragma comment(lib, "oleaut32.lib")
 
 #define KEX_ENV_WIN32

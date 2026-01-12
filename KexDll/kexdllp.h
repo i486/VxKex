@@ -83,6 +83,12 @@ ULONG KexDllProtectedFunctionExceptionFilter(
 VOID AshApplyQBittorrentEnvironmentVariableHacks(
 	VOID);
 
+VOID AshApplyNodeJSEnvironmentVariableHacks(
+	VOID);
+
+NTSTATUS AshPerformQt6DetectionFromLoadedDll(
+	IN	PCLDR_DLL_NOTIFICATION_DATA	NotificationData);
+
 //
 // ashcrsup.c
 //

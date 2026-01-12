@@ -160,7 +160,7 @@ STATIC VOID NTAPI Ext_RtlGetNtVersionNumbers(
 	Peb = NtCurrentPeb();
 	ReturnMajorVersion = Peb->OSMajorVersion;
 	ReturnMinorVersion = Peb->OSMinorVersion;
-	ReturnBuildNumber = Peb->OSCSDVersion;
+	ReturnBuildNumber = Peb->OSBuildNumber;
 
 	//
 	// If a call to this function comes from a native Windows DLL, we will

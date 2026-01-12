@@ -23,13 +23,21 @@
 //     vxiiduu              11-Feb-2024  Refactor DLL rewrite lookup code.
 //     vxiiduu              13-Mar-2024  Move DLL redirects into a static table
 //                                       instead of reading them from registry.
+//     vxiiduu              03-Jul-2025  Update KexpRewriteImportTableDllNameInPlace
+//                                       to fix rare issue triggered by specific
+//                                       layout of import names in a PE image.
+//     vxiiduu              15-Dec-2025  Replace KexLdrProtectImageImportSection
+//                                       with KexLdrGetImageImportSection in order
+//                                       to fix a rare bug where memory protections
+//                                       of executable pages can get clobbered and
+//                                       cause a crash.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "buildcfg.h"
 #include "kexdllp.h"
 
-STATIC PKEX_RTL_STRING_MAPPER DllRewriteStringMapper = NULL;
+STATIC PKEX_SMP_STRING_MAPPER DllRewriteStringMapper = NULL;
 
 // This header file contains the definition of the DLL rewrite table.
 #include "redirects.h"
@@ -42,7 +50,7 @@ NTSTATUS KexAddDllRewriteEntry(
 	ASSUME (VALID_UNICODE_STRING(DllName));
 	ASSUME (VALID_UNICODE_STRING(RewrittenDllName));
 
-	return KexRtlInsertEntryStringMapper(
+	return SmpInsertEntryStringMapper(
 		DllRewriteStringMapper,
 		DllName,
 		RewrittenDllName);
@@ -54,7 +62,7 @@ NTSTATUS KexRemoveDllRewriteEntry(
 	ASSUME (DllRewriteStringMapper != NULL);
 	ASSUME (VALID_UNICODE_STRING(DllName));
 
-	return KexRtlRemoveEntryStringMapper(
+	return SmpRemoveEntryStringMapper(
 		DllRewriteStringMapper,
 		DllName);
 }
@@ -75,9 +83,9 @@ NTSTATUS KexInitializeDllRewrite(
 	// Create the DLL rewrite string mapper.
 	//
 
-	Status = KexRtlCreateStringMapper(
+	Status = SmpCreateStringMapper(
 		&DllRewriteStringMapper, 
-		KEX_RTL_STRING_MAPPER_CASE_INSENSITIVE_KEYS);
+		KEX_SMP_STRING_MAPPER_CASE_INSENSITIVE_KEYS);
 
 	ASSERT (NT_SUCCESS(Status));
 
@@ -194,7 +202,7 @@ STATIC NTSTATUS KexpLookupDllRewriteEntry(
 	// have a rewrite entry for it.
 	//
 
-	Status = KexRtlLookupEntryStringMapper(
+	Status = SmpLookupEntryStringMapper(
 		DllRewriteStringMapper,
 		&CleanDllName,
 		RewrittenDllName);
@@ -228,6 +236,12 @@ STATIC NTSTATUS KexpRewriteImportTableDllNameInPlace(
 	NTSTATUS Status;
 	UNICODE_STRING DllName;
 	UNICODE_STRING RewrittenDllName;
+	BOOLEAN HaveModifiedPageProtection;
+	PVOID BaseAddress;
+	SIZE_T RegionSize;
+	ULONG OldProtect;
+
+	HaveModifiedPageProtection = FALSE;
 
 	ASSERT (AnsiDllName != NULL);
 	ASSERT (AnsiDllName->Length != 0);
@@ -262,6 +276,8 @@ STATIC NTSTATUS KexpRewriteImportTableDllNameInPlace(
 		goto Exit;
 	}
 
+Retry:
+
 	try {
 		//
 		// Convert to ANSI. This will result in RtlUnicodeStringToAnsiString writing
@@ -281,12 +297,68 @@ STATIC NTSTATUS KexpRewriteImportTableDllNameInPlace(
 	} except (GetExceptionCode() == STATUS_ACCESS_VIOLATION) {
 		Status = GetExceptionCode();
 
-		KexLogErrorEvent(
-			L"Failed to rewrite DLL import (%wZ -> %wZ): STATUS_ACCESS_VIOLATION",
-			&DllName,
-			&RewrittenDllName);
+		if (HaveModifiedPageProtection) {
+			//
+			// This shouldn't happen. We will check for it anyway to prevent an infinite
+			// loop if NtProtectVirtualMemory somehow doesn't work.
+			//
 
-		ASSERT (FALSE);
+			ASSERT (FALSE);
+
+			KexLogErrorEvent(
+				L"Failed to rewrite DLL import (%wZ -> %wZ)\r\n\r\n"
+				L"Encountered STATUS_ACCESS_VIOLATION twice even after changing page protections.",
+				&DllName,
+				&RewrittenDllName);
+
+			goto Exit;
+		}
+
+		//
+		// We have an access violation. This can occur with uncommonly formatted
+		// executables or DLLs. In this case we can fix the issue by simply calling
+		// NtProtectVirtualMemory to make the ANSI DLL name read-write.
+		//
+
+		BaseAddress = AnsiDllName->Buffer;
+		RegionSize = AnsiDllName->Length;
+
+		Status = NtProtectVirtualMemory(
+			NtCurrentProcess(),
+			&BaseAddress,
+			&RegionSize,
+			PAGE_READWRITE,
+			&OldProtect);
+
+		ASSERT (NT_SUCCESS(Status));
+
+		if (!NT_SUCCESS(Status)) {
+			KexLogErrorEvent(
+				L"Failed to rewrite DLL import (%wZ -> %wZ)\r\n\r\n"
+				L"Encountered STATUS_ACCESS_VIOLATION upon write to ANSI DLL name."
+				L"While attempting to change memory protections, encountered %s.",
+				&DllName,
+				&RewrittenDllName,
+				KexRtlNtStatusToString(Status));
+		}
+
+		// Record the fact that we've changed the page protections so we can undo
+		// the changes later.
+		HaveModifiedPageProtection = TRUE;
+		goto Retry;
+	}
+
+	if (HaveModifiedPageProtection) {
+		NTSTATUS Status; // overshadow the outer Status variable
+
+		Status = NtProtectVirtualMemory(
+			NtCurrentProcess(),
+			&BaseAddress,
+			&RegionSize,
+			OldProtect,
+			&OldProtect);
+
+		ASSERT (NT_SUCCESS(Status));
 	}
 
 Exit:
@@ -301,10 +373,6 @@ Exit:
 //
 // Determine whether the imports of a particular DLL (identified by name and
 // path) should be rewritten.
-//
-// Returns a pointer to the string mapper object which is to be used for
-// rewriting the imports of the specified DLL. If this function returns NULL,
-// it means the imports of the specified DLL must not be rewritten.
 //
 BOOLEAN KexShouldRewriteImportsOfDll(
 	IN	PCUNICODE_STRING	FullDllName)
@@ -325,6 +393,7 @@ BOOLEAN KexShouldRewriteImportsOfDll(
 
 	if (RtlPrefixUnicodeString(&KexData->WinDir, FullDllName, TRUE)) {
 		UNICODE_STRING Kernel;
+		UNICODE_STRING Msvcp140;
 
 		//
 		// The DLL is in the Windows directory.
@@ -354,6 +423,16 @@ BOOLEAN KexShouldRewriteImportsOfDll(
 			// so that certain functions such as LoadLibrary and CreateFileMapping
 			// end up going through KxNt (LdrLoadDll/NtCreateSection).
 			//
+
+			return TRUE;
+		}
+
+		RtlInitConstantUnicodeString(&Msvcp140, L"msvcp140");
+
+		if (RtlPrefixUnicodeString(&Msvcp140, &BaseDllName, TRUE)) {
+			// New versions of the Microsoft Visual C++ 2015-2022 runtime
+			// are no longer compatible with Windows 7. These DLLs are installed
+			// into system32, so we need to add such an exception here.
 
 			return TRUE;
 		}
@@ -438,6 +517,8 @@ NTSTATUS KexRewriteImageImportDirectory(
 	PIMAGE_OPTIONAL_HEADER OptionalHeader;
 	PIMAGE_DATA_DIRECTORY ImportDirectory;
 	PIMAGE_IMPORT_DESCRIPTOR ImportDescriptor;
+	PVOID ImportSectionBase;
+	SIZE_T ImportSectionSize;
 	UNICODE_STRING Kernel32;
 	BOOLEAN AtLeastOneImportWasRewritten;
 	ULONG OldProtect;
@@ -497,12 +578,25 @@ NTSTATUS KexRewriteImageImportDirectory(
 	//
 	// Set the entire section that contains the image import directory to read-write.
 	//
-	
-	Status = KexLdrProtectImageImportSection(
+
+	Status = KexLdrGetImageImportSection(
 		ImageBase,
+		&ImportSectionBase,
+		&ImportSectionSize);
+
+	ASSERT (NT_SUCCESS(Status));
+
+	if (!NT_SUCCESS(Status)) {
+		return Status;
+	}
+
+	Status = NtProtectVirtualMemory(
+		NtCurrentProcess(),
+		&ImportSectionBase,
+		&ImportSectionSize,
 		PAGE_READWRITE,
 		&OldProtect);
-
+	
 	ASSERT (NT_SUCCESS(Status));
 
 	if (!NT_SUCCESS(Status)) {
@@ -551,8 +645,10 @@ NTSTATUS KexRewriteImageImportDirectory(
 SkipNormalImportRewrite:
 
 	// restore old permissions
-	Status = KexLdrProtectImageImportSection(
-		ImageBase,
+	Status = NtProtectVirtualMemory(
+		NtCurrentProcess(),
+		&ImportSectionBase,
+		&ImportSectionSize,
 		OldProtect,
 		&OldProtect);
 

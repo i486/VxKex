@@ -49,6 +49,9 @@ EXPORTS
 	;; geoname.c
 	GetUserDefaultGeoName
 
+	;; handle.c
+	CompareObjectHandles
+
 	;; file.c
 	CreateFile2
 	GetTempPath2A
@@ -56,6 +59,9 @@ EXPORTS
 	CopyFile2
 	GetOverlappedResultEx
 	GetFileInformationByName
+	DeviceIoControl						= Ext_DeviceIoControl
+	ReadFile							= Ext_ReadFile
+	WriteFile							= Ext_WriteFile
 
 	;; time.c
 	GetSystemTimePreciseAsFileTime
@@ -77,6 +83,7 @@ EXPORTS
 	PackageFamilyNameFromFullName
 	GetPackagePathByFullName
 	GetPackagePathByFullName2
+	GetCurrentPackageFamilyName
 
 	;; synch.c
 	WaitOnAddress

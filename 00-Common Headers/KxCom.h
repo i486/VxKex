@@ -48,6 +48,117 @@ typedef HSTRING_ALLOCATED *HSTRING_BUFFER, **PHSTRING_BUFFER;
 
 typedef HANDLE TYPEDEF_TYPE_NAME(CO_MTA_USAGE_COOKIE);
 
+typedef enum {
+	OLETLS_LOCALTID				= 0x01,		// This TID is in the current process.
+	OLETLS_UUIDINITIALIZED		= 0x02,		// This Logical thread is init'd.
+	OLETLS_INTHREADDETACH		= 0x04,		// This is in thread detach. Needed
+											// due to NT's special thread detach
+											// rules.
+	OLETLS_CHANNELTHREADINITIALZED = 0x08,	// This channel has been init'd
+	OLETLS_WOWTHREAD			= 0x10,		// This thread is a 16-bit WOW thread.
+	OLETLS_THREADUNINITIALIZING	= 0x20,		// This thread is in CoUninitialize.
+	OLETLS_DISABLE_OLE1DDE		= 0x40,		// This thread can't use a DDE window.
+	OLETLS_APARTMENTTHREADED	= 0x80,		// This is an STA apartment thread
+	OLETLS_MULTITHREADED		= 0x100,	// This is an MTA apartment thread
+	OLETLS_IMPERSONATING		= 0x200,	// This thread is impersonating
+	OLETLS_DISABLE_EVENTLOGGER	= 0x400,	// Prevent recursion in event logger
+	OLETLS_INNEUTRALAPT			= 0x800,	// This thread is in the NTA
+	OLETLS_DISPATCHTHREAD		= 0x1000,	// This is a dispatch thread
+	OLETLS_HOSTTHREAD			= 0x2000,	// This is a host thread
+	OLETLS_ALLOWCOINIT			= 0x4000,	// This thread allows inits
+	OLETLS_PENDINGUNINIT		= 0x8000,	// This thread has pending uninit
+	OLETLS_FIRSTMTAINIT			= 0x10000,	// First thread to attempt an MTA init
+	OLETLS_FIRSTNTAINIT			= 0x20000,	// First thread to attempt an NTA init
+	OLETLS_APTINITIALIZING		= 0x40000	// Apartment Object is initializing
+} OLE_TLS_FLAGS;
+
+typedef struct {
+	HWND				Window;
+	ULONG				FirstMessage;
+	ULONG				LastMessage;
+} SWindowData;
+
+typedef struct {
+	IMessageFilter		*MessageFilter;
+	BOOL				InMessageFilter;
+	PVOID				TopCML;			// original datatype: CCliModalLoop
+	SWindowData			WindowData[2];
+} CAptCallCtrl;
+
+// NtCurrentTeb()->ReservedForOle points to one of these structures.
+// See tagSOleTlsData in oletls.h (nt5src) for descriptions of values.
+// The full definition of this structure can be found in the public symbol
+// files for ole32.dll (this one is incomplete, I've replaced most of the
+// pointers with PVOIDs and there is stuff missing from the end)
+typedef struct {
+	PVOID pvThreadBase;
+	PVOID pSmAllocator;
+	ULONG dwApartmentID;
+	ULONG dwFlags; // OLETLS_*
+	LONG TlsMapIndex;
+	PVOID *ppTlsSlot;
+	ULONG cComInits;
+	ULONG cOleInits;
+	ULONG cCalls;
+	PVOID pCallInfo;
+	PVOID pFreeAsyncCall;
+	PVOID pFreeClientCall;
+	PVOID pObjServer;
+	ULONG dwTIDCaller;
+	PVOID pCurrentCtx;
+	PVOID pEmptyCtx;
+	PVOID pNativeCtx;
+	ULONGLONG ContextId; // This is 64-bit even on the 32-bit version of ole32.dll
+	PVOID pNativeApt;
+	IUnknown *pCallContext;
+	PVOID pCtxCall;
+	PVOID pPS;
+	PVOID pvPendingCallsFront;
+	PVOID pvPendingCallsBack;
+	CAptCallCtrl *pCallCtrl; // Initialized by CAptCallCtrl::CAptCallCtrl in ole32.dll
+	PVOID pTopSCS;
+	IMessageFilter *pMsgFilter;
+	HWND hwndSTA;
+	LONG cORPCNestingLevel;
+	ULONG cDebugData;
+	GUID LogicalThreadId;
+	PVOID hThread;
+	PVOID hRevert;
+	IUnknown *pAsyncRelease;
+	HWND hwndDdeServer;
+	HWND hwndDdeClient;
+	ULONG cServeDdeObjects;
+	PVOID pSTALSvrsFront;
+	HWND hwndClip;
+	IDataObject *pDataObjClip;
+	ULONG dwClipSeqNum;
+	ULONG fIsClipWrapper;
+	IUnknown *punkState;
+	ULONG cCallCancellation;
+	ULONG cAsyncSends;
+	PVOID pAsyncCallList;
+	PVOID pSurrogateList;
+	PVOID pRWLockTlsEntry;
+
+	// Too lazy to fix up all the structs for this. It's not needed anyway.
+	//tagCallEntry CallEntry;
+	//tagContextStackNode *pContextStack;
+	//tagInitializeSpyNode *pFirstSpyReg;
+	//tagInitializeSpyNode *pFirstFreeSpyReg;
+	//CVerifierTlsData *pVerifierData;
+	//unsigned int dwMaxSpy;
+	//unsigned __int8 cCustomMarshallerRecursion;
+	//void *pDragCursors;
+	//IUnknown *punkError;
+	//unsigned int cbErrorData;
+	//int cTraceNestingLevel;
+	//tagOutgoingCallData outgoingCallData;
+	//tagIncomingCallData incomingCallData;
+	//tagOutgoingActivationData outgoingActivationData;
+	//unsigned int cReentrancyFromUserAPC;
+	//_LIST_ENTRY listConditionVariableResponsibleForWaking;
+} SOleTlsData;
+
 typedef enum _TrustLevel {
 	BaseTrust,
 	PartialTrust,
@@ -94,8 +205,20 @@ DEFINE_GUID(IID_IUIViewSettings, 0xC63657F6, 0x8850, 0x470D, 0x88, 0xF8, 0x45, 0
 // {85361600-1C63-4627-BCB1-3A89E0BC9C55}
 DEFINE_GUID(IID_IUISettings, 0x85361600, 0x1C63, 0x4627, 0xBC, 0xB1, 0x3A, 0x89, 0xE0, 0xBC, 0x9C, 0x55);
 
+// {BAD82401-2721-44F9-BB91-2BB228BE442F}
+DEFINE_GUID(IID_IUISettings2, 0xBAD82401, 0x2721, 0x44F9, 0xBB, 0x91, 0x2B, 0xB2, 0x28, 0xBE, 0x44, 0x2F);
+
 // {03021BE4-5254-4781-8194-5168F7D06D7B}
 DEFINE_GUID(IID_IUISettings3, 0x03021BE4, 0x5254, 0x4781, 0x81, 0x94, 0x51, 0x68, 0xF7, 0xD0, 0x6D, 0x7B);
+
+// {52BB3002-919B-4D6B-9B78-8DD66FF4B93B}
+DEFINE_GUID(IID_IUISettings4, 0x52BB3002, 0x919B, 0x4D6B, 0x9B, 0x78, 0x8D, 0xD6, 0x6F, 0xF4, 0xB9, 0x3B);
+
+// {5349D588-0CB5-5F05-BD34-706B3231F0BD}
+DEFINE_GUID(IID_IUISettings5, 0x5349D588, 0x0CB5, 0x5F05, 0xBD, 0x34, 0x70, 0x6B, 0x32, 0x31, 0xF0, 0xBD);
+
+// {AEF19BD7-FE31-5A04-ADA4-469AAEC6DFA9}
+DEFINE_GUID(IID_IUISettings6, 0xAEF19BD7, 0xFE31, 0x5A04, 0xAD, 0xA4, 0x46, 0x9A, 0xAE, 0xC6, 0xDF, 0xA9);
 
 // {44A9796F-723E-4FDF-A218-033E75B0C084}
 DEFINE_GUID(IID_IUriRuntimeClassFactory, 0x44A9796F, 0x723E, 0x4FDF, 0xA2, 0x18, 0x03, 0x3E, 0x75, 0xB0, 0xC0, 0x84);
@@ -345,6 +468,31 @@ typedef struct _IUISettings {
 
 extern IUISettings CUISettings;
 
+typedef struct _IUISettings2 IUISettings2;
+
+typedef struct _IUISettings2Vtbl {
+	// IUnknown
+	HRESULT (STDMETHODCALLTYPE *QueryInterface) (IUISettings2 *, REFIID, PPVOID);
+	ULONG (STDMETHODCALLTYPE *AddRef) (IUISettings2 *);
+	ULONG (STDMETHODCALLTYPE *Release) (IUISettings2 *);
+	
+	// IInspectable
+	HRESULT (STDMETHODCALLTYPE *GetIids) (IUISettings2 *, PULONG, IID **);
+	HRESULT (STDMETHODCALLTYPE *GetRuntimeClassName) (IUISettings2 *, HSTRING *);
+	HRESULT (STDMETHODCALLTYPE *GetTrustLevel) (IUISettings2 *, TrustLevel *);
+
+	// IUISettings2
+	HRESULT (STDMETHODCALLTYPE *get_TextScaleFactor) (IUISettings2 *, DOUBLE *);
+	HRESULT (STDMETHODCALLTYPE *add_TextScaleFactorChanged) (IUISettings2 *, PVOID, PPVOID);
+	HRESULT (STDMETHODCALLTYPE *remove_TextScaleFactorChanged) (IUISettings2 *, PVOID);
+} IUISettings2Vtbl;
+
+typedef struct _IUISettings2 {
+	IUISettings2Vtbl *lpVtbl;
+} IUISettings2;
+
+extern IUISettings2 CUISettings2;
+
 typedef enum _UIColorType {
 	UIColorType_Background		= 0,
 	UIColorType_Foreground		= 1,
@@ -382,6 +530,82 @@ typedef struct _IUISettings3 {
 } IUISettings3;
 
 extern IUISettings3 CUISettings3;
+
+typedef struct _IUISettings4 IUISettings4;
+
+typedef struct _IUISettings4Vtbl {
+	// IUnknown
+	HRESULT (STDMETHODCALLTYPE *QueryInterface) (IUISettings4 *, REFIID, PPVOID);
+	ULONG (STDMETHODCALLTYPE *AddRef) (IUISettings4 *);
+	ULONG (STDMETHODCALLTYPE *Release) (IUISettings4 *);
+	
+	// IInspectable
+	HRESULT (STDMETHODCALLTYPE *GetIids) (IUISettings4 *, PULONG, IID **);
+	HRESULT (STDMETHODCALLTYPE *GetRuntimeClassName) (IUISettings4 *, HSTRING *);
+	HRESULT (STDMETHODCALLTYPE *GetTrustLevel) (IUISettings4 *, TrustLevel *);
+
+	// IUISettings4
+	HRESULT (STDMETHODCALLTYPE *get_AdvancedEffectsEnabled) (IUISettings4 *, PBOOLEAN);
+	HRESULT (STDMETHODCALLTYPE *add_AdvancedEffectsEnabledChanged) (IUISettings4 *, PVOID, PPVOID);
+	HRESULT (STDMETHODCALLTYPE *remove_AdvancedEffectsEnabledChanged) (IUISettings4 *, PVOID);
+} IUISettings4Vtbl;
+
+typedef struct _IUISettings4 {
+	IUISettings4Vtbl *lpVtbl;
+} IUISettings4;
+
+extern IUISettings4 CUISettings4;
+
+typedef struct _IUISettings5 IUISettings5;
+
+typedef struct _IUISettings5Vtbl {
+	// IUnknown
+	HRESULT (STDMETHODCALLTYPE *QueryInterface) (IUISettings5 *, REFIID, PPVOID);
+	ULONG (STDMETHODCALLTYPE *AddRef) (IUISettings5 *);
+	ULONG (STDMETHODCALLTYPE *Release) (IUISettings5 *);
+	
+	// IInspectable
+	HRESULT (STDMETHODCALLTYPE *GetIids) (IUISettings5 *, PULONG, IID **);
+	HRESULT (STDMETHODCALLTYPE *GetRuntimeClassName) (IUISettings5 *, HSTRING *);
+	HRESULT (STDMETHODCALLTYPE *GetTrustLevel) (IUISettings5 *, TrustLevel *);
+
+	// IUISettings5
+	HRESULT (STDMETHODCALLTYPE *get_AutoHideScrollBars) (IUISettings5 *, PBOOLEAN);
+	HRESULT (STDMETHODCALLTYPE *add_AutoHideScrollBarsChanged) (IUISettings5 *, PVOID, PPVOID);
+	HRESULT (STDMETHODCALLTYPE *remove_AutoHideScrollBarsChanged) (IUISettings5 *, PVOID);
+} IUISettings5Vtbl;
+
+typedef struct _IUISettings5 {
+	IUISettings5Vtbl *lpVtbl;
+} IUISettings5;
+
+extern IUISettings5 CUISettings5;
+
+typedef struct _IUISettings6 IUISettings6;
+
+typedef struct _IUISettings6Vtbl {
+	// IUnknown
+	HRESULT (STDMETHODCALLTYPE *QueryInterface) (IUISettings6 *, REFIID, PPVOID);
+	ULONG (STDMETHODCALLTYPE *AddRef) (IUISettings6 *);
+	ULONG (STDMETHODCALLTYPE *Release) (IUISettings6 *);
+	
+	// IInspectable
+	HRESULT (STDMETHODCALLTYPE *GetIids) (IUISettings6 *, PULONG, IID **);
+	HRESULT (STDMETHODCALLTYPE *GetRuntimeClassName) (IUISettings6 *, HSTRING *);
+	HRESULT (STDMETHODCALLTYPE *GetTrustLevel) (IUISettings6 *, TrustLevel *);
+
+	// IUISettings6
+	HRESULT (STDMETHODCALLTYPE *add_AnimationsEnabledChanged) (IUISettings6 *, PVOID, PPVOID);
+	HRESULT (STDMETHODCALLTYPE *remove_AnimationsEnabledChanged) (IUISettings6 *, PVOID);
+	HRESULT (STDMETHODCALLTYPE *add_MessageDurationChanged) (IUISettings6 *, PVOID, PPVOID);
+	HRESULT (STDMETHODCALLTYPE *remove_MessageDurationChanged) (IUISettings6 *, PVOID);
+} IUISettings6Vtbl;
+
+typedef struct _IUISettings6 {
+	IUISettings6Vtbl *lpVtbl;
+} IUISettings6;
+
+extern IUISettings6 CUISettings6;
 
 typedef struct _IRestrictedErrorInfo IRestrictedErrorInfo;
 

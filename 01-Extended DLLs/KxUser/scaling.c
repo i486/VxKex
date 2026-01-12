@@ -251,12 +251,12 @@ KXUSERAPI UINT WINAPI GetDpiForSystem(
 	ULONG LogPixelsX;
 
 	if (!IsProcessDPIAware()) {
-		return 96;
+		return USER_DEFAULT_SCREEN_DPI;
 	}
 
 	DeviceContext = GetDC(NULL);
 	if (!DeviceContext) {
-		return 96;
+		return USER_DEFAULT_SCREEN_DPI;
 	}
 
 	LogPixelsX = GetDeviceCaps(DeviceContext, LOGPIXELSX);

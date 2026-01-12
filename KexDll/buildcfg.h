@@ -1,3 +1,5 @@
+#pragma once
+
 #define KEXAPI
 
 //
@@ -7,6 +9,8 @@
 // being logged through VXL.
 //
 #define DISABLE_PROTECTED_FUNCTION FALSE
+
+#pragma comment(lib, "KexSmp.lib")
 
 #define KEX_COMPONENT L"KexDll"
 #define KEX_ENV_NATIVE

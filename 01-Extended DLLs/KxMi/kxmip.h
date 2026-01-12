@@ -21,3 +21,20 @@ typedef struct _VERHEAD {
 } TYPEDEF_TYPE_NAME(VERHEAD);
 
 #define DEVICE_NOTIFY_CALLBACK 2
+
+typedef enum {
+	NotificationKind_ItemAdded = 0,
+	NotificationKind_ItemRemoved = 1,
+	NotificationKind_ActionCompleted = 2,
+	NotificationKind_ActionAborted = 3,
+	NotificationKind_Other = 4
+} NotificationKind;
+
+typedef enum {
+	NotificationProcessing_ImportantAll = 0,
+	NotificationProcessing_ImportantMostRecent = 1,
+	NotificationProcessing_All = 2,
+	NotificationProcessing_MostRecent = 3,
+	NotificationProcessing_CurrentThenMostRecent = 4,
+	NotificationProcessing_ImportantCurrentThenMostRecent = 5
+} NotificationProcessing;

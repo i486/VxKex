@@ -1,7 +1,11 @@
 LIBRARY KxDx
 EXPORTS
 	;; factory.c
+	;; D2D1CreateFactory is often imported by ordinal, so it must be exported
+	;; by ordinal.
+	CreateDXGIFactory1 = Ext_CreateDXGIFactory1
 	CreateDXGIFactory2
+	D2D1CreateFactory = Ext_D2D1CreateFactory		@1
 	
 	;; dx12stub.c
 	;; These must be exported with ordinal. A lot of programs import by ordinal
@@ -19,3 +23,9 @@ EXPORTS
 	DCompositionCreateDevice
 	DCompositionCreateDevice2
 	DCompositionCreateDevice3
+
+	;; mfplat.c
+	MFMapDXGIFormatToDX9Format
+	MFMapDX9FormatToDXGIFormat
+	;MFCreateDXGIDeviceManager
+	MFCreateDXGISurfaceBuffer

@@ -478,7 +478,7 @@ KXBASEAPI PVOID WINAPI VirtualAlloc2(
 	// 0x10000 is the hard-coded allocation granularity. It is always the same
 	// for all x86 and x64 Windows 7 systems, so there is no need to call
 	// GetSystemInfo.
-	if (BaseAddress != NULL && (ULONG_PTR) BaseAddress < 0x10000) {
+	if (BaseAddress != NULL && (ULONG_PTR) BaseAddress < ALLOCATION_GRANULARITY) {
 		RtlSetLastWin32Error(ERROR_INVALID_PARAMETER);
 		return NULL;
 	}

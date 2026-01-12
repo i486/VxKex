@@ -12,7 +12,6 @@ BOOL WINAPI DllMain(
 {
 	if (Reason == DLL_PROCESS_ATTACH) {
 		LdrDisableThreadCalloutsForDll(DllBase);
-
 		KexDataInitialize(&KexData);
 		KexLogDebugEvent(L"DllMain called with DLL_PROCESS_ATTACH");
 	}

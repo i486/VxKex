@@ -51,7 +51,7 @@ KXCOMAPI BOOL WINAPI RoOriginateLanguageException(
 	Status = KexLdrGetDllFullNameFromAddress(ReturnAddress(), &FaultingModuleName);
 
 	if (!NT_SUCCESS(Status)) {
-		RtlInitConstantUnicodeString(&FaultingModuleName, L"");
+		RtlInitConstantUnicodeString(&FaultingModuleName, L"(unknown)");
 	}
 
 	KexLogWarningEvent(

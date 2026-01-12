@@ -72,6 +72,7 @@
 #  endif
 #else
 #  define ASSERT(Condition)
+#  define SOFT_ASSERT(Condition)
 #endif
 
 #ifndef _DEBUG
@@ -82,5 +83,6 @@
 #  define NOT_REACHED ASSUME(("Execution should not have reached this point", FALSE))
 #endif
 
-
+// Use NOTHING in an empty block to make it clear that you did not intend
+// to put any code here.
 #define NOTHING

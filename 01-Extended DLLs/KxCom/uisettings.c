@@ -328,6 +328,56 @@ IUISettings CUISettings = {
 	&CUISettingsVtbl
 };
 
+KXCOMAPI HRESULT STDMETHODCALLTYPE CUISettings2_get_TextScaleFactor(
+	IN	IUISettings2	*This,
+	OUT	DOUBLE			*Value)
+{
+	ASSERT (Value != NULL);
+
+	*Value = 1.0;
+	return S_OK;
+}
+
+KXCOMAPI HRESULT STDMETHODCALLTYPE CUISettings2_add_TextScaleFactorChanged(
+	IN	IUISettings2	*This,
+	IN	PVOID			Callback,
+	OUT	PPVOID			Cookie)
+{
+	*Cookie = (PVOID) (ULONG_PTR) 0xBADA1ABA;
+	return S_OK;
+}
+
+KXCOMAPI HRESULT STDMETHODCALLTYPE CUISettings2_remove_TextScaleFactorChanged(
+	IN	IUISettings2	*This,
+	IN	PVOID			Cookie)
+{
+	if (((ULONG_PTR) Cookie) != 0xBADA1ABA) {
+		return E_INVALIDARG;
+	}
+
+	return S_OK;
+}
+
+#pragma warning(disable:4028)
+IUISettings2Vtbl CUISettings2Vtbl = {
+	CUISettings_QueryInterface,
+	CUISettings_AddRef,
+	CUISettings_Release,
+
+	CUISettings_GetIids,
+	CUISettings_GetRuntimeClassName,
+	CUISettings_GetTrustLevel,
+
+	CUISettings2_get_TextScaleFactor,
+	CUISettings2_add_TextScaleFactorChanged,
+	CUISettings2_remove_TextScaleFactorChanged
+};
+#pragma warning(default:4028)
+
+IUISettings2 CUISettings2 = {
+	&CUISettings2Vtbl
+};
+
 KXCOMAPI HRESULT STDMETHODCALLTYPE CUISettings3_GetColorValue(
 	IN	IUISettings3	*This,
 	IN	UIColorType		DesiredColor,
@@ -397,4 +447,162 @@ IUISettings3Vtbl CUISettings3Vtbl = {
 
 IUISettings3 CUISettings3 = {
 	&CUISettings3Vtbl
+};
+
+KXCOMAPI HRESULT STDMETHODCALLTYPE CUISettings4_get_AdvancedEffectsEnabled(
+	IN	IUISettings4	*This,
+	OUT	PBOOLEAN		Enabled)
+{
+	ASSERT (Enabled != NULL);
+	*Enabled = TRUE;
+	return S_OK;
+}
+
+KXCOMAPI HRESULT STDMETHODCALLTYPE CUISettings4_add_AdvancedEffectsEnabledChanged(
+	IN	IUISettings4	*This,
+	IN	PVOID			Callback,
+	OUT	PPVOID			Cookie)
+{
+	*Cookie = (PVOID) (ULONG_PTR) 0xDEADF01D;
+	return S_OK;
+}
+
+KXCOMAPI HRESULT STDMETHODCALLTYPE CUISettings4_remove_AdvancedEffectsEnabledChanged(
+	IN	IUISettings4	*This,
+	IN	PVOID			Cookie)
+{
+	if (((ULONG_PTR) Cookie) != 0xDEADF01D) {
+		return E_INVALIDARG;
+	}
+
+	return S_OK;
+}
+
+#pragma warning(disable:4028)
+IUISettings4Vtbl CUISettings4Vtbl = {
+	CUISettings_QueryInterface,
+	CUISettings_AddRef,
+	CUISettings_Release,
+
+	CUISettings_GetIids,
+	CUISettings_GetRuntimeClassName,
+	CUISettings_GetTrustLevel,
+
+	CUISettings4_get_AdvancedEffectsEnabled,
+	CUISettings4_add_AdvancedEffectsEnabledChanged,
+	CUISettings4_remove_AdvancedEffectsEnabledChanged
+};
+#pragma warning(default:4028)
+
+IUISettings4 CUISettings4 = {
+	&CUISettings4Vtbl
+};
+
+KXCOMAPI HRESULT STDMETHODCALLTYPE CUISettings5_get_AutoHideScrollBars(
+	IN	IUISettings5	*This,
+	OUT	PBOOLEAN		Enabled)
+{
+	*Enabled = FALSE;
+	return S_OK;
+}
+
+KXCOMAPI HRESULT STDMETHODCALLTYPE CUISettings5_add_AutoHideScrollBarsChanged(
+	IN	IUISettings5	*This,
+	IN	PVOID			Callback,
+	OUT	PPVOID			Cookie)
+{
+	*Cookie = (PVOID) (ULONG_PTR) 0xC0C0ABAD;
+	return S_OK;
+}
+
+KXCOMAPI HRESULT STDMETHODCALLTYPE CUISettings5_remove_AutoHideScrollBarsChanged(
+	IN	IUISettings5	*This,
+	IN	PVOID			Cookie)
+{
+	if (((ULONG_PTR) Cookie) != 0xC0C0ABAD) {
+		return E_INVALIDARG;
+	}
+
+	return S_OK;
+}
+
+#pragma warning(disable:4028)
+IUISettings5Vtbl CUISettings5Vtbl = {
+	CUISettings_QueryInterface,
+	CUISettings_AddRef,
+	CUISettings_Release,
+
+	CUISettings_GetIids,
+	CUISettings_GetRuntimeClassName,
+	CUISettings_GetTrustLevel,
+
+	CUISettings5_get_AutoHideScrollBars,
+	CUISettings5_add_AutoHideScrollBarsChanged,
+	CUISettings5_remove_AutoHideScrollBarsChanged
+};
+#pragma warning(default:4028)
+
+IUISettings5 CUISettings5 = {
+	&CUISettings5Vtbl
+};
+
+KXCOMAPI HRESULT STDMETHODCALLTYPE CUISettings6_add_AnimationsEnabledChanged(
+	IN	IUISettings6	*This,
+	IN	PVOID			Callback,
+	OUT	PPVOID			Cookie)
+{
+	*Cookie = (PVOID) (ULONG_PTR) 0xDEADBEA7;
+	return S_OK;
+}
+
+KXCOMAPI HRESULT STDMETHODCALLTYPE CUISettings6_remove_AnimationsEnabledChanged(
+	IN	IUISettings6	*This,
+	IN	PVOID			Cookie)
+{
+	if (((ULONG_PTR) Cookie) != 0xDEADBEA7) {
+		return E_INVALIDARG;
+	}
+
+	return S_OK;
+}
+
+KXCOMAPI HRESULT STDMETHODCALLTYPE CUISettings6_add_MessageDurationChanged(
+	IN	IUISettings6	*This,
+	IN	PVOID			Callback,
+	OUT	PPVOID			Cookie)
+{
+	*Cookie = (PVOID) (ULONG_PTR) 0xCE1E571A;
+	return S_OK;
+}
+
+KXCOMAPI HRESULT STDMETHODCALLTYPE CUISettings6_remove_MessageDurationChanged(
+	IN	IUISettings6	*This,
+	IN	PVOID			Cookie)
+{
+	if (((ULONG_PTR) Cookie) != 0xCE1E571A) {
+		return E_INVALIDARG;
+	}
+
+	return S_OK;
+}
+
+#pragma warning(disable:4028)
+IUISettings6Vtbl CUISettings6Vtbl = {
+	CUISettings_QueryInterface,
+	CUISettings_AddRef,
+	CUISettings_Release,
+
+	CUISettings_GetIids,
+	CUISettings_GetRuntimeClassName,
+	CUISettings_GetTrustLevel,
+
+	CUISettings6_add_AnimationsEnabledChanged,
+	CUISettings6_remove_AnimationsEnabledChanged,
+	CUISettings6_add_MessageDurationChanged,
+	CUISettings6_remove_MessageDurationChanged
+};
+#pragma warning(default:4028)
+
+IUISettings6 CUISettings6 = {
+	&CUISettings6Vtbl
 };

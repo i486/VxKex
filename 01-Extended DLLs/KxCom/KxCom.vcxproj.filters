@@ -60,6 +60,9 @@
     <ClCompile Include="launcher.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="create.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="kxcom.def">

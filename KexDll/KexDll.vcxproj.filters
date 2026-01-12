@@ -44,9 +44,6 @@
     <ClCompile Include="kexdata.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="strmap.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="ntpriv.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -144,6 +141,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="rtlrng.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ntobj.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

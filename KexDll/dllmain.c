@@ -26,6 +26,7 @@
 //     vxiiduu              05-Jan-2023  Convert to user friendly NTSTATUS.
 //     vxiiduu              23-Feb-2024  Remove support for advanced logging.
 //     vxiiduu              23-Feb-2024  Remove unneeded debug logging
+//     vxiiduu              29-Nov-2025  Add NodeJS environment variable hack
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -207,10 +208,14 @@ BOOL WINAPI DllMain(
 		//
 
 		unless (KexData->IfeoParameters.DisableAppSpecific) {
-			// APPSPECIFICHACK: Environment variable hack for QBittorrent to fix
-			// bad kerning.
 			if (AshExeBaseNameIs(L"qbittorrent.exe")) {
+				// APPSPECIFICHACK: Environment variable hack for QBittorrent to fix
+				// bad kerning.
 				AshApplyQBittorrentEnvironmentVariableHacks();
+			} else if (AshExeBaseNameIs(L"node.exe")) {
+				// APPSPECIFICHACK: Environment variable hack for NodeJS to fix a nag
+				// message about unsupported OS, which prevents the application from running.
+				AshApplyNodeJSEnvironmentVariableHacks();
 			}
 
 			// APPSPECIFICHACK: Detect Chromium based on EXE exports.

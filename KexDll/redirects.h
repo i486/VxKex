@@ -14,12 +14,15 @@ STATIC CONST UNICODE_STRING DllRedirects[][2] = {
 	DLL_REDIRECT("kernelbase",									"kxbase"			)
 
 	DLL_REDIRECT("bcrypt",										"kxcryp"			)
+	DLL_REDIRECT("ncrypt",										"kxcryp"			)
 	DLL_REDIRECT("bcryptprimitives",							"kxcryp"			)
 	DLL_REDIRECT("secur32",										"kxcryp"			)
 	
 	DLL_REDIRECT("BluetoothApis",								"kxuser"			)
 	DLL_REDIRECT("shcore",										"kxuser"			)
 	DLL_REDIRECT("user32",										"kxuser"			)
+	DLL_REDIRECT("uiautomationcore",							"kxmi"				)
+	DLL_REDIRECT("coremessaging",								"kxmi"				)
 	
 	DLL_REDIRECT("combase",										"kxcom"				)
 	DLL_REDIRECT("ole32",										"kxcom"				)
@@ -27,6 +30,7 @@ STATIC CONST UNICODE_STRING DllRedirects[][2] = {
 	DLL_REDIRECT("msvcrt",										"kxcrt"				)
 	
 	DLL_REDIRECT("d3d12",										"kxdx"				)
+	DLL_REDIRECT("d2d1",										"kxdx"				)
 	DLL_REDIRECT("dcomp",										"kxdx"				)
 	DLL_REDIRECT("dxgi",										"kxdx"				)
 	DLL_REDIRECT("MFPlat",										"kxdx"				)
@@ -188,7 +192,7 @@ STATIC CONST UNICODE_STRING DllRedirects[][2] = {
 	DLL_REDIRECT("ext-ms-win-rtcore-gdi-object",				"gdi32"				)
 	DLL_REDIRECT("ext-ms-win-rtcore-gdi-rgn",					"gdi32"				)
 	DLL_REDIRECT("ext-ms-win-rtcore-ntuser-sysparams",			"kxuser"			)
-	DLL_REDIRECT("ext-ms-win-uiacore",							"uiautomationcore"	)
+	DLL_REDIRECT("ext-ms-win-uiacore",							"kxmi"				)
 };
 
 #undef DLL_REDIRECT

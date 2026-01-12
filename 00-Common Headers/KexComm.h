@@ -130,6 +130,7 @@
 // attempt to make vxkex build with newer sdk's as well.
 // no guarantees. if you install the win10 sdk and it doesn't build, tough luck.
 // don't ask me to make shit build on your windows 11 with newest SDK.
+// This software is designed for win7 sdk only.
 #  define _WIN32_WINNT 0x0601
 
 #  include <Windows.h>
@@ -173,6 +174,7 @@
 #    include <Intrin.h>
 #  pragma warning(pop)
 
+#  include <KexStatus.h>
 #  include <KexTypes.h>
 #  include <KexVer.h>
 

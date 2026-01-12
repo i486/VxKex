@@ -45,6 +45,7 @@ KXUSERAPI BOOL WINAPI GetPointerTouchInfo(
 	IN	DWORD	PointerId,
 	OUT	LPVOID	TouchInfo)
 {
+	RtlSetLastWin32Error(ERROR_NOT_SUPPORTED);
 	return FALSE;
 }
 
@@ -53,6 +54,7 @@ KXUSERAPI BOOL WINAPI GetPointerFrameTouchInfo(
 	IN OUT	LPDWORD PointerCount,
 	OUT		LPVOID	TouchInfo)
 {
+	RtlSetLastWin32Error(ERROR_NOT_SUPPORTED);
 	return FALSE;
 }
 
@@ -62,6 +64,7 @@ KXUSERAPI BOOL WINAPI GetPointerFrameTouchInfoHistory(
 	IN OUT	LPDWORD PointerCount,
 	OUT		LPVOID	TouchInfo)
 {
+	RtlSetLastWin32Error(ERROR_NOT_SUPPORTED);
 	return FALSE;
 }
 
@@ -69,6 +72,7 @@ KXUSERAPI BOOL WINAPI GetPointerPenInfo(
 	IN	DWORD	PointerId,
 	OUT	LPVOID	PenInfo)
 {
+	RtlSetLastWin32Error(ERROR_NOT_SUPPORTED);
 	return FALSE;
 }
 
@@ -77,6 +81,7 @@ KXUSERAPI BOOL WINAPI GetPointerPenInfoHistory(
 	IN OUT	LPDWORD	EntriesCount,
 	OUT		LPVOID	PenInfo)
 {
+	RtlSetLastWin32Error(ERROR_NOT_SUPPORTED);
 	return FALSE;
 }
 
@@ -107,6 +112,7 @@ KXUSERAPI BOOL WINAPI GetPointerDeviceRects(
 KXUSERAPI BOOL WINAPI EnableMouseInPointer(
 	IN	BOOL	Enable)
 {
+	RtlSetLastWin32Error(ERROR_NOT_SUPPORTED);
 	return FALSE;
 }
 
@@ -119,5 +125,62 @@ KXUSERAPI BOOL WINAPI RegisterPointerDeviceNotifications(
 		return FALSE;
 	}
 
-	return TRUE;
+	RtlSetLastWin32Error(ERROR_NOT_SUPPORTED);
+	return FALSE;
+}
+
+KXUSERAPI BOOL WINAPI GetWindowFeedbackSetting(
+	IN		HWND			Window,
+	IN		FEEDBACK_TYPE	FeedbackType,
+	IN		ULONG			Flags,
+	IN OUT	PULONG			ConfigurationSize,
+	IN		PCVOID			Configuration OPTIONAL)
+{
+	if (!IsWindow(Window)) {
+		RtlSetLastWin32Error(ERROR_INVALID_WINDOW_HANDLE);
+		return FALSE;
+	}
+
+	if (FeedbackType == 0 ||
+		FeedbackType > 12 ||
+		ConfigurationSize == NULL ||
+		(Flags & ~GWFS_INCLUDE_ANCESTORS) != 0) {
+
+		RtlSetLastWin32Error(ERROR_INVALID_PARAMETER);
+		return FALSE;
+	}
+
+	RtlSetLastWin32Error(ERROR_NOT_SUPPORTED);
+	return FALSE;
+}
+
+KXUSERAPI BOOL WINAPI SetWindowFeedbackSetting(
+	IN	HWND			Window,
+	IN	FEEDBACK_TYPE	FeedbackType,
+	IN	ULONG			Flags,
+	IN	ULONG			ConfigurationSize,
+	IN	PCVOID			Configuration OPTIONAL)
+{
+	if (!IsWindow(Window)) {
+		RtlSetLastWin32Error(ERROR_INVALID_WINDOW_HANDLE);
+		return FALSE;
+	}
+
+	if (FeedbackType == 0 ||
+		FeedbackType > 12 ||
+		(ConfigurationSize != 0 && Configuration != NULL) ||
+		Flags != 0 ||
+		(ConfigurationSize != 0 && ConfigurationSize != 4)) {
+
+		RtlSetLastWin32Error(ERROR_INVALID_PARAMETER);
+		return FALSE;
+	}
+
+	// In Windows 8 the feedback settings are stored in a window property
+	// (i.e. GetProp/SetProp). The property is an atom named "SysFeedbackSettings".
+	// Of course, we won't bother actually doing that, since the window feedback
+	// stuff is only relevant for touch screens and pens.
+
+	RtlSetLastWin32Error(ERROR_NOT_SUPPORTED);
+	return FALSE;
 }

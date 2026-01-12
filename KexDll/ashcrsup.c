@@ -20,6 +20,7 @@
 // Revision History:
 //
 //     vxiiduu              16-Mar-2024  Initial creation.
+//     vxiiduu              29-Nov-2025  Detect Deno and Node.js as Chromium processes
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -116,12 +117,39 @@ NTSTATUS AshPerformChromiumDetectionFromModuleExports(
 	NTSTATUS Status;
 	ANSI_STRING GetHandleVerifier;
 	ANSI_STRING IsSandboxedProcess;
+	ANSI_STRING NapiGetVersion;
 	PVOID ProcedureAddress;
 
 	ASSUME (ModuleBase != NULL);
 
 	RtlInitConstantAnsiString(&GetHandleVerifier, "GetHandleVerifier");
 	RtlInitConstantAnsiString(&IsSandboxedProcess, "IsSandboxedProcess");
+	RtlInitConstantAnsiString(&NapiGetVersion, "napi_get_version");
+
+	//
+	// napi_get_version is exported from the NodeJS and Deno JavaScript
+	// runtimes, which are based on the Chromium V8 javascript engine.
+	// They require the same compatibility fixes as Chromium, so we'll
+	// treat them identically.
+	//
+	// Specifically, they require VirtualAlloc2 being hidden from them
+	// in order to avoid an out of memory error.
+	//
+
+	Status = LdrGetProcedureAddress(
+		ModuleBase,
+		&NapiGetVersion,
+		0,
+		&ProcedureAddress);
+
+	ASSERT (
+		NT_SUCCESS(Status) ||
+		Status == STATUS_PROCEDURE_NOT_FOUND ||
+		Status == STATUS_ENTRYPOINT_NOT_FOUND);
+
+	if (NT_SUCCESS(Status)) {
+		goto IsChromiumProcess;
+	}
 
 	//
 	// These two function names are exported from Chrome and Electron
@@ -163,6 +191,7 @@ NTSTATUS AshPerformChromiumDetectionFromModuleExports(
 	// Both functions found. This is a chromium process.
 	//
 
+IsChromiumProcess:
 	Status = AshpSetIsChromiumProcess();
 	ASSERT (NT_SUCCESS(Status));
 

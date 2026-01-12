@@ -53,6 +53,8 @@ EXPORTS
 	GetPointerDeviceRects
 	EnableMouseInPointer
 	RegisterPointerDeviceNotifications
+	GetWindowFeedbackSetting
+	SetWindowFeedbackSetting
 
 	;;
 	;; pwrnotfy.c

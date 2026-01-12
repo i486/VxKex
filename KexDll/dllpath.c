@@ -326,7 +326,7 @@ STATIC INLINE NTSTATUS KexpShrinkDllPathLength(
 			ASSERT (KexRtlEndOfUnicodeStringBuffer(&DuplicateEntry) == KexRtlEndOfUnicodeString(DllPath));
 
 			//
-			// Set up DllPathAfterDuplicateEntry.6
+			// Set up DllPathAfterDuplicateEntry.
 			//
 
 			DllPathAfterDuplicateEntry = DuplicateEntry;
