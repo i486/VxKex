@@ -15,7 +15,7 @@ INT_PTR CALLBACK AboutWndProc(
 		LPNMHDR Notification = (LPNMHDR) LParam;
 
 		if (Notification->idFrom == IDC_WEBSITELINK && Notification->code == NM_CLICK || Notification->code == NM_RETURN) {
-			ShellExecute(AboutWindow, L"open", L"https://github.com/vxiiduu/VxKex", NULL, NULL, SW_SHOWNORMAL);
+			ShellExecute(AboutWindow, L"open", L"https://github.com/i486/VxKex", NULL, NULL, SW_SHOWNORMAL);
 		}
 	} else {
 		return FALSE;
