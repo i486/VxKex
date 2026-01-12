@@ -89,6 +89,9 @@
 #pragma comment(linker, "/EXPORT:__CxxFrameHandler=msvcrt.__CxxFrameHandler")
 #pragma comment(linker, "/EXPORT:__CxxFrameHandler2=msvcrt.__CxxFrameHandler2")
 #pragma comment(linker, "/EXPORT:__CxxFrameHandler3=msvcrt.__CxxFrameHandler3")
+
+#pragma comment(linker, "/EXPORT:__CxxFrameHandler4=ucrtbase.__CxxFrameHandler4")
+
 #pragma comment(linker, "/EXPORT:__DestructExceptionObject=msvcrt.__DestructExceptionObject")
 #pragma comment(linker, "/EXPORT:__RTCastToVoid=msvcrt.__RTCastToVoid")
 #pragma comment(linker, "/EXPORT:__RTDynamicCast=msvcrt.__RTDynamicCast")
@@ -1361,10 +1364,10 @@
 #pragma comment(linker, "/EXPORT:?terminate@@YAXXZ=msvcrt.?terminate@@YAXXZ")
 #pragma comment(linker, "/EXPORT:?unexpected@@YAXXZ=msvcrt.?unexpected@@YAXXZ")
 #pragma comment(linker, "/EXPORT:?what@exception@@UBEPBDXZ=msvcrt.?what@exception@@UBEPBDXZ")
-#pragma comment(linker, "/EXPORT:___CIacos=msvcrt._CIacos")
-#pragma comment(linker, "/EXPORT:___CIasin=msvcrt._CIasin")
-#pragma comment(linker, "/EXPORT:___CIatan=msvcrt._CIatan")
-#pragma comment(linker, "/EXPORT:___CIatan2=msvcrt._CIatan2")
+#pragma comment(linker, "/EXPORT:__CIacos=msvcrt._CIacos")
+#pragma comment(linker, "/EXPORT:__CIasin=msvcrt._CIasin")
+#pragma comment(linker, "/EXPORT:__CIatan=msvcrt._CIatan")
+#pragma comment(linker, "/EXPORT:__CIatan2=msvcrt._CIatan2")
 #pragma comment(linker, "/EXPORT:__CIcos=msvcrt._CIcos")
 #pragma comment(linker, "/EXPORT:__CIcosh=msvcrt._CIcosh")
 #pragma comment(linker, "/EXPORT:__CIexp=msvcrt._CIexp")
@@ -1419,6 +1422,9 @@
 #pragma comment(linker, "/EXPORT:___CxxFrameHandler=msvcrt.__CxxFrameHandler")
 #pragma comment(linker, "/EXPORT:___CxxFrameHandler2=msvcrt.__CxxFrameHandler2")
 #pragma comment(linker, "/EXPORT:___CxxFrameHandler3=msvcrt.__CxxFrameHandler3")
+
+#pragma comment(linker, "/EXPORT:___CxxFrameHandler4=ucrtbase.__CxxFrameHandler4")
+
 #pragma comment(linker, "/EXPORT:___CxxLongjmpUnwind=msvcrt.__CxxLongjmpUnwind")
 #pragma comment(linker, "/EXPORT:___CxxQueryExceptionSize=msvcrt.__CxxQueryExceptionSize")
 #pragma comment(linker, "/EXPORT:___CxxRegisterExceptionObject=msvcrt.__CxxRegisterExceptionObject")
@@ -1479,6 +1485,19 @@
 #pragma comment(linker, "/EXPORT:___libm_sse2_sinf=msvcrt.__libm_sse2_sinf")
 #pragma comment(linker, "/EXPORT:___libm_sse2_tan=msvcrt.__libm_sse2_tan")
 #pragma comment(linker, "/EXPORT:___libm_sse2_tanf=msvcrt.__libm_sse2_tanf")
+
+#pragma comment(linker, "/EXPORT:__libm_sse2_acos_precise=ucrtbase._libm_sse2_acos_precise")
+#pragma comment(linker, "/EXPORT:__libm_sse2_asin_precise=ucrtbase._libm_sse2_asin_precise")
+#pragma comment(linker, "/EXPORT:__libm_sse2_atan_precise=ucrtbase._libm_sse2_atan_precise")
+#pragma comment(linker, "/EXPORT:__libm_sse2_cos_precise=ucrtbase._libm_sse2_cos_precise")
+#pragma comment(linker, "/EXPORT:__libm_sse2_exp_precise=ucrtbase._libm_sse2_exp_precise")
+#pragma comment(linker, "/EXPORT:__libm_sse2_log10_precise=ucrtbase._libm_sse2_log10_precise")
+#pragma comment(linker, "/EXPORT:__libm_sse2_log_precise=ucrtbase._libm_sse2_log_precise")
+#pragma comment(linker, "/EXPORT:__libm_sse2_pow_precise=ucrtbase._libm_sse2_pow_precise")
+#pragma comment(linker, "/EXPORT:__libm_sse2_sin_precise=ucrtbase._libm_sse2_sin_precise")
+#pragma comment(linker, "/EXPORT:__libm_sse2_sqrt_precise=ucrtbase._libm_sse2_sqrt_precise")
+#pragma comment(linker, "/EXPORT:__libm_sse2_tan_precise=ucrtbase._libm_sse2_tan_precise")
+
 #pragma comment(linker, "/EXPORT:___mb_cur_max=msvcrt.__mb_cur_max")
 #pragma comment(linker, "/EXPORT:___p___argc=msvcrt.__p___argc")
 #pragma comment(linker, "/EXPORT:___p___argv=msvcrt.__p___argv")
@@ -2699,6 +2718,5 @@
 #pragma comment(linker, "/EXPORT:wprintf_s=msvcrt.wprintf_s")
 #pragma comment(linker, "/EXPORT:wscanf=msvcrt.wscanf")
 #pragma comment(linker, "/EXPORT:wscanf_s=msvcrt.wscanf_s")
-
 
 #endif

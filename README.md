@@ -4,7 +4,7 @@ Introduction
 VxKex is a set of API extensions for Windows 7 that allow some Windows 8,
 8.1 and 10-exclusive applications to run on Windows 7.
 
-To download and install, see the [releases page](https://github.com/vxiiduu/VxKex/releases).
+To download and install, see the [releases page](https://github.com/i486/VxKex/releases).
 
 After installation, usage is easy: just right click on a program (.exe or .msi),
 open the Properties dialog, and select the VxKex tab. Then, check the check box
@@ -46,6 +46,7 @@ success. I hope to address this shortcoming in a future release.
 - GitHub Desktop
 - HandBrake
 - Kodi
+- Life is Strange: True Colors 4.25
 - MKVToolNix
 - MongoDB
 - MPC-Qt

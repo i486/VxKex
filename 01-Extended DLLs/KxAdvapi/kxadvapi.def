@@ -1,3 +1,7 @@
 LIBRARY KxAdvapi
 EXPORTS
-	EventSetInformation = KexDll.KexEtwEventSetInformation
+	;; Forwarders to KexDll
+	EventSetInformation			= KexDll.KexEtwEventSetInformation
+
+	;; Forwarders to KxBase
+	CreateWellKnownSid			= KxBase.CreateWellKnownSid

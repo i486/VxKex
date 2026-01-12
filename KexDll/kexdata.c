@@ -47,6 +47,7 @@ KEX_PROCESS_DATA _KexData = {
 	NULL,														// BaseDllBase
 	NULL,														// BaseNamedObjects
 	NULL,														// UntrustedBaseNamedObjects
+	NULL,														// KsecDD
 };
 
 PKEX_PROCESS_DATA KexData = NULL;

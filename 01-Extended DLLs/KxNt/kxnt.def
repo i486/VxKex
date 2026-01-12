@@ -28,3 +28,19 @@ EXPORTS
 	ApiSetQueryApiSetPresence					= KexDll.ApiSetQueryApiSetPresence
 
 	EtwEventSetInformation						= KexDll.KexEtwEventSetInformation
+
+	NtQueryInformationThread					= KexDll.Ext_NtQueryInformationThread
+	NtSetInformationThread						= KexDll.Ext_NtSetInformationThread
+	NtQueryInformationProcess					= KexDll.Ext_NtQueryInformationProcess
+	NtNotifyChangeKey							= KexDll.Ext_NtNotifyChangeKey
+	NtNotifyChangeMultipleKeys					= KexDll.Ext_NtNotifyChangeMultipleKeys
+	NtCreateSection								= KexDll.Ext_NtCreateSection
+	NtAssignProcessToJobObject					= KexDll.Ext_NtAssignProcessToJobObject
+
+	ZwQueryInformationThread					= KexDll.Ext_NtQueryInformationThread
+	ZwSetInformationThread						= KexDll.Ext_NtSetInformationThread
+	ZwQueryInformationProcess					= KexDll.Ext_NtQueryInformationProcess
+	ZwNotifyChangeKey							= KexDll.Ext_NtNotifyChangeKey
+	ZwNotifyChangeMultipleKeys					= KexDll.Ext_NtNotifyChangeMultipleKeys
+	ZwCreateSection								= KexDll.Ext_NtCreateSection
+	ZwAssignProcessToJobObject					= KexDll.Ext_NtAssignProcessToJobObject

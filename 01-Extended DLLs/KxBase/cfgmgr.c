@@ -11,3 +11,11 @@ KXBASEAPI CONFIGRET WINAPI CM_Register_Notification(
 	KexDebugCheckpoint();
 	return CR_CALL_NOT_IMPLEMENTED;
 }
+
+KXBASEAPI CONFIGRET WINAPI CM_Unregister_Notification(
+	IN	HCMNOTIFICATION		NotifyContext)
+{
+	KexLogWarningEvent(L"Unimplemented function CM_Unregister_Notification called");
+	KexDebugCheckpoint();
+	return CR_CALL_NOT_IMPLEMENTED;
+}

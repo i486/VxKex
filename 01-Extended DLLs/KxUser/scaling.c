@@ -106,7 +106,7 @@ KXUSERAPI DPI_AWARENESS_CONTEXT WINAPI GetWindowDpiAwarenessContext(
 		return 0;
 	}
 
-	if (WindowProcessId = (ULONG) NtCurrentTeb()->ClientId.UniqueProcess) {
+	if (WindowProcessId == (ULONG) NtCurrentTeb()->ClientId.UniqueProcess) {
 		return GetThreadDpiAwarenessContext();
 	}
 

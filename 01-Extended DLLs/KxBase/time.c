@@ -10,7 +10,7 @@ KXBASEAPI VOID WINAPI KxBasepGetSystemTimeAsFileTimeHook(
 	OUT	PFILETIME	SystemTimeAsFileTime)
 {
 	ASSERT (KexData->IfeoParameters.StrongVersionSpoof & KEX_STRONGSPOOF_SHAREDUSERDATA);
-	KexNtQuerySystemTime((PLONGLONG) SystemTimeAsFileTime);
+	NtQuerySystemTime((PLONGLONG) SystemTimeAsFileTime);
 }
 
 //
@@ -25,7 +25,7 @@ KXBASEAPI VOID WINAPI KxBasepGetSystemTimeHook(
 
 	ASSERT (KexData->IfeoParameters.StrongVersionSpoof & KEX_STRONGSPOOF_SHAREDUSERDATA);
 
-	KexNtQuerySystemTime(&Time);
+	NtQuerySystemTime(&Time);
 	RtlTimeToTimeFields(&Time, &TimeFields);
 
 	//

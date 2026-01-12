@@ -570,6 +570,76 @@ typedef struct _MEM_ADDRESS_REQUIREMENTS {
 #define LDR_GET_DLL_HANDLE_EX_PIN					0x0002 // The DLL will remain loaded until the process exits.
 #define LDR_GET_DLL_HANDLE_EX_UNKNOWN				0x0004 // Is valid, but appears to do nothing.
 
+#define SECURITY_LOCAL_ACCOUNT_RID								(0x00000071L)
+#define SECURITY_LOCAL_ACCOUNT_AND_ADMIN_RID					(0x00000072L)
+
+#define SECURITY_APP_PACKAGE_AUTHORITY							{0,0,0,0,0,15}
+#define SECURITY_APP_PACKAGE_BASE_RID							(0x00000002L)
+#define SECURITY_BUILTIN_APP_PACKAGE_RID_COUNT					(2L)
+#define SECURITY_APP_PACKAGE_RID_COUNT							(8L)
+#define SECURITY_CAPABILITY_BASE_RID							(0x00000003L)
+#define SECURITY_CAPABILITY_APP_RID								(0x000000400)
+#define SECURITY_BUILTIN_CAPABILITY_RID_COUNT					(2L)
+#define SECURITY_CAPABILITY_RID_COUNT							(5L)
+#define SECURITY_PARENT_PACKAGE_RID_COUNT						(SECURITY_APP_PACKAGE_RID_COUNT)
+#define SECURITY_CHILD_PACKAGE_RID_COUNT						(12L)
+
+#define SECURITY_BUILTIN_PACKAGE_ANY_PACKAGE        			(0x00000001L)
+#define SECURITY_BUILTIN_PACKAGE_ANY_RESTRICTED_PACKAGE			(0x00000002L)
+
+#define SECURITY_CAPABILITY_INTERNET_CLIENT						(0x00000001L)
+#define SECURITY_CAPABILITY_INTERNET_CLIENT_SERVER				(0x00000002L)
+#define SECURITY_CAPABILITY_PRIVATE_NETWORK_CLIENT_SERVER		(0x00000003L)
+#define SECURITY_CAPABILITY_PICTURES_LIBRARY					(0x00000004L)
+#define SECURITY_CAPABILITY_VIDEOS_LIBRARY						(0x00000005L)
+#define SECURITY_CAPABILITY_MUSIC_LIBRARY						(0x00000006L)
+#define SECURITY_CAPABILITY_DOCUMENTS_LIBRARY					(0x00000007L)
+#define SECURITY_CAPABILITY_ENTERPRISE_AUTHENTICATION			(0x00000008L)
+#define SECURITY_CAPABILITY_SHARED_USER_CERTIFICATES			(0x00000009L)
+#define SECURITY_CAPABILITY_REMOVABLE_STORAGE					(0x0000000AL)
+#define SECURITY_CAPABILITY_APPOINTMENTS						(0x0000000BL)
+#define SECURITY_CAPABILITY_CONTACTS							(0x0000000CL)
+
+#define SECURITY_AUTHENTICATION_AUTHORITY						{0,0,0,0,0,18}
+#define SECURITY_AUTHENTICATION_AUTHORITY_RID_COUNT				(1L)
+#define SECURITY_AUTHENTICATION_AUTHORITY_ASSERTED_RID			(0x00000001L)
+#define SECURITY_AUTHENTICATION_SERVICE_ASSERTED_RID			(0x00000002L)
+#define SECURITY_AUTHENTICATION_FRESH_KEY_AUTH_RID				(0x00000003L)
+#define SECURITY_AUTHENTICATION_KEY_TRUST_RID					(0x00000004L)
+#define SECURITY_AUTHENTICATION_KEY_PROPERTY_MFA_RID			(0x00000005L)
+#define SECURITY_AUTHENTICATION_KEY_PROPERTY_ATTESTATION_RID	(0x00000006L)
+
+#define SECURITY_PROCESS_TRUST_AUTHORITY						{0,0,0,0,0,19}
+#define SECURITY_PROCESS_TRUST_AUTHORITY_RID_COUNT				(2L)
+#define SECURITY_PROCESS_PROTECTION_TYPE_FULL_RID				(0x00000400L)
+#define SECURITY_PROCESS_PROTECTION_TYPE_LITE_RID				(0x00000200L)
+#define SECURITY_PROCESS_PROTECTION_TYPE_NONE_RID				(0x00000000L)
+#define SECURITY_PROCESS_PROTECTION_LEVEL_WINTCB_RID			(0x00002000L)
+#define SECURITY_PROCESS_PROTECTION_LEVEL_WINDOWS_RID			(0x00001000L)
+#define SECURITY_PROCESS_PROTECTION_LEVEL_APP_RID				(0x00000800L)
+#define SECURITY_PROCESS_PROTECTION_LEVEL_ANTIMALWARE_RID		(0x00000600L)
+#define SECURITY_PROCESS_PROTECTION_LEVEL_AUTHENTICODE_RID		(0x00000400L)
+#define SECURITY_PROCESS_PROTECTION_LEVEL_NONE_RID				(0x00000000L)
+
+#define DOMAIN_ALIAS_RID_RDS_REMOTE_ACCESS_SERVERS		(0x0000023FL)
+#define DOMAIN_ALIAS_RID_RDS_ENDPOINT_SERVERS			(0x00000240L)
+#define DOMAIN_ALIAS_RID_RDS_MANAGEMENT_SERVERS			(0x00000241L)
+#define DOMAIN_ALIAS_RID_HYPER_V_ADMINS					(0x00000242L)
+#define DOMAIN_ALIAS_RID_ACCESS_CONTROL_ASSISTANCE_OPS	(0x00000243L)
+#define DOMAIN_ALIAS_RID_REMOTE_MANAGEMENT_USERS		(0x00000244L)
+#define DOMAIN_ALIAS_RID_DEFAULT_ACCOUNT				(0x00000245L)
+#define DOMAIN_ALIAS_RID_STORAGE_REPLICA_ADMINS			(0x00000246L)
+#define DOMAIN_ALIAS_RID_DEVICE_OWNERS					(0x00000247L)
+
+#define DOMAIN_USER_RID_DEFAULT_ACCOUNT			(0x000001F7L)
+#define DOMAIN_USER_RID_WDAG_ACCOUNT			(0x000001F8L)
+
+#define DOMAIN_GROUP_RID_CLONEABLE_CONTROLLERS	(0x0000020AL)
+#define DOMAIN_GROUP_RID_CDC_RESERVED			(0x0000020CL)
+#define DOMAIN_GROUP_RID_PROTECTED_USERS		(0x0000020DL)
+#define DOMAIN_GROUP_RID_KEY_ADMINS				(0x0000020EL)
+#define DOMAIN_GROUP_RID_ENTERPRISE_KEY_ADMINS	(0x0000020FL)
+
 #pragma endregion
 
 #pragma region Data Type Definitions
@@ -1671,6 +1741,7 @@ typedef struct _KUSER_SHARED_DATA {
 	KSYSTEM_TIME VOLATILE				SystemTime;
 	KSYSTEM_TIME VOLATILE				TimeZoneBias;
 
+	// Both are 0x8664 on 64-bit systems.
 	USHORT								ImageNumberLow;
 	USHORT								ImageNumberHigh;
 
@@ -1696,7 +1767,6 @@ typedef struct _KUSER_SHARED_DATA {
 	BOOLEAN								ProcessorFeatures[PROCESSOR_FEATURE_MAX];
 
 	// these two NOT VALID FOR 64BIT since they are ULONGs.
-	// They are however valid for wow64 apps.
 	ULONG								MmHighestUserAddress;
 	ULONG								MmSystemRangeStart;
 
@@ -1773,22 +1843,41 @@ typedef struct _KUSER_SHARED_DATA {
 	ULONG								CookiePad[1];
 
 	LONGLONG							ConsoleSessionForegroundProcessId;
+
+	//
+	// Wow64SharedInformation used to be a table of function pointers into
+	// the WOW64 NTDLL, but with certain Win7 security updates installed,
+	// these are zeroed out because they decrease the effectiveness of ASLR.
+	//
+	// DO NOT USE.
+	//
+
 	ULONG								Wow64SharedInformation[0x10];
+	
 	USHORT								UserModeGlobalLogger[16];
 	ULONG								LangGenerationCount;
 	ULONGLONG							Reserved5;
 	ULONGLONG VOLATILE					InterruptTimeBias;
 	ULONGLONG VOLATILE					TscQpcBias;
+
+	// The number of logical processors. For a 4C8T system, this will be 8.
 	ULONG VOLATILE						ActiveProcessorCount;
+
+	// Number of processor groups. Usually it's 1 on consumer systems.
 	USHORT VOLATILE						ActiveGroupCount;
+
 	USHORT								Reserved4;
 	ULONG VOLATILE						AitSamplingValue;
 	ULONG VOLATILE						AppCompatFlag;
 
+	//
 	// The following two members are often set to zero with certain Win7
 	// security updates installed, because they decrease the effectiveness
-	// of ASLR. Do not use these to obtain the address of NTDLL - they are
-	// not reliable.
+	// of ASLR.
+	//
+	// DO NOT USE.
+	//
+
 	ULONGLONG							SystemDllNativeRelocation;
 	ULONG								SystemDllWowRelocation;
 	
@@ -2789,6 +2878,48 @@ typedef struct _RTL_BITMAP {
 	ULONG	SizeOfBitMap;
 	PULONG	Buffer;
 } TYPEDEF_TYPE_NAME(RTL_BITMAP);
+
+GEN_STD_TYPEDEFS(SID_IDENTIFIER_AUTHORITY);
+
+typedef enum _WELL_KNOWN_SID_TYPE {
+    WinApplicationPackageAuthoritySid				= 83,
+    WinBuiltinAnyPackageSid							= 84,
+    WinCapabilityInternetClientSid					= 85,
+    WinCapabilityInternetClientServerSid			= 86,
+    WinCapabilityPrivateNetworkClientServerSid		= 87,
+    WinCapabilityPicturesLibrarySid					= 88,
+    WinCapabilityVideosLibrarySid					= 89,
+    WinCapabilityMusicLibrarySid					= 90,
+    WinCapabilityDocumentsLibrarySid				= 91,
+    WinCapabilitySharedUserCertificatesSid			= 92,
+    WinCapabilityEnterpriseAuthenticationSid		= 93,
+    WinCapabilityRemovableStorageSid				= 94,
+    WinBuiltinRDSRemoteAccessServersSid				= 95,
+    WinBuiltinRDSEndpointServersSid					= 96,
+    WinBuiltinRDSManagementServersSid				= 97,
+    WinUserModeDriversSid							= 98,
+    WinBuiltinHyperVAdminsSid						= 99,
+    WinAccountCloneableControllersSid				= 100,
+    WinBuiltinAccessControlAssistanceOperatorsSid	= 101,
+    WinBuiltinRemoteManagementUsersSid				= 102,
+    WinAuthenticationAuthorityAssertedSid			= 103,
+    WinAuthenticationServiceAssertedSid				= 104,
+    WinLocalAccountSid								= 105,
+    WinLocalAccountAndAdministratorSid				= 106,
+    WinAccountProtectedUsersSid						= 107,
+    WinCapabilityAppointmentsSid					= 108,
+    WinCapabilityContactsSid						= 109,
+    WinAccountDefaultSystemManagedSid				= 110,
+    WinBuiltinDefaultSystemManagedGroupSid			= 111,
+    WinBuiltinStorageReplicaAdminsSid				= 112,
+    WinAccountKeyAdminsSid							= 113,
+    WinAccountEnterpriseKeyAdminsSid				= 114,
+    WinAuthenticationKeyTrustSid					= 115,
+    WinAuthenticationKeyPropertyMFASid				= 116,
+    WinAuthenticationKeyPropertyAttestationSid		= 117,
+    WinAuthenticationFreshKeyAuthSid				= 118,
+    WinBuiltinDeviceOwnersSid						= 119,
+} TYPEDEF_TYPE_NAME(WELL_KNOWN_SID_TYPE);
 
 #pragma endregion
 
@@ -4271,6 +4402,26 @@ NTSYSAPI NTSTATUS NTAPI RtlSetSaclSecurityDescriptor(
 	IN		BOOLEAN					SaclPresent,
 	IN		PACL					Sacl OPTIONAL,
 	IN		BOOLEAN					SaclDefaulted);
+
+NTSYSAPI BOOLEAN NTAPI RtlValidSid(
+	IN	PSID	Sid);
+
+NTSYSAPI PULONG NTAPI RtlSubAuthoritySid(
+	IN	PSID	Sid,
+	IN	ULONG	SubAuthority);
+
+NTSYSAPI PUCHAR NTAPI RtlSubAuthorityCountSid(
+	IN	PSID	Sid);
+
+NTSYSAPI NTSTATUS NTAPI RtlInitializeSid(
+	IN	PSID						Sid,
+	IN	PCSID_IDENTIFIER_AUTHORITY	IdentifierAuthority,
+	IN	UCHAR						SubAuthorityCount);
+
+NTSYSAPI NTSTATUS NTAPI RtlCopySid(
+	IN	ULONG	DestinationSidLength,
+	OUT	PSID	DestinationSid,
+	IN	PSID	SourceSid);
 
 #ifdef _M_X64
 NTSYSAPI BOOLEAN NTAPI RtlAddFunctionTable(

@@ -1498,7 +1498,7 @@
 #pragma comment(linker, "/EXPORT:CreatePrivateObjectSecurityEx=kernelbase.CreatePrivateObjectSecurityEx")
 #pragma comment(linker, "/EXPORT:CreatePrivateObjectSecurityWithMultipleInheritance=kernelbase.CreatePrivateObjectSecurityWithMultipleInheritance")
 #pragma comment(linker, "/EXPORT:CreateRestrictedToken=kernelbase.CreateRestrictedToken")
-#pragma comment(linker, "/EXPORT:CreateWellKnownSid=kernelbase.CreateWellKnownSid")
+//#pragma comment(linker, "/EXPORT:CreateWellKnownSid=kernelbase.CreateWellKnownSid")
 #pragma comment(linker, "/EXPORT:DeleteAce=kernelbase.DeleteAce")
 #pragma comment(linker, "/EXPORT:DestroyPrivateObjectSecurity=kernelbase.DestroyPrivateObjectSecurity")
 #pragma comment(linker, "/EXPORT:DuplicateToken=kernelbase.DuplicateToken")

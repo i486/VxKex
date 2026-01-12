@@ -38,7 +38,7 @@
     <ClCompile Include="dx12stub.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="mfdevmgr.c">
+    <ClCompile Include="dcmpstub.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

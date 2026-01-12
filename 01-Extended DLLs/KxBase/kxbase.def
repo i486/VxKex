@@ -35,6 +35,7 @@ EXPORTS
 
 	;; cfgmgr.c
 	CM_Register_Notification
+	CM_Unregister_Notification
 
 	;; module.c
 	LoadPackagedLibrary
@@ -43,11 +44,16 @@ EXPORTS
 	GetOsSafeBootMode
 	GetFirmwareType
 
+	;; geoname.c
+	GetUserDefaultGeoName
+
 	;; file.c
 	CreateFile2
 	GetTempPath2A
 	GetTempPath2W
 	CopyFile2
+	GetOverlappedResultEx
+	GetFileInformationByName
 
 	;; time.c
 	GetSystemTimePreciseAsFileTime
@@ -117,6 +123,12 @@ EXPORTS
 	PathIsUNCEx
 
 	;;
+	;; Forwarders to KxAdvapi
+	;;
+
+	RegCopyTreeW						= KxAdvapi.RegCopyTreeW
+
+	;;
 	;; VxKex Extended Functions
 	;;
 
@@ -136,6 +148,9 @@ EXPORTS
 	AddDllDirectory						= Ext_AddDllDirectory
 	RemoveDllDirectory					= Ext_RemoveDllDirectory
 	SetDefaultDllDirectories			= Ext_SetDefaultDllDirectories
+
+	;; security.c
+	CreateWellKnownSid					= Ext_CreateWellKnownSid
 
 	;; verspoof.c
 	GetVersionExA						= Ext_GetVersionExA

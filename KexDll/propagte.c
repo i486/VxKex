@@ -27,6 +27,9 @@
 //     vxiiduu              05-Jan-2023  Convert to user friendly NTSTATUS
 //     vxiiduu              12-Feb-2024  Fix propagation on WOW64
 //     vxiiduu              03-Mar-2024  Fix propagation for 32-bit OSes
+//     vxiiduu              21-Mar-2024  Fix propagation again for 32-bit
+//	   vxiiduu				20-May-2024  Remove useless fallback code in
+//										 Ext_NtCreateUserProcess.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -500,10 +503,13 @@ KEXAPI NTSTATUS NTAPI KexInitializePropagation(
 
 		Wow64NtOpenKeyRva = VA_TO_RVA(Wow64NtdllMappedBase, Wow64NtOpenKeyRva);
 	} else {
-		NOT_REACHED;
+		// 32-bit OS, nothing to do.
+		ASSUME (KexRtlOperatingSystemBitness() == 32);
 	}
 
-	ASSERT (NativeNtOpenKeyRva != 0 || Wow64NtOpenKeyRva != 0);
+	unless (KexRtlOperatingSystemBitness() == 32) {
+		ASSERT (NativeNtOpenKeyRva != 0 || Wow64NtOpenKeyRva != 0);
+	}
 
 	//
 	// Install a permanent hook, because our hook function will directly do
@@ -590,39 +596,7 @@ STATIC NTSTATUS NTAPI Ext_NtCreateUserProcess(
 		AttributeList);
 
 	if (!NT_SUCCESS(Status)) {
-		NTSTATUS Status2;
-
-		//
-		// Perhaps it failed due to the desired access/flags changes.
-		// Retry again but with the exact original parameters passed by
-		// the caller. Of course, this means that VxKex will not be
-		// enabled for the child process.
-		//
-		Status2 = KexNtCreateUserProcess(
-			ProcessHandle,
-			ThreadHandle,
-			ProcessDesiredAccess,
-			ThreadDesiredAccess,
-			ProcessObjectAttributes,
-			ThreadObjectAttributes,
-			ProcessFlags,
-			ThreadFlags,
-			ProcessParameters,
-			CreateInfo,
-			AttributeList);
-
-		if (NT_SUCCESS(Status2)) {
-			// 2nd call succeeded where the 1st one failed... Investigate this.
-			ASSERT (NT_SUCCESS(Status));
-
-			KexLogWarningEvent(
-				L"Failed to create user process with modified parameters.\r\n\r\n"
-				L"Reversion to system standard behavior caused the call to succeed.\r\n"
-				L"NTSTATUS error code for modified call: %s (0x%08lx)",
-				KexRtlNtStatusToString(Status), Status);
-		}
-
-		return Status2;
+		return Status;
 	}
 
 	//
