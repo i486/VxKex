@@ -1,0 +1,31 @@
+(*) = Planned
+(/) = Partial
+(+) = Done
+(!) = Stub
+(X) = Bugged
+
+== kxnt.dll - NTDLL ==
+Mostly contains forwarders to the real NTDLL and to KexDll.
+
+  ntdll.dll
+
+(*) NtQueryDirectoryFileEx
+(*) NtQueryInformationByName
+(*) NtQueryInformationToken
+
+== kxbase.dll - Kernel32 & friends ==
+Will also include stuff like advapi32 if it needs to be extended.
+
+  kernel32.dll
+  kernelbase.dll
+  userenv.dll
+
+== kxuser.dll - User Input, Windowing, GUI ==
+  user32.dll
+  shcore.dll
+
+== kxcom.dll - COM, OLE, WinRT ==
+  combase.dll
+
+== kxdx.dll - DirectX & Multimedia ==
+  dxgi.dll

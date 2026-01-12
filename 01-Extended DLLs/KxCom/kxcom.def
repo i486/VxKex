@@ -1,0 +1,35 @@
+LIBRARY KxCom
+EXPORTS
+
+	RoInitialize
+	RoUninitialize
+	RoGetActivationFactory
+	RoOriginateError
+	RoOriginateErrorW
+	RoGetAgileReference
+	RoOriginateLanguageException
+
+	GetRestrictedErrorInfo
+
+	;;
+	;; mta.c
+	;;
+
+	CoIncrementMTAUsage
+	CoDecrementMTAUsage
+
+	;;
+	;; winrt.c
+	;;
+
+	WindowsCompareStringOrdinal
+	WindowsCreateString
+	WindowsCreateStringReference
+	WindowsDeleteString
+	WindowsDuplicateString
+	WindowsGetStringLen
+	WindowsGetStringRawBuffer
+	WindowsIsStringEmpty
+	WindowsStringHasEmbeddedNull
+	WindowsSubstring
+	WindowsSubstringWithSpecifiedLength

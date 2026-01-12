@@ -1,0 +1,252 @@
+///////////////////////////////////////////////////////////////////////////////
+//
+// Module Name:
+//
+//     dllmain.c
+//
+// Abstract:
+//
+//     Main file for KexDll.
+//
+//     KexDll is loaded at process initialization of every kex process and
+//     is what makes it a kex process (by rewriting dlls, etc.).
+//
+// Author:
+//
+//     vxiiduu (17-Oct-2022)
+//
+// Environment:
+//
+//     Native mode.
+//     This DLL is loaded before kernel32, and it can only import from NTDLL.
+//
+// Revision History:
+//
+//     vxiiduu              17-Oct-2022  Initial creation.
+//     vxiiduu              05-Jan-2023  Convert to user friendly NTSTATUS.
+//     vxiiduu              23-Feb-2024  Remove support for advanced logging.
+//     vxiiduu              23-Feb-2024  Remove unneeded debug logging
+//
+///////////////////////////////////////////////////////////////////////////////
+
+#include "buildcfg.h"
+#include "kexdllp.h"
+
+INT WINAPI MessageBoxAHookProc(HWND, PCSTR, PCSTR, UINT);
+
+STATIC RTL_VERIFIER_DLL_DESCRIPTOR AVrfDllDescriptor[] = {
+	{NULL, 0, NULL, NULL}
+};
+
+STATIC RTL_VERIFIER_PROVIDER_DESCRIPTOR AVrfProviderDescriptor = {
+	sizeof(RTL_VERIFIER_PROVIDER_DESCRIPTOR),		// Length
+	AVrfDllDescriptor,								// ProviderDlls
+	NULL,											// ProviderDllLoadCallback
+	NULL,											// ProviderDllUnloadCallback
+
+	NULL,											// VerifierImage
+	0,												// VerifierFlags
+	0,												// VerifierDebug
+	NULL,											// RtlpGetStackTraceAddress
+	NULL,											// RtlpDebugPageHeapCreate
+	NULL,											// RtlpDebugPageHeapDestroy
+
+	NULL											// ProviderNtdllHeapFreeCallback
+};
+
+//
+// DllMain is called 3 times during process initialization.
+//
+//  1. DLL_PROCESS_VERIFIER, with a valid pointer as the Descriptor parameter
+//     which we have to fill out
+//
+//  2. DLL_PROCESS_ATTACH, with a valid pointer as the Descriptor parameter
+//     (this time, the structure is filled out by the system)
+//
+//  3. DLL_PROCESS_ATTACH, with NULL as the Descriptor parameter. This is the
+//     "normal" DLL_PROCESS_ATTACH call, the previous call being made by the
+//     application verifier machinery inside NTDLL.
+//
+BOOL WINAPI DllMain(
+	IN	PVOID								DllBase,
+	IN	ULONG								Reason,
+	IN	PRTL_VERIFIER_PROVIDER_DESCRIPTOR	*Descriptor)
+{
+	NTSTATUS Status;
+	PVOID DllNotificationCookie;
+
+	if (Reason == DLL_PROCESS_VERIFIER) {
+		//
+		// Register a useless descriptor with app verifier system.
+		// We don't make use of any app verifier apis or specific functionality
+		// at the moment, but if we don't do this the process will crash.
+		//
+
+		*Descriptor = &AVrfProviderDescriptor;
+	}
+
+	if (!KexData) {
+		//
+		// Initialize the KexData structure, since it contains some basic data
+		// which we will need for logging, etc.
+		//
+
+		KexDataInitialize(&KexData);
+		KexData->KexDllBase = DllBase;
+	}
+
+	if ((KexData->Flags & KEXDATA_FLAG_MSIEXEC) &&
+		!(KexData->Flags & KEXDATA_FLAG_ENABLED_FOR_MSI) &&
+		NtCurrentPeb()->SubSystemData == NULL) {
+
+		//
+		// This is MSIEXEC, but the MSI it is processing does not have VxKex enabled,
+		// and we weren't simply propagated from another application.
+		// Do nothing.
+		//
+
+		return TRUE;
+	}
+
+	if (Reason == DLL_PROCESS_VERIFIER) {
+		ASSERT (KexData != NULL);
+
+		//
+		// Open log file.
+		//
+
+		KexOpenVxlLogForCurrentApplication(&KexData->LogHandle);
+
+		//
+		// Install VxKex hard error handler.
+		// This is responsible for displaying the custom error messages e.g.
+		// when a DLL is not found.
+		//
+
+		KexHeInstallHandler();
+
+		//
+		// Try to get rid of as much Application verifier functionality as
+		// possible.
+		//
+
+		KexDisableAVrf();
+
+		//
+		// Initialize Propagation subsystem.
+		//
+
+		KexInitializePropagation();
+
+		//
+		// After the propagation system is initialized, the IfeoParameters are
+		// finalized, so print them out to the log.
+		//
+
+		KexLogDebugEvent(
+			L"IfeoParameters values are finalized.\r\n\r\n"
+			L"DisableForChild:      %d\r\n"
+			L"DisableAppSpecific:   %d\r\n"
+			L"WinVerSpoof:          %d\r\n"
+			L"StrongVersionSpoof:   0x%08lx\r\n"
+			L"BreakOnHardError:     %d\r\n"
+			L"DisableDllDirectory:  %d",
+			KexData->IfeoParameters.DisableForChild,
+			KexData->IfeoParameters.DisableAppSpecific,
+			KexData->IfeoParameters.WinVerSpoof,
+			KexData->IfeoParameters.StrongVersionSpoof,
+			KexData->IfeoParameters.BreakOnHardError,
+			KexData->IfeoParameters.DisableDllDirectory);
+
+		//
+		// Perform version spoofing, if required.
+		//
+
+		KexApplyVersionSpoof();
+
+		//
+		// Initialize DLL rewrite subsystem.
+		//
+
+		Status = KexInitializeDllRewrite();
+		if (!NT_SUCCESS(Status)) {
+			KexLogCriticalEvent(
+				L"Failed to initialize DLL rewrite subsystem\r\n\r\n"
+				L"NTSTATUS error code: %s",
+				KexRtlNtStatusToString(Status));
+
+			// Abort initialization of VxKex.
+			KexHeErrorBox(
+				L"VxKex could not start because the DLL rewrite subsystem "
+				L"could not be initialized. Try to reinstall VxKex, since "
+				L"this problem may be caused by missing registry keys.\r\n"
+				L"If the problem persists, please disable VxKex for this "
+				L"program.");
+		}
+
+		//
+		// Register our DLL load/unload callback.
+		//
+
+		Status = LdrRegisterDllNotification(
+			0,
+			KexDllNotificationCallback,
+			NULL,
+			&DllNotificationCookie);
+
+		if (NT_SUCCESS(Status)) {
+			KexLogInformationEvent(L"Successfully registered DLL notification callback.");
+		} else {
+			KexLogCriticalEvent(
+				L"Failed to register DLL notification callback\r\n\r\n"
+				L"NTSTATUS error code: %s",
+				KexRtlNtStatusToString(Status));
+
+			KexHeErrorBox(
+				L"VxKex could not start because the DLL notification callback "
+				L"could not be installed. If the problem persists, please disable "
+				L"VxKex for this program.");
+		}
+
+		//
+		// Rewrite DLL Imports of our main application EXE.
+		//
+
+		Status = KexRewriteImageImportDirectory(
+			NtCurrentPeb()->ImageBaseAddress,
+			&KexData->ImageBaseName,
+			&NtCurrentPeb()->ProcessParameters->ImagePathName);
+
+		if (!NT_SUCCESS(Status) && Status != STATUS_IMAGE_NO_IMPORT_DIRECTORY) {
+			KexLogCriticalEvent(
+				L"Failed to rewrite DLL imports of the main process image.\r\n\r\n"
+				L"NTSTATUS error code: %s\r\n"
+				L"Image base address: 0x%p\r\n",
+				KexRtlNtStatusToString(Status),
+				NtCurrentPeb()->ImageBaseAddress);
+
+			KexHeErrorBox(
+				L"VxKex could not start because the DLL imports of the main "
+				L"process image could not be rewritten. If the problem persists, "
+				L"please disable VxKex for this program.");
+		}
+
+		// APPSPECIFICHACK: Environment variable hack for QBittorrent to fix
+		// bad kerning.
+		// APPSPECIFICHACK: Calibre requires the Qt6 ASH to be applied early.
+		unless (KexData->IfeoParameters.DisableAppSpecific) {
+			if (AshExeBaseNameIs(L"qbittorrent.exe")) {
+				AshApplyQBittorrentEnvironmentVariableHacks();
+			} else if (AshExeBaseNameIs(L"calibre.exe")) {
+				AshApplyQt6EnvironmentVariableHacks();
+			}
+		}
+	} else if (Reason == DLL_PROCESS_ATTACH && Descriptor == NULL) {
+		Status = LdrDisableThreadCalloutsForDll(DllBase);
+		ASSERT (NT_SUCCESS(Status));
+	} else if (Reason == DLL_PROCESS_DETACH) {
+		VxlCloseLog(&KexData->LogHandle);
+	}
+
+	return TRUE;
+}
