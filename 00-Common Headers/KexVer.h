@@ -45,7 +45,7 @@
 #  include <vautogen.h>
 #endif
 
-#define KEX_WEB_STR			""
-#define KEX_BUGREPORT_STR	""
+#define KEX_WEB_STR			"https://github.com/i486/VxKex"
+#define KEX_BUGREPORT_STR		"https://github.com/i486/VxKex/issues/new/choose"
 
 // You must keep the following line blank or RC will screech.
