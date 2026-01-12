@@ -1,0 +1,128 @@
+LIBRARY KxBase
+EXPORTS
+	;;
+	;; VxKex New Functions
+	;;
+
+	ResolveDelayLoadedAPI				= kxnt.LdrResolveDelayLoadedAPI
+
+	;; thread.c
+	GetThreadDescription
+	SetThreadDescription
+	GetCurrentThreadStackLimits
+	SetThreadInformation
+	GetThreadInformation
+	SetThreadSelectedCpuSets
+	SetThreadSelectedCpuSetMasks
+	GetThreadSelectedCpuSets
+	GetThreadSelectedCpuSetMasks
+
+	;; process.c
+	GetProcessInformation
+	SetProcessInformation
+	SetProcessDefaultCpuSets
+	SetProcessDefaultCpuSetMasks
+	GetProcessDefaultCpuSets
+	GetProcessDefaultCpuSetMasks
+	SetProcessMitigationPolicy
+	GetProcessMitigationPolicy
+
+	;; pssapi.c
+	PssCaptureSnapshot
+	PssFreeSnapshot
+	PssQuerySnapshot
+
+	;; misc.c
+	GetOsSafeBootMode
+
+	;; file.c
+	CreateFile2
+	GetTempPath2A
+	GetTempPath2W
+	CopyFile2
+
+	;; power.c
+	PowerDeterminePlatformRoleEx
+	PowerRegisterSuspendResumeNotification
+	PowerUnregisterSuspendResumeNotification
+
+	;; time.c
+	GetSystemTimePreciseAsFileTime
+
+	;; appmodel.c
+	GetCurrentPackageFullName
+	GetCurrentPackageId
+	AppPolicyGetProcessTerminationMethod
+	CreateAppContainerProfile
+	DeleteAppContainerProfile
+	DeriveAppContainerSidFromAppContainerName
+	GetAppContainerFolderPath
+	GetAppContainerRegistryLocation
+	AppXGetPackageSid
+	AppXFreeMemory
+	PackageFamilyNameFromFullName
+
+	;; crypto.c
+	ProcessPrng
+	BCryptHash
+
+	;; synch.c
+	WaitOnAddress
+	WakeByAddressSingle					= kxnt.RtlWakeAddressSingle
+	WakeByAddressAll					= kxnt.RtlWakeAddressAll
+
+	;; wow64.c
+	IsWow64Process2
+
+	;; vmem.c
+	DiscardVirtualMemory
+	OfferVirtualMemory
+	ReclaimVirtualMemory
+	PrefetchVirtualMemory
+
+	;; verspoof.c
+	GetVersionExA						= Ext_GetVersionExA
+
+	;; KexPathCch
+	PathAllocCanonicalize
+	PathAllocCombine
+	PathCchAddBackslash
+	PathCchAddBackslashEx
+	PathCchAddExtension
+	PathCchAppend
+	PathCchAppendEx
+	PathCchCanonicalize
+	PathCchCanonicalizeEx
+	PathCchCombine
+	PathCchCombineEx
+	PathCchFindExtension
+	PathCchIsRoot
+	PathCchRemoveBackslash
+	PathCchRemoveBackslashEx
+	PathCchRemoveExtension
+	PathCchRemoveFileSpec
+	PathCchRenameExtension
+	PathCchSkipRoot
+	PathCchStripPrefix
+	PathCchStripToRoot
+	PathIsUNCEx
+
+	;;
+	;; VxKex Extended Functions
+	;;
+
+	;; module.c
+	GetModuleHandleA					= Ext_GetModuleHandleA
+	GetModuleHandleW					= Ext_GetModuleHandleW
+	GetModuleHandleExA					= Ext_GetModuleHandleExA
+	GetModuleHandleExW					= Ext_GetModuleHandleExW
+	GetModuleFileNameA					= Ext_GetModuleFileNameA
+	GetModuleFileNameW					= Ext_GetModuleFileNameW
+	LoadLibraryA						= Ext_LoadLibraryA
+	LoadLibraryW						= Ext_LoadLibraryW
+	LoadLibraryExA						= Ext_LoadLibraryExA
+	LoadLibraryExW						= Ext_LoadLibraryExW
+	GetProcAddress						= Ext_GetProcAddress
+	AddDllDirectory						= Ext_AddDllDirectory
+	RemoveDllDirectory					= Ext_RemoveDllDirectory
+	SetDefaultDllDirectories			= Ext_SetDefaultDllDirectories

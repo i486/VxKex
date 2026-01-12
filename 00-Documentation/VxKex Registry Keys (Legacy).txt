@@ -1,0 +1,20 @@
+Legacy versions of VxKex (0.0.0.3 and prior) used the registry in the following manner:
+
+HKLM\Software\Microsoft\Windows NT\CurrentVersion\Image File Execution Options (key)
+  <EXE base name> (key)
+    Debugger (REG_SZ)
+	  This string would contain "VxKexLdr.exe" somewhere in it.
+
+HKLM\Software\VXsoft\VxKexLdr (key)
+  InstalledVersion (REG_DWORD)
+  KexDir (REG_SZ)
+
+HKCU\Software\VXsoft\VxKexLdr (key)
+  Image File Execution Options (key)
+    <tree structure>
+
+In order to remove traces of legacy VxKex from the registry, delete the following keys:
+
+  HKLM\Software\VXsoft\VxKexLdr
+  HKCU\Software\VXsoft\VxKexLdr
+  Any IFEO key that contains a "Debugger" value that has VxKexLdr.exe in it

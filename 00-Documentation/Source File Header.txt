@@ -1,0 +1,26 @@
+Copypaste this at the top of new source code files.
+
+
+///////////////////////////////////////////////////////////////////////////////
+//
+// Module Name:
+//
+//     file.ext
+//
+// Abstract:
+//
+//     FILL OUT THIS TEXT
+//
+// Author:
+//
+//     Author (DD-MMM-YYYY)
+//
+// Environment:
+//
+//     WHERE CAN THIS PROGRAM/LIBRARY/CODE RUN?
+//
+// Revision History:
+//
+//     Author               DD-MMM-YYYY  Initial creation.
+//
+///////////////////////////////////////////////////////////////////////////////

@@ -22,56 +22,31 @@ If you are a developer, source code is provided as a 7z file on the releases pag
 FAQ
 ===
 
-**Q: Does it work for games???**
-
-**A:** At the moment, VxKex is not intended for games, so you will probably have limited
-success. I hope to address this shortcoming in a future release.
-
 **Q: What applications are supported?**
 
 **A:** The list of compatible applications includes, but is not limited to:
 - Bespoke Synth
 - Blender
-- Blockbench
-- Calibre
-- Chromium (including Ungoogled Chromium)
-- Citra
+- Calibre (limited functionality)
 - Commander Wars
-- Cygwin
-- Dasel
-- Discord Canary
-- ElectronMail
-- Firefox
-- GIMP (2.99.18)
-- GitHub Desktop
 - HandBrake
 - Kodi
 - MKVToolNix
 - MongoDB
-- MPC-Qt
 - MPV
-- MPV.NET
-- Opera
-- osu!lazer
 - Python
 - qBittorrent
 - QMMP
 - Qt Creator
 - Rufus
 - Steel Bank Common Lisp
-- Spotify
 - Steinberg SpectraLayers
 - TeamTalk
-- VSCode and VSCodium
-- WinDbg (classic from Windows 11 SDK, and preview)
 - Yuzu (gameplay was not tested)
 - Zig
 
 See the **Application Compatibility List.docx** file, which is installed together
 with VxKex, for more information.
-
-The majority of Qt6 applications will work, and many Electron applications will
-work as well.
 
 **Q: Does VxKex modify system files? Will it make my system unstable?**
 
@@ -79,23 +54,18 @@ work as well.
 extremely minimal. No background services are used, no global hooks are
 installed, and the shell extensions and DLLs that are loaded have minimal
 impact and can be disabled if needed. You can rest assured that your Windows 7
-will remain as stable as it always is.
+will remain as stable as always.
 
 **Q: Do I need to have specific updates installed?**
 
 **A:** VxKex is only designed to work with Service Pack 1 installed. Users of
 Windows 7 RTM can try to use it, but I don't know if it will install or work.
-Many programs require KB2533623 and KB2670838 in order to run. It is a good
-idea to install those two updates.
+Many programs require the KB2533623 security update to run, so it is a good
+idea to install that one. The Windows 7 platform update also helps.
 
 **Q: If I have ESUs (Extended Security Updates) installed, can I use VxKex?**
 
 **A:** Yes. There is no problem with ESUs.
-
-**Q: Do console applications work with VxKex?**
-
-**A:** Yes. After you have enabled VxKex for a program you can use it through the
-command prompt as normal.
 
 **Q: Can I use this with Windows 8 or 8.1?**
 
@@ -115,10 +85,3 @@ API extension is accomplished by editing the program's DLL import table so that
 instead of importing from Windows 8/8.1/10 DLLs, it imports to VxKex DLLs instead.
 These VxKex DLLs contain implementations of Windows API functions which were introduced
 in newer versions of Windows.
-
-Donations
-=========
-
-If you would like to support development, consider making a donation.
-
-- https://paypal.me/vxiiduu

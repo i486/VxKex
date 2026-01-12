@@ -1,0 +1,88 @@
+LIBRARY "KexDll.dll"
+EXPORTS
+	KexDataInitialize
+	KexInitializePropagation
+	KexDllProtectedFunctionExceptionFilter
+
+	KexRtlPathFindFileName
+	KexRtlPathRemoveExtension
+	KexRtlPathReplaceIllegalCharacters
+	KexRtlGetProcessImageBaseName
+	KexRtlQueryKeyValueData
+	KexRtlQueryKeyMultipleValueData
+	KexRtlUnicodeStringEndsWith
+	KexRtlFindUnicodeSubstring
+	KexRtlAdvanceUnicodeString
+	KexRtlRetreatUnicodeString
+	KexRtlShiftUnicodeString
+	KexRtlWriteProcessMemory
+	KexRtlCreateDirectoryRecursive
+	KexRtlNtStatusToString
+	KexRtlCreateStringMapper
+	KexRtlDeleteStringMapper
+	KexRtlInsertEntryStringMapper
+	KexRtlLookupEntryStringMapper
+	KexRtlRemoveEntryStringMapper
+	KexRtlApplyStringMapper
+	KexRtlInsertMultipleEntriesStringMapper
+	KexRtlLookupMultipleEntriesStringMapper
+	KexRtlBatchApplyStringMapper
+	KexRtlSectionTableFromRva
+	KexRtlNullTerminateUnicodeString
+
+	KexRtlWow64GetProcessMachines
+	KexRtlSetBit
+	KexRtlClearBit
+	KexRtlQueryPackageIdentity
+	KexRtlQueryPackageIdentityEx
+	KexRtlCheckPortableOperatingSystem
+	KexRtlUnsubscribeWnfStateChangeNotification
+	KexRtlQueryWnfStateData
+	KexRtlPublishWnfStateData
+	KexRtlSubscribeWnfStateChangeNotification
+
+	KexRtlWaitOnAddress
+	KexRtlWakeAddressSingle
+	KexRtlWakeAddressAll
+
+	KexLdrGetSystemDllBase
+	KexLdrGetRemoteSystemDllBase
+	KexLdrGetNativeSystemDllBase
+	KexLdrMiniGetProcedureAddress
+	KexLdrFindDllInitRoutine
+	KexLdrGetDllFullName
+	KexLdrGetDllFullNameFromAddress
+	KexLdrProtectImageImportSection
+
+	KexLdrResolveDelayLoadedAPI
+
+	ApiSetQueryApiSetPresence
+
+	KexHkInstallBasicHook
+	KexHkRemoveBasicHook
+
+	KexMessageBox
+	KexMessageBoxF
+	KexRewriteDllPath
+	KexPatchCpiwSubsystemVersionCheck
+
+	AshExeBaseNameIs
+	AshModuleBaseNameIs
+
+	VxlOpenLog
+	VxlCloseLog
+	VxlQueryInformationLog
+	VxlWriteLogEx
+	VxlReadLog
+	VxlReadMultipleEntriesLog
+	VxlSeverityToText
+
+	KexNtQuerySystemTime
+	KexNtCreateUserProcess
+	KexNtProtectVirtualMemory
+	KexNtAllocateVirtualMemory
+	KexNtQueryVirtualMemory
+	KexNtFreeVirtualMemory
+	KexNtQueryObject
+	KexNtRaiseHardError
+	KexNtOpenKeyEx
