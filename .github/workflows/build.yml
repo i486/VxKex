@@ -1,0 +1,221 @@
+name: Build, Release
+
+on:
+  push:
+    # branches: [ main ]
+    tags:
+      - '*'
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to build and release (leave empty to build HEAD)'
+        required: false
+        type: string
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Determine build info
+        id: build_info
+        shell: bash
+        run: |
+          # Determine if this is a tagged release or just a build
+          if [ "${{ github.event_name }}" == "push" ] && [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            # Pushed a tag - this is a release
+            tag="${GITHUB_REF#refs/tags/}"
+            echo "is_release=true" >> $GITHUB_OUTPUT
+            echo "tag=$tag" >> $GITHUB_OUTPUT
+            echo "artifact_name=VxKex-$tag" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ -n "${{ github.event.inputs.tag }}" ]; then
+            # Manual dispatch with tag specified - this is a release
+            echo "is_release=true" >> $GITHUB_OUTPUT
+            echo "tag=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+            echo "artifact_name=VxKex-${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+          else
+            # Regular push/PR/manual without tag - artifact only
+            short_sha=$(echo "${{ github.sha }}" | cut -c1-7)
+            echo "is_release=false" >> $GITHUB_OUTPUT
+            echo "tag=" >> $GITHUB_OUTPUT
+            echo "artifact_name=VxKex-build-$short_sha" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Prepare Win7SDK Compiler
+        shell: powershell
+        run: |
+          $sdkUrl = "https://github.com/i486/W7SDK/releases/download/W7SDK-v1/W7SDK-v1.zip"
+          $sdkZip = "W7SDK-v1.zip"
+          $expectedHash = "8d90703130c4bc735fa215ee14cddf868e27c156b72065c434ec747d5f120d44"
+
+          Write-Host "Downloading Windows 7 SDK..."
+          aria2c -x 16 -s 16 -k 1M $sdkUrl
+
+          Write-Host "Verifying SHA256 hash..."
+          $actualHash = (Get-FileHash $sdkZip -Algorithm SHA256).Hash.ToLower()
+          if ($actualHash -ne $expectedHash) {
+            Write-Error "SDK hash mismatch. Expected $expectedHash but got $actualHash"
+            exit 1
+          }
+          Write-Host "Hash verification passed"
+
+          Write-Host "Extracting SDK with 7-Zip..."
+          7z x $sdkZip -oW7SDK -y
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "7-Zip extraction failed"
+            exit 1
+          }
+
+          Write-Host "Copying SDK files..."
+          Copy-Item "W7SDK\Program Files\*" "C:\Program Files\" -Recurse -Force
+          Copy-Item "W7SDK\Program Files (x86)\*" "C:\Program Files (x86)\" -Recurse -Force
+
+          Write-Host "Copying vcredist files..."
+          Copy-Item "W7SDK\vcredist\x64\*" "C:\Windows\System32\" -Force
+          Copy-Item "W7SDK\vcredist\x86\*" "C:\Windows\SysWOW64\" -Force
+
+          Write-Host "Importing registry settings..."
+          reg import "W7SDK\Registry\W7SDK.reg"
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Registry import failed"
+            exit 1
+          }
+
+          Write-Host "Registering MSBuild CPPTasks in GAC..."
+          $gacutil = "C:\Program Files\Microsoft SDKs\Windows\v7.1\Bin\NETFX 4.0 Tools\x64\gacutil.exe"
+
+          $dlls = @(
+            "C:\Program Files (x86)\MSBuild\Microsoft.Cpp\v4.0\Microsoft.Build.CPPTasks.Common.dll",
+            "C:\Program Files (x86)\MSBuild\Microsoft.Cpp\v4.0\Platforms\Itanium\Microsoft.Build.CPPTasks.Itanium.dll",
+            "C:\Program Files (x86)\MSBuild\Microsoft.Cpp\v4.0\Platforms\Win32\Microsoft.Build.CPPTasks.Win32.dll",
+            "C:\Program Files (x86)\MSBuild\Microsoft.Cpp\v4.0\Platforms\x64\Microsoft.Build.CPPTasks.x64.dll"
+          )
+
+          foreach ($dll in $dlls) {
+            & $gacutil /i $dll
+            if ($LASTEXITCODE -ne 0) {
+              Write-Error "Failed to register $dll in GAC"
+              exit 1
+            }
+          }
+
+          Write-Host "Win7SDK Compiler preparation complete"
+
+      - name: Build x64 Release
+        shell: cmd
+        run: |
+          call "C:\Program Files\Microsoft SDKs\Windows\v7.1\Bin\SetEnv.cmd" /x64 2>nul
+          msbuild "VxKex.sln" /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=Windows7.1SDK /m
+
+          if errorlevel 1 (
+            echo Failed to build x64 Release configuration
+            exit /b 1
+          )
+
+          echo x64 Release build successful
+
+      - name: Build Win32 Release
+        shell: cmd
+        run: |
+          call "C:\Program Files\Microsoft SDKs\Windows\v7.1\Bin\SetEnv.cmd" /x86 2>nul
+          msbuild "VxKex.sln" /p:Configuration=Release /p:Platform=Win32 /p:PlatformToolset=Windows7.1SDK /m
+
+          if errorlevel 1 (
+            echo Failed to build Win32 Release configuration
+            exit /b 1
+          )
+
+          echo Win32 Release build successful
+
+      - name: Build x64 Debug
+        shell: cmd
+        run: |
+          call "C:\Program Files\Microsoft SDKs\Windows\v7.1\Bin\SetEnv.cmd" /x64 2>nul
+          msbuild "VxKex.sln" /p:Configuration=Debug /p:Platform=x64 /p:PlatformToolset=Windows7.1SDK /m
+
+          if errorlevel 1 (
+            echo Failed to build x64 Debug configuration
+            exit /b 1
+          )
+
+          echo x64 Debug build successful
+
+      - name: Build Win32 Debug
+        shell: cmd
+        run: |
+          call "C:\Program Files\Microsoft SDKs\Windows\v7.1\Bin\SetEnv.cmd" /x86 2>nul
+          msbuild "VxKex.sln" /p:Configuration=Debug /p:Platform=Win32 /p:PlatformToolset=Windows7.1SDK /m
+
+          if errorlevel 1 (
+            echo Failed to build Win32 Debug configuration
+            exit /b 1
+          )
+
+          echo Win32 Debug build successful
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: ${{ steps.build_info.outputs.artifact_name }}
+          path: |
+            KexSetup_Release.exe
+            KexSetup_Debug.exe
+          if-no-files-found: warn
+
+      - name: Create Release
+        if: steps.build_info.outputs.is_release == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.build_info.outputs.tag }}
+          name: ${{ steps.build_info.outputs.tag }}
+          prerelease: true
+          files: |
+            KexSetup_Release.exe
+            KexSetup_Debug.exe
+          body: |
+            ## VxKex Build - ${{ steps.build_info.outputs.tag }}
+            
+            Built from tag: `${{ steps.build_info.outputs.tag }}`
+            
+            ### Files included:
+            - `KexSetup_Release.exe` - Release build
+            - `KexSetup_Debug.exe` - Debug build
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Summary
+        if: success()
+        shell: powershell
+        run: |
+          Write-Host "================================================"
+          Write-Host "BUILD COMPLETED SUCCESSFULLY"
+          Write-Host "================================================"
+          
+          if ("${{ steps.build_info.outputs.is_release }}" -eq "true") {
+            Write-Host "Type: RELEASE"
+            Write-Host "Tag: ${{ steps.build_info.outputs.tag }}"
+            Write-Host "Release URL: https://github.com/${{ github.repository }}/releases/tag/${{ steps.build_info.outputs.tag }}"
+          } else {
+            Write-Host "Type: ARTIFACT ONLY (no release created)"
+            Write-Host "Commit: ${{ github.sha }}"
+          }
+          
+          Write-Host ""
+          Write-Host "Configurations built:"
+          Write-Host "  - x64 Release"
+          Write-Host "  - Win32 Release"
+          Write-Host "  - x64 Debug"
+          Write-Host "  - Win32 Debug"
+          Write-Host ""
+          Write-Host "Artifact: ${{ steps.build_info.outputs.artifact_name }}"
+          Write-Host "================================================"
