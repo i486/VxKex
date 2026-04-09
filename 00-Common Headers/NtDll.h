@@ -4477,6 +4477,8 @@ NTSYSAPI BOOLEAN NTAPI RtlAddFunctionTable(
 	IN		ULONGLONG				BaseAddress);
 #endif
 
+NTSYSAPI LARGE_INTEGER NTAPI RtlGetSystemTimePrecise(VOID);
+
 #pragma endregion
 
 #pragma region Ldr* function declarations

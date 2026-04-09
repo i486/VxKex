@@ -397,6 +397,9 @@ KEXAPI NTSTATUS NTAPI KexRtlGenerateRandomData(
 	OUT	PVOID	RandomBuffer,
 	IN	ULONG	NumberOfBytesToGenerate);
 
+KEXAPI LARGE_INTEGER NTAPI KexRtlGetSystemTimePrecise(
+        VOID);
+
 #ifdef KEX_ARCH_X64
 #  define KexRtlCurrentProcessBitness() (64)
 #else

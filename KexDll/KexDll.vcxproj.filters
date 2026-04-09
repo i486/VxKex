@@ -146,6 +146,9 @@
     <ClCompile Include="ntobj.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="rtlgstp.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="KexDll.def">

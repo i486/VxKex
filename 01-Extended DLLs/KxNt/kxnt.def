@@ -25,6 +25,8 @@ EXPORTS
 	RtlSubscribeWnfStateChangeNotification		= KexDll.KexRtlSubscribeWnfStateChangeNotification
 	RtlAddGrowableFunctionTable					= KexDll.KexRtlAddGrowableFunctionTable
 
+	RtlGetSystemTimePrecise                     = KexDll.KexRtlGetSystemTimePrecise
+
 	ApiSetQueryApiSetPresence					= KexDll.ApiSetQueryApiSetPresence
 
 	EtwEventSetInformation						= KexDll.KexEtwEventSetInformation
