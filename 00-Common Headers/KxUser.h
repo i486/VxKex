@@ -238,52 +238,52 @@ typedef enum _FEEDBACK_TYPE {
 // pointer.c
 //
 
-BOOL WINAPI GetPointerDevices(
+KXUSERAPI BOOL WINAPI GetPointerDevices(
 	IN OUT	UINT32				*DeviceCount,
 	OUT		POINTER_DEVICE_INFO	*PointerDevices);
 
-BOOL WINAPI GetPointerType(
+KXUSERAPI BOOL WINAPI GetPointerType(
 	IN	DWORD				PointerId,
 	OUT	POINTER_INPUT_TYPE	*PointerType);
 
-BOOL WINAPI GetPointerInfo(
+KXUSERAPI BOOL WINAPI GetPointerInfo(
 	IN	DWORD			PointerId,
 	OUT	POINTER_INFO	*PointerInfo);
 
-BOOL WINAPI GetPointerTouchInfo(
+KXUSERAPI BOOL WINAPI GetPointerTouchInfo(
 	IN	DWORD	PointerId,
 	OUT	LPVOID	TouchInfo);
 
-BOOL WINAPI GetPointerFrameTouchInfo(
+KXUSERAPI BOOL WINAPI GetPointerFrameTouchInfo(
 	IN		DWORD	PointerId,
 	IN OUT	LPDWORD PointerCount,
 	OUT		LPVOID	TouchInfo);
 
-BOOL WINAPI GetPointerFrameTouchInfoHistory(
+KXUSERAPI BOOL WINAPI GetPointerFrameTouchInfoHistory(
 	IN		DWORD	PointerId,
 	IN OUT	DWORD	EntriesCount,
 	IN OUT	LPDWORD PointerCount,
 	OUT		LPVOID	TouchInfo);
 
-BOOL WINAPI GetPointerPenInfo(
+KXUSERAPI BOOL WINAPI GetPointerPenInfo(
 	IN	DWORD	PointerId,
 	OUT	LPVOID	PenInfo);
 
-BOOL WINAPI GetPointerPenInfoHistory(
+KXUSERAPI BOOL WINAPI GetPointerPenInfoHistory(
 	IN		DWORD	PointerId,
 	IN OUT	LPDWORD	EntriesCount,
 	OUT		LPVOID	PenInfo);
 
-BOOL WINAPI SkipPointerFrameMessages(
+KXUSERAPI BOOL WINAPI SkipPointerFrameMessages(
 	IN	DWORD	PointerId);
 
-BOOL WINAPI GetPointerDeviceRects(
+KXUSERAPI BOOL WINAPI GetPointerDeviceRects(
 	IN	HANDLE	Device,
 	OUT	LPRECT	PointerDeviceRect,
 	OUT	LPRECT	DisplayRect);
 
-BOOL WINAPI EnableMouseInPointer(
-	IN	BOOL	Enable);
+KXUSERAPI BOOL WINAPI EnableMouseInPointer(
+	IN	BOOL	Enabled);
 
 KXUSERAPI BOOL WINAPI RegisterPointerDeviceNotifications(
 	IN	HWND	Window,

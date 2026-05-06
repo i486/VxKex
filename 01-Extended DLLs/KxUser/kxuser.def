@@ -55,6 +55,8 @@ EXPORTS
 	RegisterPointerDeviceNotifications
 	GetWindowFeedbackSetting
 	SetWindowFeedbackSetting
+	IsMouseInPointerEnabled
+	EnableMouseInPointer
 
 	;;
 	;; pwrnotfy.c
@@ -73,6 +75,7 @@ EXPORTS
 	GetScaleFactorForMonitor
 	GetProcessDpiAwareness
 	GetProcessDpiAwarenessInternal
+	GetDpiAwarenessContextForProcess
 	SetProcessDpiAwareness
 	GetThreadDpiAwarenessContext
 	SetThreadDpiAwarenessContext

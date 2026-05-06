@@ -21,3 +21,10 @@ EXPORTS
 
 	;; uia.c
 	UiaRaiseNotificationEvent
+
+	;; imm.c
+	ImmDisableLegacyIME
+
+	;; wtsapi.c
+	WTSQuerySessionInformationA					= Ext_WTSQuerySessionInformationA
+	WTSQuerySessionInformationW					= Ext_WTSQuerySessionInformationW

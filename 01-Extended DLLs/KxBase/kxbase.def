@@ -85,6 +85,10 @@ EXPORTS
 	GetPackagePathByFullName2
 	GetCurrentPackageFamilyName
 
+	;; appstate.c
+	RegisterAppStateChangeNotification
+	UnregisterAppStateChangeNotification
+
 	;; synch.c
 	WaitOnAddress
 	WakeByAddressSingle					= KexDll.KexRtlWakeAddressSingle
@@ -136,6 +140,18 @@ EXPORTS
 	PathIsUNCEx
 
 	;;
+	;; Forwarders to kernel32
+	;;
+
+	TlsGetValue2						= kernel32.TlsGetValue
+
+	;;
+	;; Forwarders to KxNt
+	;;
+
+	InitializeCriticalSection			= KxNt.RtlInitializeCriticalSection
+
+	;;
 	;; Forwarders to KxAdvapi
 	;;
 
@@ -169,7 +185,9 @@ EXPORTS
 	GetVersionExA						= Ext_GetVersionExA
 
 	;; stubs.c
-	DuplicateHandle						= Ext_DuplicateHandle
+	DuplicateHandle						= Stub_DuplicateHandle
+	GetProcAddress						= Stub_GetProcAddress
+	VirtualAlloc						= Stub_VirtualAlloc
 
 	;; heap.c
 	HeapCreate							= Ext_HeapCreate

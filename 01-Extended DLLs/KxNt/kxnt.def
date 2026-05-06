@@ -25,24 +25,32 @@ EXPORTS
 	RtlSubscribeWnfStateChangeNotification		= KexDll.KexRtlSubscribeWnfStateChangeNotification
 	RtlAddGrowableFunctionTable					= KexDll.KexRtlAddGrowableFunctionTable
 
+	;; The Stub_Ext_ stuff is for Themida, because Themida sets hooks on some things
+	;; and, just like Chromium, doesn't properly handle export forwarders.
+	RtlInitializeCriticalSection				= Stub_Ext_RtlInitializeCriticalSection
+	RtlInitializeCriticalSectionAndSpinCount	= KexDll.Ext_RtlInitializeCriticalSectionAndSpinCount
+	RtlInitializeCriticalSectionEx				= KexDll.Ext_RtlInitializeCriticalSectionEx
+
 	ApiSetQueryApiSetPresence					= KexDll.ApiSetQueryApiSetPresence
 
 	EtwEventSetInformation						= KexDll.KexEtwEventSetInformation
 
 	NtQueryInformationThread					= KexDll.Ext_NtQueryInformationThread
-	NtSetInformationThread						= KexDll.Ext_NtSetInformationThread
-	NtQueryInformationProcess					= KexDll.Ext_NtQueryInformationProcess
+	NtSetInformationThread						= Stub_Ext_NtSetInformationThread
+	NtQueryInformationProcess					= Stub_Ext_NtQueryInformationProcess
 	NtNotifyChangeKey							= KexDll.Ext_NtNotifyChangeKey
 	NtNotifyChangeMultipleKeys					= KexDll.Ext_NtNotifyChangeMultipleKeys
 	NtCreateSection								= KexDll.Ext_NtCreateSection
 	NtAssignProcessToJobObject					= KexDll.Ext_NtAssignProcessToJobObject
 	NtCompareObjects							= KexDll.NtCompareObjects
+	;NtQueryVirtualMemory						= Stub_NtQueryVirtualMemory
 
 	ZwQueryInformationThread					= KexDll.Ext_NtQueryInformationThread
-	ZwSetInformationThread						= KexDll.Ext_NtSetInformationThread
-	ZwQueryInformationProcess					= KexDll.Ext_NtQueryInformationProcess
+	ZwSetInformationThread						= Stub_Ext_NtSetInformationThread
+	ZwQueryInformationProcess					= Stub_Ext_NtQueryInformationProcess
 	ZwNotifyChangeKey							= KexDll.Ext_NtNotifyChangeKey
 	ZwNotifyChangeMultipleKeys					= KexDll.Ext_NtNotifyChangeMultipleKeys
 	ZwCreateSection								= KexDll.Ext_NtCreateSection
 	ZwAssignProcessToJobObject					= KexDll.Ext_NtAssignProcessToJobObject
 	ZwCompareObjects                            = KexDll.NtCompareObjects
+	;ZwQueryVirtualMemory						= Stub_NtQueryVirtualMemory

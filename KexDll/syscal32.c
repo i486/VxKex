@@ -15,12 +15,12 @@
 //
 // Environment:
 //
-//   Early process creation ONLY. For reasons of simplicity these functions
-//   are not thread safe at all.
+//   Any.
 //
 // Revision History:
 //
 //     vxiiduu              23-Oct-2022  Initial creation.
+//     vxiiduu              01-Feb-2026  Correct incorrect "Environment" section
 //
 ///////////////////////////////////////////////////////////////////////////////
 

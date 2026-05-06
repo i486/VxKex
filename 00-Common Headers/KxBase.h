@@ -401,7 +401,19 @@ typedef struct _PROCESS_MITIGATION_DEP_POLICY {
 	BOOLEAN			Permanent;
 } TYPEDEF_TYPE_NAME(PROCESS_MITIGATION_DEP_POLICY);
 
+typedef struct _PROCESS_MITIGATION_SYSTEM_CALL_DISABLE_POLICY {
+	union {
+		ULONG Flags;
 
+		struct {
+			ULONG DisallowWin32kSystemCalls : 1;
+			ULONG AuditDisallowWin32kSystemCalls : 1;
+			ULONG DisallowFsctlSystemCalls : 1;
+			ULONG AuditDisallowFsctlSystemCalls : 1;
+			ULONG ReservedFlags : 28;
+		};
+	};
+} TYPEDEF_TYPE_NAME(PROCESS_MITIGATION_SYSTEM_CALL_DISABLE_POLICY);
 
 DECLARE_HANDLE(HPSS);
 DECLARE_HANDLE(HPSSWALK);

@@ -26,6 +26,8 @@
 //     vxiiduu               26-Mar-2022  Initial creation.
 //     vxiiduu               26-Sep-2022  Add header.
 //     vxiiduu               04-Jul-2025  Correct SpareBytes[0x24] to SpareBytes[24]
+//     vxiiduu               04-Feb-2026  Add ImageFileExecutionOptions member to
+//                                        KUSER_SHARED_DATA
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -1869,6 +1871,7 @@ typedef struct _KUSER_SHARED_DATA {
 	ULONG								Wow64SharedInformation[0x10];
 	
 	USHORT								UserModeGlobalLogger[16];
+	ULONG								ImageFileExecutionOptions;
 	ULONG								LangGenerationCount;
 	ULONGLONG							Reserved5;
 	ULONGLONG VOLATILE					InterruptTimeBias;
@@ -3700,6 +3703,11 @@ NTSYSCALLAPI NTSTATUS NTAPI NtQueryDirectoryFile(
 	IN		PUNICODE_STRING				FileName OPTIONAL,
 	IN		BOOLEAN						RestartScan);
 
+NTSYSCALLAPI NTSTATUS NTAPI NtOpenEvent(
+	OUT	PHANDLE				EventHandle,
+	IN	ACCESS_MASK			DesiredAccess,
+	IN	POBJECT_ATTRIBUTES	ObjectAttributes);
+
 NTSYSCALLAPI NTSTATUS NTAPI NtCreateEvent(
 	OUT		PHANDLE				EventHandle,
 	IN		ACCESS_MASK			DesiredAccess,
@@ -3815,6 +3823,11 @@ NTSYSCALLAPI NTSTATUS NTAPI NtSetTimerResolution(
 	IN		ULONG		DesiredResolution,
 	IN		BOOLEAN		SetResolution,
 	OUT		PULONG		CurrentResolution);
+
+NTSYSCALLAPI NTSTATUS NTAPI NtRaiseException(
+	IN	PEXCEPTION_RECORD	ExceptionRecord,
+	IN	PCONTEXT			ContextRecord,
+	IN	BOOLEAN				FirstChance);
 
 #pragma endregion
 

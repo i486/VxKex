@@ -31,6 +31,7 @@
 //                                       to fix a rare bug where memory protections
 //                                       of executable pages can get clobbered and
 //                                       cause a crash.
+//     vxiiduu              27-Apr-2026  Add the ability to undo DLL rewriting.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -483,6 +484,17 @@ BOOLEAN KexShouldRewriteImportsOfDll(
 		}
 
 		//
+		// APPSPECIFICHACK: This is some kind of .NET DLL which will crash with an
+		// access violation if we rewrite its imports. It is found in Unity games.
+		//
+
+		RtlInitConstantUnicodeString(&TargetDllName, L"mono-2.0-bdwgc.dll");
+
+		if (RtlEqualUnicodeString(&BaseDllName, &TargetDllName, TRUE)) {
+			return FALSE;
+		}
+
+		//
 		// APPSPECIFICHACK: Although Mirillis Action supports Windows 7, it installs
 		// global hooks which cause crashes when dxgi is rewritten to kxdx.
 		//
@@ -507,9 +519,9 @@ BOOLEAN KexShouldRewriteImportsOfDll(
 }
 
 NTSTATUS KexRewriteImageImportDirectory(
-	IN	PVOID					ImageBase,
-	IN	PCUNICODE_STRING		BaseImageName,
-	IN	PCUNICODE_STRING		FullImageName)
+	IN		PVOID						ImageBase,
+	IN		PCUNICODE_STRING			BaseImageName,
+	IN		PCUNICODE_STRING			FullImageName)
 {
 	NTSTATUS Status;
 	PIMAGE_NT_HEADERS NtHeaders;

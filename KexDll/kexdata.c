@@ -50,7 +50,7 @@ KEX_PROCESS_DATA _KexData = {
 	NULL,														// NativeSystemDllBase
 	NULL,														// BaseDllBase
 	NULL,														// BaseNamedObjects
-	NULL,														// UntrustedBaseNamedObjects
+	NULL,														// UntrustedNamedObjects
 	NULL,														// KsecDD
 };
 

@@ -48,7 +48,7 @@ NTSTATUS KexDisableAVrf(
 		return STATUS_UNSUCCESSFUL;
 	}
 
-	Status = KexLdrFindDllInitRoutine(
+	Status = KexLdrFindImageEntryPoint(
 		VerifierDllBase,
 		(PPVOID) &VerifierDllMain);
 

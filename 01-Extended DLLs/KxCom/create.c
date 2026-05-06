@@ -59,7 +59,7 @@ STATIC VOID EnsureCOMInitialized(
 		// combase.dll called InternalSetAptCallCtrlOnTlsIfRequired, which simply
 		// initializes OleTlsData->pCallCtrl in much the same way we're doing here.
 		//
-		// This internal function is imported by ole32.dll. However, it does not seem
+		// That internal function is imported by ole32.dll. However, it does not seem
 		// to get called in any different scenarios other than in the same places
 		// CAptCallCtrl::CAptCallCtrl gets called on Windows 7, so I don't know why
 		// this pCallCtrl == NULL issue doesn't appear on Windows 10.

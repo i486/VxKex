@@ -36,6 +36,12 @@
     <ClCompile Include="uia.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="imm.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="wtsapi.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="buildcfg.h">

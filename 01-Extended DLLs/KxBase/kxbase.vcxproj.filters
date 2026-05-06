@@ -77,9 +77,6 @@
     <ClCompile Include="cfgmgr.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="stubs.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="token.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -90,6 +87,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="handle.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="appstate.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="stubs.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -30,6 +30,7 @@
 //     vxiiduu              21-Mar-2024  Fix propagation again for 32-bit
 //	   vxiiduu				20-May-2024  Remove useless fallback code in
 //										 Ext_NtCreateUserProcess.
+//     vxiiduu              04-Feb-2026  Add source code for assembly hooks
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -53,6 +54,75 @@ STATIC ULONG_PTR NativeNtOpenKeyRva;
 STATIC ULONG_PTR Wow64NtOpenKeyRva;
 STATIC NT_WOW64_QUERY_INFORMATION_PROCESS64 NtWow64QueryInformationProcess64;
 STATIC NT_WOW64_WRITE_VIRTUAL_MEMORY64 NtWow64WriteVirtualMemory64;
+
+//
+// KexpNtOpenKeyHook32:
+//		;; Get the address of the data segment. We need to use a "call" to get
+//		;; an address relative to IP, since this is position independent code.
+//
+//		call		.GetDataSegmentPointer
+// .GetDataSegmentPointer:
+//		pop			eax
+//		add			eax, 6
+//		jmp			.CodeSegment
+//
+// ;; DATA SEGMENT
+// .DataSegment:
+// .bAlreadyRewritten:
+//	db			0
+//
+// .usRewrittenRegKeyName:
+// .usLength:		dw	0x38
+// .usMaximumLength:dw	0x3A
+// .usBuffer:		dd	0
+// .usText:			dw	'{','V','x','K','e','x','P','r','o','p','a','g','a','t'
+//					dw	'i','o','n','V','i','r','t','u','a','l','K','e','y','}',0
+// ;; END OF DATA SEGMENT
+//
+// .CodeSegment:
+//		;; Check if we've already rewritten the key name, and if so, don't do it again.
+//		cmp			[eax], 0							; check if bAlreadyRewritten == 1
+//		jnz			.DontRewrite						; if so, don't rewrite reg key name
+//
+//		;; Clear RTL_USER_PROCESS_PARAMETERS_IMAGE_KEY_MISSING flag.
+//		mov			edx, fs:0x30						; get PEB address
+//		mov			edx, [edx+0x10]						; get Peb->ProcessParameters
+//		and			dword [edx+8], ~0x4000				; Peb->ProcessParameters->Flags &= ~(RTL_USER_PROCESS_PARAMETERS_IMAGE_KEY_MISSING)
+//
+//		;; If ObjectAttributes->RootDirectory is NULL, don't rewrite.
+//		mov			edx, [esp+0x0C]						; get ObjectAttributes address
+//		mov			ecx, [edx+4]						; get ObjectAttributes->RootDirectory
+//		test		ecx, ecx							; if ObjectAttributes->RootDirectory == NULL
+//		jz			.DontRewrite						; if it's NULL, then don't rewrite
+//
+//		;; Rewrite the reg key name.
+//		inc			byte [eax]							; set bAlreadyRewritten = 1
+//		lea			ecx, [eax+1]						; ecx = &usRewrittenRegKeyName
+//		add			eax, 9								; eax = &usText
+//		mov			[ecx+4], eax						; usBuffer = &usText
+//		mov			[edx+8], ecx						; ObjectAttributes->ObjectName = &usRewrittenRegKeyName
+//
+// .DontRewrite:
+//		mov			eax, 0xB6							; NtOpenKey syscall ID for 32-bit Windows 7
+//
+//		;; Check if we're running on Wow64 or native 32-bit.
+//		;; If Wow64, SharedUserData->SystemCall will be zero.
+//		mov			edx, 0x7FFE0300						; edx = &SharedUserData->SystemCall
+//		cmp			dword [edx], 0						; check if SharedUserData->SystemCall == 0
+//		jz			.Wow64								; if so, we are running on wow64
+//
+//		;; We're running on native 32 bit.
+//		;; Required eax and edx values were set up by above code.
+//		call		[edx]
+//		ret			0x0C
+//
+// .Wow64:
+//		mov			eax, 0x0F							; NtOpenKey syscall ID for 64-bit Windows 7
+//		xor			ecx, ecx
+//		lea			edx, [esp+0x04]
+//		call		fs:0xC0
+//		add			esp, 4
+//		ret			0x0C
 
 STATIC CONST BYTE KexpNtOpenKeyHook32[] = {
 	0xE8, 0x00, 0x00, 0x00, 0x00, 0x58, 0x83, 0xC0, 0x06, 0xEB, 0x43, 0x00, 0x38, 0x00, 0x3A, 0x00,

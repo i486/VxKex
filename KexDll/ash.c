@@ -21,6 +21,8 @@
 //     vxiiduu              16-Feb-2024  Initial creation.
 //     vxiiduu              03-Jan-2026  Do not consider files in %WinDir%\Temp
 //                                       as Windows files.
+//     vxiiduu              22-Feb-2026  Remove qt6 kerning hack, as it seems to
+//                                       no longer be needed for qbittorrent.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -161,26 +163,6 @@ KEXAPI BOOLEAN NTAPI AshModuleIsWindowsModule(
 	} else {
 		return FALSE;
 	}
-}
-
-VOID AshApplyQBittorrentEnvironmentVariableHacks(
-	VOID)
-{
-	UNICODE_STRING VariableName;
-	UNICODE_STRING VariableValue;
-
-	ASSERT (AshExeBaseNameIs(L"qbittorrent.exe"));
-
-	//
-	// APPSPECIFICHACK: Applying the environment variable below will eliminate
-	// the problem of bad kerning from qBittorrent. If more Qt apps are found
-	// which have bad kerning, this may help fix those too.
-	//
-
-	KexLogInformationEvent(L"App-Specific Hack applied for qBittorrent");
-	RtlInitConstantUnicodeString(&VariableName, L"QT_SCALE_FACTOR");
-	RtlInitConstantUnicodeString(&VariableValue, L"1.0000001");
-	RtlSetEnvironmentVariable(NULL, &VariableName, &VariableValue);
 }
 
 VOID AshApplyNodeJSEnvironmentVariableHacks(

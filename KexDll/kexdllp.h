@@ -15,6 +15,7 @@
 // Revision History:
 //
 //     vxiiduu              18-Oct-2022  Initial creation.
+//     vxiiduu              22-Feb-2026  Remove qt6 kerning hack.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -44,6 +45,18 @@ typedef enum _KEX_DWRITE_IMPLEMENTATION {
 	DWriteNoImplementation,
 	DWriteWindows10Implementation
 } TYPEDEF_TYPE_NAME(KEX_DWRITE_IMPLEMENTATION);
+
+typedef struct _KEX_DLL_REWRITE_UNDO_ENTRY {
+	PVOID		Location;			// The location at which to write the undo data to undo the DLL rewrite.
+	ULONG		NumberOfBytes;		// Number of bytes to write at the location.
+	BYTE		UndoData[];			// Bytes to write at the location.
+} TYPEDEF_TYPE_NAME(KEX_DLL_REWRITE_UNDO_ENTRY);
+
+typedef struct _KEX_DLL_REWRITE_UNDO_LIST {
+	ULONG		BytesAllocated;
+	ULONG		BytesUsed;
+	PVOID		UndoEntries;
+} TYPEDEF_TYPE_NAME(KEX_DLL_REWRITE_UNDO_LIST);
 
 //
 // Protected Function Macros should be used on every function in KexDll.
@@ -79,9 +92,6 @@ ULONG KexDllProtectedFunctionExceptionFilter(
 //
 // ash.c
 //
-
-VOID AshApplyQBittorrentEnvironmentVariableHacks(
-	VOID);
 
 VOID AshApplyNodeJSEnvironmentVariableHacks(
 	VOID);
@@ -140,9 +150,9 @@ BOOLEAN KexShouldRewriteImportsOfDll(
 	IN	PCUNICODE_STRING	FullDllName);
 
 NTSTATUS KexRewriteImageImportDirectory(
-	IN	PVOID					ImageBase,
-	IN	PCUNICODE_STRING		BaseImageName,
-	IN	PCUNICODE_STRING		FullImageName);
+	IN		PVOID						ImageBase,
+	IN		PCUNICODE_STRING			BaseImageName,
+	IN		PCUNICODE_STRING			FullImageName);
 
 NTSTATUS KexRewriteDllPath(
 	IN	PCUNICODE_STRING	DllPath,
@@ -154,6 +164,25 @@ NTSTATUS KexAddDllRewriteEntry(
 
 NTSTATUS KexRemoveDllRewriteEntry(
 	IN	PCUNICODE_STRING	DllName);
+
+//
+// dllundo.c
+//
+
+NTSTATUS KexInitializeUndoList(
+	OUT		PKEX_DLL_REWRITE_UNDO_LIST	UndoList);
+
+VOID KexFreeUndoList(
+	IN OUT	PKEX_DLL_REWRITE_UNDO_LIST	UndoList);
+
+NTSTATUS KexAddEntryUndoList(
+	IN		PKEX_DLL_REWRITE_UNDO_LIST	UndoList,
+	IN		PVOID						Location,
+	IN		ULONG						NumberOfBytes,
+	IN		PCVOID						UndoData);
+
+NTSTATUS KexPerformRollbackUndoList(
+	IN		PCKEX_DLL_REWRITE_UNDO_LIST	UndoList);
 
 //
 // kexdata.c

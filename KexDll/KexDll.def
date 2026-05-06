@@ -69,7 +69,8 @@ EXPORTS
 	KexLdrGetRemoteSystemDllBase
 	KexLdrGetNativeSystemDllBase
 	KexLdrMiniGetProcedureAddress
-	KexLdrFindDllInitRoutine
+	KexLdrFindDllInitRoutine = KexLdrFindImageEntryPoint
+	KexLdrFindImageEntryPoint
 	KexLdrGetDllFullName
 	KexLdrGetDllFullNameFromAddress
 	KexLdrGetImageImportSection
@@ -113,6 +114,10 @@ EXPORTS
 	Ext_NtNotifyChangeMultipleKeys
 	Ext_NtCreateSection
 	Ext_NtAssignProcessToJobObject
+
+	Ext_RtlInitializeCriticalSection
+	Ext_RtlInitializeCriticalSectionAndSpinCount
+	Ext_RtlInitializeCriticalSectionEx
 
 	KexNtQuerySystemTime
 	KexNtCreateUserProcess

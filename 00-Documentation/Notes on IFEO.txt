@@ -42,6 +42,7 @@ CWDIllegalInDllSearch
   0x00000001 - Blocks a DLL load from the current working directory if the CWD is a WebDAV folder
   0x00000002 - Blocks a DLL load from the current working directory if the CWD is a remote folder
 
+ExecuteOptions (32-bit only)
 DisableHeapLookaside
 
 ShutdownFlags

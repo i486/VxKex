@@ -23,12 +23,14 @@ STATIC CONST UNICODE_STRING DllRedirects[][2] = {
 	DLL_REDIRECT("user32",										"kxuser"			)
 	DLL_REDIRECT("uiautomationcore",							"kxmi"				)
 	DLL_REDIRECT("coremessaging",								"kxmi"				)
+	DLL_REDIRECT("imm32",										"kxmi"				)
 	
 	DLL_REDIRECT("combase",										"kxcom"				)
 	DLL_REDIRECT("ole32",										"kxcom"				)
 
 	DLL_REDIRECT("msvcrt",										"kxcrt"				)
 	
+	DLL_REDIRECT("d3d11",										"kxdx"				)
 	DLL_REDIRECT("d3d12",										"kxdx"				)
 	DLL_REDIRECT("d2d1",										"kxdx"				)
 	DLL_REDIRECT("dcomp",										"kxdx"				)
@@ -40,6 +42,7 @@ STATIC CONST UNICODE_STRING DllRedirects[][2] = {
 	DLL_REDIRECT("userenv",										"kxmi"				)
 	DLL_REDIRECT("version",										"kxmi"				)
 	DLL_REDIRECT("wldp",										"kxmi"				)
+	DLL_REDIRECT("wtsapi32",									"kxmi"				)
 
 	DLL_REDIRECT("dnsapi",										"kxnet"				)
 	DLL_REDIRECT("winhttp",										"kxnet"				)
@@ -94,6 +97,7 @@ STATIC CONST UNICODE_STRING DllRedirects[][2] = {
 	DLL_REDIRECT("api-ms-win-core-processtopology-obsolete",	"kxbase"			)
 	DLL_REDIRECT("api-ms-win-core-profile",						"kxbase"			)
 	DLL_REDIRECT("api-ms-win-core-psapi",						"kxbase"			)
+	DLL_REDIRECT("api-ms-win-core-psm-appnotify",				"kxbase"			)
 	DLL_REDIRECT("api-ms-win-core-quirks",						"kxbase"			)
 	DLL_REDIRECT("api-ms-win-core-realtime",					"kxbase"			)
 	DLL_REDIRECT("api-ms-win-core-registry",					"kxadvapi"			)

@@ -6,6 +6,9 @@ EXPORTS
 	CreateDXGIFactory1 = Ext_CreateDXGIFactory1
 	CreateDXGIFactory2
 	D2D1CreateFactory = Ext_D2D1CreateFactory		@1
+
+	;; d3d11on12.c
+	D3D11On12CreateDevice
 	
 	;; dx12stub.c
 	;; These must be exported with ordinal. A lot of programs import by ordinal

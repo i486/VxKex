@@ -27,7 +27,7 @@
 #include "buildcfg.h"
 #include "kxbasep.h"
 
-KXBASEAPI BOOL WINAPI Ext_DuplicateHandle(
+KXBASEAPI BOOL WINAPI Stub_DuplicateHandle(
 	IN	HANDLE		SourceProcessHandle,
 	IN	HANDLE		SourceHandle,
 	IN	HANDLE		TargetProcessHandle,
@@ -44,4 +44,26 @@ KXBASEAPI BOOL WINAPI Ext_DuplicateHandle(
 		DesiredAccess,
 		Inherit,
 		Options);
+}
+
+KXBASEAPI FARPROC WINAPI Stub_GetProcAddress(
+	IN	HMODULE		ModuleHandle,
+	IN	PCSTR		ProcedureName)
+{
+	return GetProcAddress(
+		ModuleHandle,
+		ProcedureName);
+}
+
+KXBASEAPI PVOID WINAPI Stub_VirtualAlloc(
+	IN	PVOID		Address OPTIONAL,
+	IN	SIZE_T		Size,
+	IN	ULONG		AllocationType,
+	IN	ULONG		ProtectionMask)
+{
+	return VirtualAlloc(
+		Address,
+		Size,
+		AllocationType,
+		ProtectionMask);
 }

@@ -109,13 +109,6 @@ KXUSERAPI BOOL WINAPI GetPointerDeviceRects(
 	return TRUE;
 }
 
-KXUSERAPI BOOL WINAPI EnableMouseInPointer(
-	IN	BOOL	Enable)
-{
-	RtlSetLastWin32Error(ERROR_NOT_SUPPORTED);
-	return FALSE;
-}
-
 KXUSERAPI BOOL WINAPI RegisterPointerDeviceNotifications(
 	IN	HWND	Window,
 	IN	BOOL	NotifyRange)
@@ -183,4 +176,21 @@ KXUSERAPI BOOL WINAPI SetWindowFeedbackSetting(
 
 	RtlSetLastWin32Error(ERROR_NOT_SUPPORTED);
 	return FALSE;
+}
+
+KXUSERAPI BOOL WINAPI IsMouseInPointerEnabled(
+	VOID)
+{
+	return FALSE;
+}
+
+KXUSERAPI BOOL WINAPI EnableMouseInPointer(
+	IN	BOOL	Enabled)
+{
+	if (Enabled == TRUE) {
+		RtlSetLastWin32Error(ERROR_NOT_SUPPORTED);
+		return FALSE;
+	}
+
+	return TRUE;
 }

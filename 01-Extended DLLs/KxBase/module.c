@@ -70,7 +70,7 @@ KXBASEAPI HMODULE WINAPI Ext_GetModuleHandleA(
 {
 	HMODULE ModuleHandle;
 	BOOLEAN ReEntrant;
-
+	
 	InterceptedKernelBaseLoaderCallEntry(&ReEntrant);
 	ModuleHandle = GetModuleHandleA(ModuleName);
 	InterceptedKernelBaseLoaderCallReturn(ReEntrant);

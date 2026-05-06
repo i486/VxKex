@@ -439,7 +439,7 @@ KEXAPI NTSTATUS NTAPI KexLdrMiniGetProcedureAddress(
 	IN	PCSTR	ProcedureName,
 	OUT	PPVOID	ProcedureAddress);
 
-KEXAPI NTSTATUS NTAPI KexLdrFindDllInitRoutine(
+KEXAPI NTSTATUS NTAPI KexLdrFindImageEntryPoint(
 	IN	PVOID	DllBase,
 	OUT	PPVOID	InitRoutine);
 
@@ -614,6 +614,13 @@ VOID KexMessageBoxF(
 
 KEXAPI NTSTATUS NTAPI KexPatchCpiwSubsystemVersionCheck(
 	VOID);
+
+//
+// critsect.c
+//
+
+KEXAPI NTSTATUS NTAPI Ext_RtlInitializeCriticalSection(
+	IN	PRTL_CRITICAL_SECTION	CriticalSection);
 
 //
 // System Service Extensions/Hooks

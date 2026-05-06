@@ -107,7 +107,7 @@ NTSTATUS NTAPI KexLdrGetDllFullNameFromAddress(
 //
 // Find location of a DLL's init routine (i.e. DllMain).
 //
-NTSTATUS NTAPI KexLdrFindDllInitRoutine(
+NTSTATUS NTAPI KexLdrFindImageEntryPoint(
 	IN	PVOID	DllBase,
 	OUT	PPVOID	InitRoutine)
 {

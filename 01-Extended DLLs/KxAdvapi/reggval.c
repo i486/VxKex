@@ -88,7 +88,7 @@ KXADVAPI LSTATUS WINAPI Ext_RegGetValueW(
 //   - does not contain RRF_NOEXPAND
 // the function will fail with ERROR_INVALID_PARAMETER.
 //
-// In other words, RegGetValue on Wind ows 7 will refuse to automatically
+// In other words, RegGetValue on Windows 7 will refuse to automatically
 // expand REG_EXPAND_SZ values. RegGetValue on Windows 8.1 and above will
 // automatically expand these values.
 //

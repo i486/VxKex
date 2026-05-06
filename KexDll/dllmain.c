@@ -27,6 +27,8 @@
 //     vxiiduu              23-Feb-2024  Remove support for advanced logging.
 //     vxiiduu              23-Feb-2024  Remove unneeded debug logging
 //     vxiiduu              29-Nov-2025  Add NodeJS environment variable hack
+//     vxiiduu              22-Feb-2026  Remove QBittorrent scaling/kerning hack
+//                                       and add QBittorrent Win10 DWrite hack.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -209,9 +211,12 @@ BOOL WINAPI DllMain(
 
 		unless (KexData->IfeoParameters.DisableAppSpecific) {
 			if (AshExeBaseNameIs(L"qbittorrent.exe")) {
-				// APPSPECIFICHACK: Environment variable hack for QBittorrent to fix
-				// bad kerning.
-				AshApplyQBittorrentEnvironmentVariableHacks();
+				KexData->Flags |= KEXDATA_FLAG_QT6;
+
+				// APPSPECIFICHACK: Usually Qt6 applications get Win10 DWrite based on
+				// detection of loaded Qt6 DLLs. QBitTorrent has statically linked Qt6
+				// so we need to handle it specifically.
+				AshSelectDWriteImplementation(DWriteWindows10Implementation);
 			} else if (AshExeBaseNameIs(L"node.exe")) {
 				// APPSPECIFICHACK: Environment variable hack for NodeJS to fix a nag
 				// message about unsupported OS, which prevents the application from running.
@@ -246,7 +251,6 @@ BOOL WINAPI DllMain(
 
 			NOT_REACHED;
 		}
-
 	} else if (Reason == DLL_PROCESS_ATTACH && Descriptor == NULL) {
 		Status = LdrDisableThreadCalloutsForDll(DllBase);
 		ASSERT (NT_SUCCESS(Status));

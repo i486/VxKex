@@ -40,6 +40,8 @@
 
 #pragma comment(lib, "version.lib")
 #pragma comment(lib, "powrprof.lib")
+#pragma comment(lib, "imm32.lib")
+#pragma comment(lib, "wtsapi32.lib")
 
 #define KEX_COMPONENT L"KxMi"
 #define KEX_ENV_WIN32

@@ -59,10 +59,12 @@ KXUSERAPI DPI_AWARENESS_CONTEXT WINAPI SetThreadDpiAwarenessContext(
 
 	switch (DpiContext) {
 	case DPI_AWARENESS_CONTEXT_UNAWARE:
+	case DPI_AWARENESS_CONTEXT_UNAWARE_GDISCALED:
 		NOTHING;
 		break;
 	case DPI_AWARENESS_CONTEXT_SYSTEM_AWARE:
 	case DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE:
+	case DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2:
 		SetProcessDPIAware();
 		break;
 	default:
@@ -81,6 +83,7 @@ KXUSERAPI BOOL WINAPI SetProcessDpiAwarenessContext(
 {
 	switch (DpiContext) {
 	case DPI_AWARENESS_CONTEXT_UNAWARE:
+	case DPI_AWARENESS_CONTEXT_UNAWARE_GDISCALED:
 		NOTHING;
 		break;
 	case DPI_AWARENESS_CONTEXT_SYSTEM_AWARE:
@@ -142,6 +145,21 @@ KXUSERAPI HRESULT WINAPI GetProcessDpiAwareness(
 	}
 
 	return S_OK;
+}
+
+KXUSERAPI DPI_AWARENESS_CONTEXT WINAPI GetDpiAwarenessContextForProcess(
+	IN	HANDLE					ProcessHandle)
+{
+	if (ProcessHandle == NULL ||
+		ProcessHandle == NtCurrentProcess() ||
+		GetProcessId(ProcessHandle) == (ULONG) NtCurrentTeb()->ClientId.UniqueProcess) {
+
+		if (IsProcessDPIAware()) {
+			return DPI_AWARENESS_CONTEXT_SYSTEM_AWARE;
+		}
+	}
+
+	return DPI_AWARENESS_CONTEXT_UNAWARE;
 }
 
 KXUSERAPI BOOL WINAPI SetProcessDpiAwarenessInternal(
@@ -208,18 +226,6 @@ KXUSERAPI HRESULT WINAPI GetDpiForMonitor(
 	*DpiX = GetDeviceCaps(DeviceContext, LOGPIXELSX);
 	*DpiY = GetDeviceCaps(DeviceContext, LOGPIXELSY);
 
-	if (DpiType == MDT_EFFECTIVE_DPI) {
-		DEVICE_SCALE_FACTOR ScaleFactor;
-
-		// We have to multiply the DPI values by the scaling factor.
-		GetScaleFactorForMonitor(Monitor, &ScaleFactor);
-
-		*DpiX *= ScaleFactor;
-		*DpiY *= ScaleFactor;
-		*DpiX /= 100;
-		*DpiY /= 100;
-	}
-
 	ReleaseDC(NULL, DeviceContext);
 	return S_OK;
 }
@@ -282,10 +288,6 @@ KXUSERAPI BOOL WINAPI AdjustWindowRectExForDpi(
 	IN		ULONG	WindowExStyle,
 	IN		ULONG	Dpi)
 {
-	// I'm not sure how to implement this function properly.
-	// If it turns out to be important, I'll have to do some testing
-	// on a Win10 VM.
-
 	return AdjustWindowRectEx(
 		Rect,
 		WindowStyle,

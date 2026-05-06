@@ -155,6 +155,24 @@ KXBASEAPI BOOL WINAPI GetProcessMitigationPolicy(
 		}
 
 		return TRUE;
+	} else if (MitigationPolicy == ProcessSystemCallDisablePolicy) {
+		PPROCESS_MITIGATION_SYSTEM_CALL_DISABLE_POLICY SystemCallPolicy;
+
+		if (BufferCb != sizeof(PROCESS_MITIGATION_SYSTEM_CALL_DISABLE_POLICY)) {
+			BaseSetLastNTError(STATUS_INVALID_PARAMETER);
+			return FALSE;
+		}
+
+		SystemCallPolicy = (PPROCESS_MITIGATION_SYSTEM_CALL_DISABLE_POLICY) Buffer;
+
+		//
+		// Always set this to 0 because Win7 does not support disabling win32k or
+		// any other syscalls.
+		//
+
+		SystemCallPolicy->Flags = 0;
+
+		return TRUE;
 	} else if (MitigationPolicy == ProcessDEPPolicy) {
 		BOOLEAN Success;
 		PPROCESS_MITIGATION_DEP_POLICY DepPolicy;
