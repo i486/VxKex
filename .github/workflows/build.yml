@@ -1,0 +1,288 @@
+name: Build, Release
+
+on:
+  push:
+    branches: [ playground ]
+    tags:
+      - '*'
+  pull_request:
+    branches: [ playground ]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to build and release (leave empty to build HEAD)'
+        required: false
+        type: string
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Determine build info
+        id: build_info
+        shell: bash
+        run: |
+          # Determine if this is a tagged release or just a build
+          if [ "${{ github.event_name }}" == "push" ] && [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            # Pushed a tag - this is a release
+            tag="${GITHUB_REF#refs/tags/}"
+            echo "is_release=true" >> "$GITHUB_OUTPUT"
+            echo "tag=$tag" >> "$GITHUB_OUTPUT"
+            echo "artifact_name=VxKex-$tag" >> "$GITHUB_OUTPUT"
+            echo "file_suffix=$tag" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ -n "${{ github.event.inputs.tag }}" ]; then
+            # Manual dispatch with tag specified - this is a release
+            tag="${{ github.event.inputs.tag }}"
+            echo "is_release=true" >> "$GITHUB_OUTPUT"
+            echo "tag=$tag" >> "$GITHUB_OUTPUT"
+            echo "artifact_name=VxKex-$tag" >> "$GITHUB_OUTPUT"
+            echo "file_suffix=$tag" >> "$GITHUB_OUTPUT"
+          else
+            # Regular push/PR/manual without tag - artifact only
+            short_sha=$(echo "${{ github.sha }}" | cut -c1-7)
+            echo "is_release=false" >> "$GITHUB_OUTPUT"
+            echo "tag=" >> "$GITHUB_OUTPUT"
+            echo "artifact_name=VxKex-build-$short_sha" >> "$GITHUB_OUTPUT"
+            echo "file_suffix=$short_sha" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Cache Win7SDK
+        id: cache-sdk
+        uses: actions/cache@v6
+        with:
+          path: W7SDK
+          key: w7sdk-v1
+
+      - name: Download and extract Win7SDK
+        if: steps.cache-sdk.outputs.cache-hit != 'true'
+        shell: powershell
+        run: |
+          $sdkUrl = "https://github.com/i486/W7SDK/releases/download/W7SDK-v1/W7SDK-v1.zip"
+          $sdkZip = "W7SDK-v1.zip"
+          $expectedHash = "8d90703130c4bc735fa215ee14cddf868e27c156b72065c434ec747d5f120d44"
+
+          Write-Host "Downloading Windows 7 SDK..."
+          aria2c -x 16 -s 16 -k 1M --console-log-level=warn --summary-interval=0 $sdkUrl
+
+          Write-Host "Verifying SHA256 hash..."
+          $actualHash = (Get-FileHash $sdkZip -Algorithm SHA256).Hash.ToLower()
+          if ($actualHash -ne $expectedHash) {
+            Write-Error "SDK hash mismatch. Expected $expectedHash but got $actualHash"
+            exit 1
+          }
+          Write-Host "Hash verification passed"
+
+          Write-Host "Extracting SDK with 7-Zip..."
+          7z x $sdkZip -oW7SDK -y
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "7-Zip extraction failed"
+            exit 1
+          }
+
+      - name: Install Win7SDK Compiler
+        shell: powershell
+        run: |
+          function Invoke-RobocopySync {
+            param($Source, $Destination)
+            robocopy $Source $Destination /E /MT:32 /NFL /NDL /NJH /NJS /NP /R:1 /W:1
+            if ($LASTEXITCODE -ge 8) {
+              Write-Error "Robocopy failed copying '$Source' to '$Destination' (exit code $LASTEXITCODE)"
+              exit 1
+            }
+          }
+
+          Write-Host "Copying SDK files..."
+          Invoke-RobocopySync "W7SDK\Program Files" "C:\Program Files"
+          Invoke-RobocopySync "W7SDK\Program Files (x86)" "C:\Program Files (x86)"
+
+          Write-Host "Copying vcredist files..."
+          Invoke-RobocopySync "W7SDK\vcredist\x64" "C:\Windows\System32"
+          Invoke-RobocopySync "W7SDK\vcredist\x86" "C:\Windows\SysWOW64"
+
+          Write-Host "Importing registry settings..."
+          reg import "W7SDK\Registry\W7SDK.reg"
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Registry import failed"
+            exit 1
+          }
+
+          Write-Host "Registering MSBuild CPPTasks in GAC..."
+          $gacutil = "C:\Program Files\Microsoft SDKs\Windows\v7.1\Bin\NETFX 4.0 Tools\x64\gacutil.exe"
+
+          $dlls = @(
+            "C:\Program Files (x86)\MSBuild\Microsoft.Cpp\v4.0\Microsoft.Build.CPPTasks.Common.dll",
+            "C:\Program Files (x86)\MSBuild\Microsoft.Cpp\v4.0\Platforms\Itanium\Microsoft.Build.CPPTasks.Itanium.dll",
+            "C:\Program Files (x86)\MSBuild\Microsoft.Cpp\v4.0\Platforms\Win32\Microsoft.Build.CPPTasks.Win32.dll",
+            "C:\Program Files (x86)\MSBuild\Microsoft.Cpp\v4.0\Platforms\x64\Microsoft.Build.CPPTasks.x64.dll"
+          )
+
+          foreach ($dll in $dlls) {
+            & $gacutil /i $dll
+            if ($LASTEXITCODE -ne 0) {
+              Write-Error "Failed to register $dll in GAC"
+              exit 1
+            }
+          }
+
+          Write-Host "Win7SDK Compiler preparation complete"
+
+      - name: Build x64 Release
+        shell: cmd
+        run: |
+          call "C:\Program Files\Microsoft SDKs\Windows\v7.1\Bin\SetEnv.cmd" /x64 2>nul
+          msbuild "VxKex.sln" /p:Configuration=Release /p:Platform=x64 /m
+
+          if errorlevel 1 (
+            echo Failed to build x64 Release configuration
+            exit /b 1
+          )
+
+          echo x64 Release build successful
+
+      - name: Build Win32 Release
+        shell: cmd
+        run: |
+          call "C:\Program Files\Microsoft SDKs\Windows\v7.1\Bin\SetEnv.cmd" /x86 2>nul
+          msbuild "VxKex.sln" /p:Configuration=Release /p:Platform=Win32 /m
+
+          if errorlevel 1 (
+            echo Failed to build Win32 Release configuration
+            exit /b 1
+          )
+
+          echo Win32 Release build successful
+
+      - name: Build x64 Debug
+        shell: cmd
+        run: |
+          call "C:\Program Files\Microsoft SDKs\Windows\v7.1\Bin\SetEnv.cmd" /x64 2>nul
+          msbuild "VxKex.sln" /p:Configuration=Debug /p:Platform=x64 /m
+
+          if errorlevel 1 (
+            echo Failed to build x64 Debug configuration
+            exit /b 1
+          )
+
+          echo x64 Debug build successful
+
+      - name: Build Win32 Debug
+        shell: cmd
+        run: |
+          call "C:\Program Files\Microsoft SDKs\Windows\v7.1\Bin\SetEnv.cmd" /x86 2>nul
+          msbuild "VxKex.sln" /p:Configuration=Debug /p:Platform=Win32 /m
+
+          if errorlevel 1 (
+            echo Failed to build Win32 Debug configuration
+            exit /b 1
+          )
+
+          echo Win32 Debug build successful
+
+      # Rename outputs to include the tag (release) or short commit hash (non-release),
+      # e.g. KexSetup_Release_v1.2.3.exe / KexSetup_Release_a1b2c3d.exe
+      - name: Rename build outputs
+        id: rename
+        shell: bash
+        run: |
+          suffix="${{ steps.build_info.outputs.file_suffix }}"
+          release_name="KexSetup_Release_${suffix}.exe"
+          debug_name="KexSetup_Debug_${suffix}.exe"
+
+          mv "KexSetup_Release.exe" "$release_name"
+          mv "KexSetup_Debug.exe" "$debug_name"
+
+          echo "release_file=$release_name" >> "$GITHUB_OUTPUT"
+          echo "debug_file=$debug_name" >> "$GITHUB_OUTPUT"
+
+      - name: Upload Release Artifact
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          path: ${{ steps.rename.outputs.release_file }}
+          archive: false
+          if-no-files-found: warn
+
+      - name: Upload Debug Artifact
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          path: ${{ steps.rename.outputs.debug_file }}
+          archive: false
+          if-no-files-found: warn
+
+      - name: Check for existing release
+        id: check_release
+        if: steps.build_info.outputs.is_release == 'true'
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${{ steps.build_info.outputs.tag }}"
+          if gh release view "$tag" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "::warning::Release '$tag' already exists. Skipping release creation."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create Release
+        if: steps.build_info.outputs.is_release == 'true' && steps.check_release.outputs.exists != 'true'
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ steps.build_info.outputs.tag }}
+          name: ${{ steps.build_info.outputs.tag }}
+          draft: true
+          files: |
+            ${{ steps.rename.outputs.release_file }}
+            ${{ steps.rename.outputs.debug_file }}
+          body: |
+            ## VxKex Build - ${{ steps.build_info.outputs.tag }}
+
+            Built from tag: `${{ steps.build_info.outputs.tag }}`
+
+            ### Files included:
+            - `${{ steps.rename.outputs.release_file }}` - Release build
+            - `${{ steps.rename.outputs.debug_file }}` - Debug build
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Summary
+        if: success()
+        shell: bash
+        run: |
+          {
+            echo "### Build Summary"
+            echo ""
+            if [ "${{ steps.build_info.outputs.is_release }}" == "true" ]; then
+              if [ "${{ steps.check_release.outputs.exists }}" == "true" ]; then
+                echo "- **Type:** Release (skipped — tag already has a release)"
+              else
+                echo "- **Type:** Release"
+              fi
+              echo "- **Tag:** [${{ steps.build_info.outputs.tag }}](https://github.com/${{ github.repository }}/releases/tag/${{ steps.build_info.outputs.tag }})"
+            else
+              echo "- **Type:** Artifact only (no release created)"
+              if [ -n "${{ github.event.pull_request.html_url }}" ]; then
+                echo "- **Pull Request:** [#${{ github.event.pull_request.number }}](${{ github.event.pull_request.html_url }})"
+              fi
+              echo "- **Commit:** [${{ github.sha }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }})"
+            fi
+            echo ""
+            echo "**Configurations built:**"
+            echo "- x64 Release"
+            echo "- Win32 Release"
+            echo "- x64 Debug"
+            echo "- Win32 Debug"
+            echo ""
+            echo "**Files:**"
+            echo "- \`${{ steps.rename.outputs.release_file }}\`"
+            echo "- \`${{ steps.rename.outputs.debug_file }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
