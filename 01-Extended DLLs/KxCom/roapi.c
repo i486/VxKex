@@ -7,6 +7,17 @@ KXCOMAPI HRESULT WINAPI RoGetAgileReference(
 	IN	IUnknown	*pUnknown,
 	OUT	IUnknown	**AgileReference)
 {
-	KexLogWarningEvent(L"Unimplemented stub function RoGetAgileReference was called");
+	KexLogUnimplementedFunctionEvent();
+	return E_NOTIMPL;
+}
+
+KXCOMAPI HRESULT WINAPI RoGetParameterizedTypeInstanceIID(
+	IN	ULONG		NameElementCount,
+	IN	PPCWSTR		NameElements,
+	IN	PVOID		MetadataLocator,
+	OUT	LPGUID		Iid,
+	OUT	PVOID		Extra OPTIONAL)
+{
+	KexLogUnimplementedFunctionEvent();
 	return E_NOTIMPL;
 }

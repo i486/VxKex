@@ -144,39 +144,43 @@ VOID KexSetupCheckForPrerequisites(
 		WCHAR MainText[1024];
 		TASKDIALOGCONFIG TaskDialogConfig;
 		TASKDIALOG_BUTTON Buttons[] = {
-			{IDCANCEL, L"Cancel installation"},
-			{IDOK, L"Continue installation anyway\n"
-				   L"Without the prerequisites listed above, be aware that some "
-				   L"applications will not work, even with VxKex."},
+			{IDCANCEL, NULL},
+			{IDOK, NULL},
 		};
 
 		INT UserSelection;
 
+		Buttons[0].pszButtonText = _(L"Cancel installation");
+
+		Buttons[1].pszButtonText = _(L"Continue installation anyway\n"
+									 L"Without the prerequisites listed above, be aware that some "
+									 L"applications will not work, even with VxKex.");
+
 		StringCchCopy(
 			MainText,
-			ARRAYSIZE(MainText),
+			ARRAYSIZE(MainText), _(
 			L"Setup has detected that the following prerequisites were not installed on "
-			L"your computer:\r\n");
+			L"your computer:\r\n"));
 
 		if (!ServicePack1Present) {
 			StringCchCat(
 				MainText,
 				ARRAYSIZE(MainText),
-				L"\r\n    • Service Pack 1 (SP1) for Windows® 7");
+				_(L"\r\n    • Service Pack 1 (SP1) for Windows® 7"));
 		}
 
 		if (!DllDirectoriesUpdatePresent) {
 			StringCchCat(
 				MainText,
 				ARRAYSIZE(MainText),
-				L"\r\n    • Update KB2533623 (DllDirectories update)");
+				_(L"\r\n    • Update KB2533623 (DllDirectories update)"));
 		}
 
 		if (!PlatformUpdatePresent) {
 			StringCchCat(
 				MainText,
 				ARRAYSIZE(MainText),
-				L"\r\n    • Update KB2670838 (Platform Update)");
+				_(L"\r\n    • Update KB2670838 (Platform Update)"));
 		}
 
 		RtlZeroMemory(&TaskDialogConfig, sizeof(TaskDialogConfig));
@@ -184,14 +188,14 @@ VOID KexSetupCheckForPrerequisites(
 		TaskDialogConfig.dwFlags			= TDF_ALLOW_DIALOG_CANCELLATION |
 											  TDF_USE_COMMAND_LINKS |
 											  TDF_POSITION_RELATIVE_TO_WINDOW;
-		TaskDialogConfig.pszWindowTitle		= FRIENDLYAPPNAME;
+		TaskDialogConfig.pszWindowTitle		= _(FRIENDLYAPPNAME);
 		TaskDialogConfig.pszMainIcon		= TD_WARNING_ICON;
-		TaskDialogConfig.pszMainInstruction	= L"System requirements not met";
+		TaskDialogConfig.pszMainInstruction	= _(L"System requirements not met");
 		TaskDialogConfig.pszContent			= MainText;
 		TaskDialogConfig.cButtons			= ARRAYSIZE(Buttons);
 		TaskDialogConfig.pButtons			= Buttons;
 		TaskDialogConfig.nDefaultButton		= IDOK;
-		TaskDialogConfig.pszVerificationText= L"Don't show this warning again";
+		TaskDialogConfig.pszVerificationText= _(L"Don't show this warning again");
 
 		Result = TaskDialogIndirect(
 			&TaskDialogConfig,

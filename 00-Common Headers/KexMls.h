@@ -26,11 +26,8 @@
 
 #include <KexComm.h>
 
-#pragma comment(lib, "KexSmp.lib")
-
 #ifndef MLSAPI
 #  define MLSAPI
-#  pragma comment(lib, "KexMls.lib")
 #endif
 
 //
@@ -66,11 +63,6 @@ typedef struct _MLSP_DICTIONARY_HEADER {
 	ULONG	Version;
 	ULONG	NumberOfKeyValuePairs;
 } TYPEDEF_TYPE_NAME(MLSP_DICTIONARY_HEADER);
-
-typedef struct _MLSP_DICTIONARY_KEY_OR_VALUE {
-	ULONG	Cch;	// character count, not including null terminator
-	WCHAR	Text[]; // Text[Cch+1], null terminated
-} TYPEDEF_TYPE_NAME(MLSP_DICTIONARY_KEY_OR_VALUE);
 
 typedef struct _MLSP_DICTIONARY {
 	PCMLSP_DICTIONARY_HEADER	Header;

@@ -808,7 +808,8 @@ typedef struct {
 	D2D1_RENDERING_PRIORITY (STDMETHODCALLTYPE *GetRenderingPriority)(ID2D1Device1 *This);
 	VOID (STDMETHODCALLTYPE *SetRenderingPriority)(ID2D1Device1 *This, D2D1_RENDERING_PRIORITY RenderingPriority);
 
-	// there is one undocumented method, CreateDeviceContext. we won't deal with that now.
+	// Not the real data types. Unimplemented.
+	HRESULT (STDMETHODCALLTYPE *CreateDeviceContext)(ID2D1Device1 *This, ULONG Options, PPVOID DeviceContext);
 } ID2D1Device1Vtbl;
 
 interface ID2D1Device1 {

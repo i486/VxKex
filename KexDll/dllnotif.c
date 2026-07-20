@@ -19,6 +19,7 @@
 //     vxiiduu              18-Oct-2022  Initial creation.
 //     vxiiduu              23-Feb-2024  Change wording from "loaded" to "mapped"
 //                                       in order to better reflect reality.
+//     vxiiduu              19-May-2026  Move ASH stuff to ashdetec.c
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -47,10 +48,10 @@ VOID NTAPI KexDllNotificationCallback(
 {
 	NTSTATUS Status;
 	STATIC CONST PCWSTR ReasonToStringLookup[] = {
-		L"(unknown)",
+		L"(unknown: Reason=0)",
 		L"mapped",
 		L"unmapped",
-		L"(unknown)"
+		L"(unknown: Reason=3)"
 	};
 
 	KexLogDetailEvent(
@@ -66,26 +67,13 @@ VOID NTAPI KexDllNotificationCallback(
 	if (Reason == LDR_DLL_NOTIFICATION_REASON_LOADED) {
 		BOOLEAN ShouldRewriteImports;
 
-		ShouldRewriteImports = KexShouldRewriteImportsOfDll(
-			NotificationData->FullDllName);
+		ShouldRewriteImports = KexShouldRewriteStaticImportsOfDll(
+			NotificationData->FullDllName,
+			NotificationData->BaseDllName);
 
 		unless (KexData->IfeoParameters.DisableAppSpecific) {
 			if (ShouldRewriteImports) {
-				if (!(KexData->Flags & KEXDATA_FLAG_CHROMIUM)) {
-					//
-					// APPSPECIFICHACK: Perform heuristic-based Chromium detection if we don't
-					// already know that this is a Chromium process.
-					//
-					AshPerformChromiumDetectionFromLoadedDll(NotificationData);
-				}
-
-				if (!(KexData->Flags & KEXDATA_FLAG_QT6)) {
-					//
-					// APPSPECIFICHACK: Newer versions of Qt6 require Windows 10 DWrite.
-					// Otherwise, text is displayed as blank boxes.
-					//
-					AshPerformQt6DetectionFromLoadedDll(NotificationData);
-				}
+				AshDllLoadNotification(NotificationData);
 			}
 		}
 

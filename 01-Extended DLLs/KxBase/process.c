@@ -116,7 +116,7 @@ KXBASEAPI BOOL WINAPI SetProcessMitigationPolicy(
 
 		return SetProcessDEPPolicy(DepPolicy->Flags.AsUlong);
 	} else {
-		KexLogWarningEvent(
+		KexLogDebugEvent(
 			L"SetProcessMitigationPolicy called with unsupported MitigationPolicy value %d",
 			MitigationPolicy);
 
@@ -193,7 +193,7 @@ KXBASEAPI BOOL WINAPI GetProcessMitigationPolicy(
 		DepPolicy->Permanent = Permanent;
 		return Success;
 	} else {
-		KexLogWarningEvent(
+		KexLogDebugEvent(
 			L"GetProcessMitigationPolicy called with unsupported MitigationPolicy value %d",
 			MitigationPolicy);
 	}
@@ -278,6 +278,9 @@ TryAgain:
 		} else {
 			if (LastError == ERROR_NOT_SUPPORTED) {
 				switch (Attribute) {
+				case PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE:
+					KexLogDebugEvent(L"PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE specified. Ignoring.");
+					return TRUE;
 				case PROC_THREAD_ATTRIBUTE_MITIGATION_POLICY:
 					//
 					// Edit the mitigation policy and go try again.
@@ -314,4 +317,50 @@ TryAgain:
 	}
 
 	return Success;
+}
+
+// Complete implementation based on Win10 decompilation.
+KXBASEAPI BOOL WINAPI IsProcessCritical(
+	IN	HANDLE	ProcessHandle,
+	OUT	PBOOL	Critical)
+{
+	NTSTATUS Status;
+	ULONG BreakOnTermination;
+
+	Status = NtQueryInformationProcess(
+		ProcessHandle,
+		ProcessBreakOnTermination,
+		&BreakOnTermination,
+		sizeof(BreakOnTermination),
+		NULL);
+
+	if (!NT_SUCCESS(Status)) {
+		BaseSetLastNTError(Status);
+		return FALSE;
+	}
+
+	*Critical = BreakOnTermination;
+	return TRUE;
+}
+
+// Added for NuGet D3D10Warp.dll.
+// This is related to Control Flow Guard, which win7 doesn't support anyway.
+KXBASEAPI BOOL WINAPI SetProcessValidCallTargets(
+	IN		HANDLE	ProcessHandle,
+	IN		PVOID	VirtualAddress,
+	IN		SIZE_T	RegionSize,
+	IN		ULONG	NumberOfOffsets,
+	IN OUT	PVOID	OffsetInformation)	// real type: PCFG_CALL_TARGET_INFO
+{
+	//
+	// Win10 ntoskrnl has this code in a sub-routine called by
+	// NtSetInformationVirtualMemory:
+	//
+	//	if (!MiIsProcessCfgEnabled()) {
+	//		return STATUS_INVALID_PAGE_PROTECTION;
+	//	}
+	//
+
+	BaseSetLastNTError(STATUS_INVALID_PAGE_PROTECTION);
+	return FALSE;
 }

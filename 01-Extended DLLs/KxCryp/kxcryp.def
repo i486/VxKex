@@ -1,11 +1,29 @@
+;;
+;; IF YOU ADD OR REMOVE ANY EXPORTED SECUR32 FUNCTIONS, YOU MUST ALSO UPDATE BOTH OF
+;; THE FUNCTION TABLES IN ISI.C IF APPLICABLE
+;;
+
 LIBRARY KxCryp
 EXPORTS
 	;; bcrypt.c
+	BCryptCreateHash						= Ext_BCryptCreateHash
+	BCryptDeriveKey							= Ext_BCryptDeriveKey
+	BCryptGenRandom							= Ext_BCryptGenRandom
+	BCryptGenerateKeyPair					= Ext_BCryptGenerateKeyPair
+	BCryptGenerateSymmetricKey				= Ext_BCryptGenerateSymmetricKey
+	BCryptGetProperty						= Ext_BCryptGetProperty
+	BCryptImportKey							= Ext_BCryptImportKey
+	BCryptImportKeyPair						= Ext_BCryptImportKeyPair
+	BCryptSetProperty						= Ext_BCryptSetProperty
 	BCryptHash
+
+	;; credhndl.c
+	AcquireCredentialsHandleA				= Ext_AcquireCredentialsHandleA
+	AcquireCredentialsHandleW				= Ext_AcquireCredentialsHandleW
+
+	;; isi.c
+	InitSecurityInterfaceA					= Ext_InitSecurityInterfaceA
+	InitSecurityInterfaceW					= Ext_InitSecurityInterfaceW
 
 	;; rng.c
 	ProcessPrng
-
-	;; schannel.c
-;	AcquireCredentialsHandleA					= Ext_AcquireCredentialsHandleA
-	AcquireCredentialsHandleW					= Ext_AcquireCredentialsHandleW

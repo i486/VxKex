@@ -6,23 +6,16 @@
 //
 // Abstract:
 //
-//     This file contains the entry point for the multi-language support (MLS)
-//     binary dictionary (BDI) compiler.
-//
-//     This application uses a textual dictionary (.dic) as input and turns it
-//     into a binary dictionary (.bdi) suitable for use with the MLS library.
+//     Dictionary compiler main file
 //
 // Author:
 //
-//     vxiiduu (21-May-2025)
+//     I vibe coded it because I couldn't be bothered to do more string parsing
+//     Kimi 2.6
 //
 // Environment:
 //
-//     Win32 GUI
-//
-// Revision History:
-//
-//     vxiiduu              21-May-2025  Initial creation.
+//     Win32 mode.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -33,15 +26,74 @@ VOID EntryPoint(
 	VOID)
 {
 	PWSTR CommandLine;
+	WCHAR InPath[MAX_PATH];
+	WCHAR OutPath[MAX_PATH];
+	BOOLEAN OutPresent;
+	DWORD Attributes;
+	BOOLEAN Success;
+	INT ReturnValue;
 
 	KexgApplicationFriendlyName = FRIENDLYAPPNAME;
+
+	ReturnValue = 0;
 	CommandLine = GetCommandLineWithoutImageName();
-
-	if (CommandLine[0] != '\0') {
-		HandleCommandLine(CommandLine);
-	} else {
-		ExitProcess(DialogBox(NULL, MAKEINTRESOURCE(IDD_MAINWINDOW), NULL, BdicDialogProc));
+	
+	Success = ParseCommandLine(
+		CommandLine,
+		InPath,
+		ARRAYSIZE(InPath),
+		OutPath,
+		ARRAYSIZE(OutPath),
+		&OutPresent);
+	
+	if (!Success) {
+		ShowUsage();
+		ExitProcess(0);
 	}
-
-	ExitProcess(STATUS_SUCCESS);
+	
+	Attributes = GetFileAttributesW(InPath);
+	
+	if (Attributes == INVALID_FILE_ATTRIBUTES) {
+		ErrorBoxF(L"Input path does not exist: %s", InPath);
+		ExitProcess(1);
+	}
+	
+	if (Attributes & FILE_ATTRIBUTE_DIRECTORY) {
+		if (!OutPresent) {
+			ErrorBoxF(L"/OUT must be specified when /IN is a directory.");
+		}
+		
+		Attributes = GetFileAttributesW(OutPath);
+		
+		if (Attributes == INVALID_FILE_ATTRIBUTES) {
+			if (!CreateDirectoryW(OutPath, NULL)) {
+				ErrorBoxF(L"Failed to create output directory: %s", OutPath);
+				ExitProcess(1);
+			}
+		} else if (!(Attributes & FILE_ATTRIBUTE_DIRECTORY)) {
+			ErrorBoxF(L"/OUT must be a directory when /IN is a directory.");
+			ExitProcess(1);
+		}
+		
+		Success = ProcessDirectory(InPath, OutPath);
+		if (!Success) {
+			ReturnValue = 1;
+		}
+	} else {
+		if (!OutPresent) {
+			GenerateOutputPath(InPath, OutPath, ARRAYSIZE(OutPath));
+			
+			if (OutPath[0] == L'\0') {
+				ErrorBoxF(L"Failed to generate output path.");
+				ExitProcess(1);
+			}
+		}
+		
+		Success = ProcessFile(InPath, OutPath);
+		if (!Success) {
+			ReturnValue = 1;
+		}
+	}
+	
+	ExitProcess(ReturnValue);
 }

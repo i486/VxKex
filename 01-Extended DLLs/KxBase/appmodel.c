@@ -100,9 +100,6 @@ KXBASEAPI HRESULT WINAPI AppXGetPackageSid(
 	IN	PCWSTR	PackageMoniker,
 	OUT	PSID	*PackageSid)
 {
-	KexLogWarningEvent(L"AppXGetPackageSid called: %s", PackageMoniker);
-	KexDebugCheckpoint();
-
 	if (!PackageMoniker || !PackageSid) {
 		return E_INVALIDARG;
 	}
@@ -114,6 +111,23 @@ KXBASEAPI VOID WINAPI AppXFreeMemory(
 	IN	PVOID	Pointer)
 {
 	RtlFreeHeap(RtlProcessHeap(), 0, Pointer);
+}
+
+KXBASEAPI LONG WINAPI PackageIdFromFullName(
+	IN		PCWSTR	PackageFullName,
+	IN		ULONG	Flags,
+	IN OUT	PULONG	BufferLength,
+	OUT		PBYTE	Buffer OPTIONAL)
+{
+	if (!PackageFullName || !BufferLength) {
+		return ERROR_INVALID_PARAMETER;
+	}
+
+	if (*BufferLength > 0 && Buffer == NULL) {
+		return ERROR_INVALID_PARAMETER;
+	}
+
+	return ERROR_NOT_FOUND;
 }
 
 KXBASEAPI ULONG WINAPI PackageFamilyNameFromFullName(
@@ -176,6 +190,24 @@ KXBASEAPI LONG WINAPI AppPolicyGetThreadInitializationType(
 	return ERROR_SUCCESS;
 }
 
+KXBASEAPI LONG WINAPI GetPackagePath(
+	IN		PCVOID	PackageId,		// real type is PCPACKAGE_ID
+	IN		ULONG	Reserved,
+	IN OUT	PULONG	PathLength,
+	OUT		PWSTR	Path OPTIONAL)
+{
+	if (!PackageId || !PathLength) {
+		return ERROR_INVALID_PARAMETER;
+	}
+
+	if (*PathLength != 0 && Path == NULL) {
+		return ERROR_INVALID_PARAMETER;
+	}
+
+	// this is appropriate error code returned on win8
+	return ERROR_NOT_FOUND;
+}
+
 KXBASEAPI LONG WINAPI GetPackagePathByFullName(
 	IN		PCWSTR	PackageFullName,
 	IN OUT	PULONG	PathLength,
@@ -189,7 +221,7 @@ KXBASEAPI LONG WINAPI GetPackagePathByFullName(
 		return ERROR_INVALID_PARAMETER;
 	}
 
-	return ERROR_NOT_SUPPORTED;
+	return ERROR_NOT_FOUND;
 }
 
 KXBASEAPI LONG WINAPI GetPackagePathByFullName2(
@@ -216,4 +248,26 @@ KXBASEAPI LONG WINAPI GetCurrentPackageFamilyName(
 	}
 
 	return APPMODEL_ERROR_NO_PACKAGE;
+}
+
+KXBASEAPI HRESULT WINAPI AppContainerUnregisterSid(
+	IN	PSID	Sid)
+{
+	if (!Sid) {
+		return E_INVALIDARG;
+	}
+
+	return S_OK;
+}
+
+KXBASEAPI HRESULT WINAPI AppContainerRegisterSid(
+	IN	PSID	Sid,
+	IN	PCWSTR	AppContainerName,
+	IN	PCWSTR	DisplayName)
+{
+	if (!Sid || !AppContainerName || !DisplayName) {
+		return E_INVALIDARG;
+	}
+
+	return S_OK;
 }

@@ -102,6 +102,10 @@ ULONG STDMETHODCALLTYPE CKexShlEx_Release(
 	if (NewRefCount == 0) {
 		InterlockedDecrement(&DllReferenceCount);
 		SafeFree(This);
+
+		// Unload MLS translation data when no more property sheets are open.
+		MlsCleanup();
+
 		return 0;
 	}
 
@@ -235,7 +239,7 @@ HRESULT STDMETHODCALLTYPE CKexShlEx_AddPages(
 	ASSERT (This != NULL);
 	ASSERT (This->ExeFullPath[0] != '\0');
 
-	GetWindowsDirectory(WinDir, ARRAYSIZE(WinDir));
+	GetSystemWindowsDirectory(WinDir, ARRAYSIZE(WinDir));
 	Success = KxCfgGetKexDir(KexDir, ARRAYSIZE(KexDir));
 	ASSERT (Success);
 

@@ -21,6 +21,9 @@
 //     vxiiduu               01-Oct-2022  Initial creation.
 //     vxiiduu               03-Oct-2022  Convert message boxes to task dialogs
 //     vxiiduu               22-Feb-2024  Delete stub ReportAssertionFailure
+//     vxiiduu               30-Apr-2026  When the user presses Quit on an
+//                                        assertion failure dialog, the exit
+//                                        code is now STATUS_ASSERTION_FAILURE.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -103,7 +106,7 @@ KEXGDECLSPEC NORETURN EXTERN_C VOID KEXGAPI CriticalErrorBoxF(
 	ARGLIST ArgList;
 	va_start(ArgList, Format);
 	MessageBoxV(0, TD_ERROR_ICON, KexgApplicationFriendlyName, NULL, Format, ArgList);
-	ExitProcess(0);
+	ExitProcess(STATUS_UNSUCCESSFUL);
 }
 
 KEXGDECLSPEC EXTERN_C VOID KEXGAPI ErrorBoxF(
@@ -170,7 +173,7 @@ KEXGDECLSPEC EXTERN_C BOOLEAN KEXGAPI ReportAssertionFailure(
 	Success = GetModuleHandleEx(
 		GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | 
 		GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-		(PCWSTR) _ReturnAddress(),
+		(PCWSTR) ReturnAddress(),
 		&OriginatingModuleHandle);
 
 	if (!Success) {
@@ -234,6 +237,17 @@ CannotFormatExtraInfoText:
 FormattedExtraInfoText:
 
 	//
+	// If a debugger is attached, we'll use DbgPrint to display the assertion
+	// message and then return true (always raise int2c). No need to display a
+	// task dialog since debuggers already have some kind of UI for this.
+	//
+
+	if (NtCurrentPeb()->BeingDebugged) {
+		DbgPrint("%ws\r\n", ExtraInfoText);
+		return TRUE;
+	}
+
+	//
 	// Display task dialog to the user and gather his response.
 	//
 
@@ -268,7 +282,7 @@ FormattedExtraInfoText:
 
 	if (SUCCEEDED(Result)) {
 		if (UserSelectedButton == IDCLOSE) {
-			ExitProcess(0);
+			ExitProcess(STATUS_ASSERTION_FAILURE);
 		} else if (UserSelectedButton == IDYES) {
 			return TRUE;
 		} else if (UserSelectedButton == IDRETRY) {

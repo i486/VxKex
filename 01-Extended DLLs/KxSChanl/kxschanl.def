@@ -1,0 +1,5 @@
+LIBRARY "kxschanl"
+EXPORTS
+	;; api.c
+	InitSecurityInterfaceA				= SpInitSecurityInterfaceA
+	InitSecurityInterfaceW				= SpInitSecurityInterfaceW

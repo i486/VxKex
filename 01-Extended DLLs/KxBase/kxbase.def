@@ -1,10 +1,127 @@
 LIBRARY KxBase
 EXPORTS
-	;;
-	;; VxKex New Functions
-	;;
+	;; appmodel.c
+	AppPolicyGetProcessTerminationMethod
+	AppPolicyGetThreadInitializationType
+	AppPolicyGetWindowingModel
+	AppXGetPackageSid
+	AppXFreeMemory
+	GetApplicationUserModelId
+	GetCurrentApplicationUserModelId
+	GetCurrentPackageFullName
+	GetCurrentPackageId
+	GetPackageFamilyName
+	GetPackageFullName
+	GetPackagesByPackageFamily
+	PackageIdFromFullName
+	PackageFamilyNameFromFullName
+	GetPackagePath
+	GetPackagePathByFullName
+	GetPackagePathByFullName2
+	GetCurrentPackageFamilyName
+	AppContainerRegisterSid
+	AppContainerUnregisterSid
 
-	ResolveDelayLoadedAPI				= KexDll.KexLdrResolveDelayLoadedAPI
+	;; appstate.c
+	RegisterAppStateChangeNotification
+	UnregisterAppStateChangeNotification
+
+	;; cfgmgr.c
+	CM_Register_Notification
+	CM_Unregister_Notification
+
+	;; console.c
+	GetConsoleMode						= Ext_GetConsoleMode
+	SetConsoleMode						= Ext_SetConsoleMode
+	GetConsoleTitleA					= Ext_GetConsoleTitleA
+	GetConsoleTitleW					= Ext_GetConsoleTitleW
+	GetConsoleOriginalTitleA			= Ext_GetConsoleOriginalTitleA
+	GetConsoleOriginalTitleW			= Ext_GetConsoleOriginalTitleW
+	WriteConsoleA						= Ext_WriteConsoleA
+	WriteConsoleW						= Ext_WriteConsoleW
+	FreeConsole							= Ext_FreeConsole
+	CreatePseudoConsole
+	ResizePseudoConsole
+	ClosePseudoConsole
+
+	;; file.c
+	CreateFile2
+	GetTempPath2A
+	GetTempPath2W
+	CopyFile2
+	GetOverlappedResultEx
+	GetFileInformationByName
+	DeviceIoControl						= Ext_DeviceIoControl
+	ReadFile							= Ext_ReadFile
+	WriteFile							= Ext_WriteFile
+	SetHandleInformation				= Ext_SetHandleInformation
+
+	;; geoname.c
+	GetUserDefaultGeoName
+
+	;; handle.c
+	CompareObjectHandles
+
+	;; heap.c
+	HeapCreate							= Ext_HeapCreate
+
+	;; misc.c
+	GetOsSafeBootMode
+	GetFirmwareType
+	GetSystemWindowsDirectoryW			= Ext_GetSystemWindowsDirectoryW
+	GetIsEdpEnabled
+	SubscribeEdpEnabledStateChange
+	UnsubscribeEdpEnabledStateChange
+	GetIsWdagEnabled
+	SubscribeWdagEnabledStateChange
+	UnsubscribeWdagEnabledStateChange
+
+	;; module.c
+	LoadPackagedLibrary
+	GetModuleHandleA					= Ext_GetModuleHandleA
+	GetModuleHandleW					= Ext_GetModuleHandleW
+	GetModuleHandleExA					= Ext_GetModuleHandleExA
+	GetModuleHandleExW					= Ext_GetModuleHandleExW
+	LoadLibraryA						= Ext_LoadLibraryA
+	LoadLibraryW						= Ext_LoadLibraryW
+	LoadLibraryExA						= Ext_LoadLibraryExA
+	LoadLibraryExW						= Ext_LoadLibraryExW
+	GetProcAddress						= Ext_GetProcAddress
+	AddDllDirectory						= Ext_AddDllDirectory
+	RemoveDllDirectory					= Ext_RemoveDllDirectory
+	SetDefaultDllDirectories			= Ext_SetDefaultDllDirectories
+
+	;; process.c
+	GetProcessInformation
+	SetProcessInformation
+	SetProcessDefaultCpuSets
+	SetProcessDefaultCpuSetMasks
+	GetProcessDefaultCpuSets
+	GetProcessDefaultCpuSetMasks
+	SetProcessMitigationPolicy
+	GetProcessMitigationPolicy
+	IsProcessInJob						= Ext_IsProcessInJob
+	UpdateProcThreadAttribute			= Ext_UpdateProcThreadAttribute
+	IsProcessCritical
+	SetProcessValidCallTargets
+
+	;; pssapi.c
+	PssCaptureSnapshot
+	PssFreeSnapshot
+	PssQuerySnapshot
+	PssWalkMarkerCreate
+
+	;; security.c
+	CreateWellKnownSid					= Ext_CreateWellKnownSid
+
+	;; stubs.c
+	DuplicateHandle						= Stub_DuplicateHandle
+	VirtualAlloc						= Stub_VirtualAlloc
+
+	;; synch.c
+	WaitOnAddress
+	WakeByAddressSingle					= KexDll.RtlWakeAddressSingle
+	WakeByAddressAll					= KexDll.RtlWakeAddressAll
 
 	;; thread.c
 	GetThreadDescription
@@ -19,83 +136,14 @@ EXPORTS
 	SetThreadpoolTimerEx
 	GetSystemCpuSetInformation
 
-	;; process.c
-	GetProcessInformation
-	SetProcessInformation
-	SetProcessDefaultCpuSets
-	SetProcessDefaultCpuSetMasks
-	GetProcessDefaultCpuSets
-	GetProcessDefaultCpuSetMasks
-	SetProcessMitigationPolicy
-	GetProcessMitigationPolicy
-
-	;; pssapi.c
-	PssCaptureSnapshot
-	PssFreeSnapshot
-	PssQuerySnapshot
-	PssWalkMarkerCreate
-
-	;; cfgmgr.c
-	CM_Register_Notification
-	CM_Unregister_Notification
-
-	;; module.c
-	LoadPackagedLibrary
-
-	;; misc.c
-	GetOsSafeBootMode
-	GetFirmwareType
-
-	;; geoname.c
-	GetUserDefaultGeoName
-
-	;; handle.c
-	CompareObjectHandles
-
-	;; file.c
-	CreateFile2
-	GetTempPath2A
-	GetTempPath2W
-	CopyFile2
-	GetOverlappedResultEx
-	GetFileInformationByName
-	DeviceIoControl						= Ext_DeviceIoControl
-	ReadFile							= Ext_ReadFile
-	WriteFile							= Ext_WriteFile
-
 	;; time.c
 	GetSystemTimePreciseAsFileTime
 	QueryUnbiasedInterruptTimePrecise
+	GetDynamicTimeZoneInformationEffectiveYears
+	EnumDynamicTimeZoneInformation
 
-	;; appmodel.c
-	AppPolicyGetProcessTerminationMethod
-	AppPolicyGetThreadInitializationType
-	AppPolicyGetWindowingModel
-	AppXGetPackageSid
-	AppXFreeMemory
-	GetApplicationUserModelId
-	GetCurrentApplicationUserModelId
-	GetCurrentPackageFullName
-	GetCurrentPackageId
-	GetPackageFamilyName
-	GetPackageFullName
-	GetPackagesByPackageFamily
-	PackageFamilyNameFromFullName
-	GetPackagePathByFullName
-	GetPackagePathByFullName2
-	GetCurrentPackageFamilyName
-
-	;; appstate.c
-	RegisterAppStateChangeNotification
-	UnregisterAppStateChangeNotification
-
-	;; synch.c
-	WaitOnAddress
-	WakeByAddressSingle					= KexDll.KexRtlWakeAddressSingle
-	WakeByAddressAll					= KexDll.KexRtlWakeAddressAll
-
-	;; wow64.c
-	IsWow64Process2
+	;; verspoof.c
+	GetVersionExA						= Ext_GetVersionExA
 
 	;; vmem.c
 	DiscardVirtualMemory
@@ -115,7 +163,17 @@ EXPORTS
 	VirtualAlloc2
 	VirtualAlloc2FromApp
 
+	;; wow64.c
+	IsWow64Process2
+	IsWow64GuestMachineSupported
+	Wow64SetThreadDefaultGuestMachine
+	GetSystemWow64Directory2A
+	GetSystemWow64Directory2W
+
+	;;
 	;; KexPathCch
+	;;
+
 	PathAllocCanonicalize
 	PathAllocCombine
 	PathCchAddBackslash
@@ -146,6 +204,33 @@ EXPORTS
 	TlsGetValue2						= kernel32.TlsGetValue
 
 	;;
+	;; Forwarders to user32
+	;;
+
+	CharLowerA							= user32.CharLowerA
+	CharLowerBuffA						= user32.CharLowerBuffA
+	CharLowerW							= user32.CharLowerW
+	CharLowerBuffW						= user32.CharLowerBuffW
+	CharNextA							= user32.CharNextA
+	CharNextExA							= user32.CharNextExA
+	CharNextW							= user32.CharNextW
+	CharPrevA							= user32.CharPrevA
+	CharPrevExA							= user32.CharPrevExA
+	CharPrevW							= user32.CharPrevW
+	CharUpperA							= user32.CharUpperA
+	CharUpperBuffA						= user32.CharUpperBuffA
+	CharUpperW							= user32.CharUpperW
+	CharUpperBuffW						= user32.CharUpperBuffW
+	IsCharAlphaA						= user32.IsCharAlphaA
+	IsCharAlphaNumericA					= user32.IsCharAlphaNumericA
+	IsCharAlphaW						= user32.IsCharAlphaW
+	IsCharAlphaNumericW					= user32.IsCharAlphaNumericW
+	IsCharLowerA						= user32.IsCharLowerA
+	IsCharLowerW						= user32.IsCharLowerW
+	IsCharUpperA						= user32.IsCharUpperA
+	IsCharUpperW						= user32.IsCharUpperW
+
+	;;
 	;; Forwarders to KxNt
 	;;
 
@@ -158,36 +243,7 @@ EXPORTS
 	RegCopyTreeW						= KxAdvapi.RegCopyTreeW
 
 	;;
-	;; VxKex Extended Functions
+	;; Forwarders to KexDll
 	;;
 
-	;; process.c
-	IsProcessInJob						= Ext_IsProcessInJob
-	UpdateProcThreadAttribute			= Ext_UpdateProcThreadAttribute
-
-	;; module.c
-	GetModuleHandleA					= Ext_GetModuleHandleA
-	GetModuleHandleW					= Ext_GetModuleHandleW
-	GetModuleHandleExA					= Ext_GetModuleHandleExA
-	GetModuleHandleExW					= Ext_GetModuleHandleExW
-	LoadLibraryA						= Ext_LoadLibraryA
-	LoadLibraryW						= Ext_LoadLibraryW
-	LoadLibraryExA						= Ext_LoadLibraryExA
-	LoadLibraryExW						= Ext_LoadLibraryExW
-	AddDllDirectory						= Ext_AddDllDirectory
-	RemoveDllDirectory					= Ext_RemoveDllDirectory
-	SetDefaultDllDirectories			= Ext_SetDefaultDllDirectories
-
-	;; security.c
-	CreateWellKnownSid					= Ext_CreateWellKnownSid
-
-	;; verspoof.c
-	GetVersionExA						= Ext_GetVersionExA
-
-	;; stubs.c
-	DuplicateHandle						= Stub_DuplicateHandle
-	GetProcAddress						= Stub_GetProcAddress
-	VirtualAlloc						= Stub_VirtualAlloc
-
-	;; heap.c
-	HeapCreate							= Ext_HeapCreate
+	ResolveDelayLoadedAPI				= KexDll.KexLdrResolveDelayLoadedAPI

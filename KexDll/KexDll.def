@@ -3,6 +3,10 @@ EXPORTS
 	KexDataInitialize
 	KexInitializePropagation
 	KexDllProtectedFunctionExceptionFilter
+	KexIsWindowsDll
+	KexIsVxKexExtendedDll
+	KexIsRewriteExemptedDll
+	KexShouldRewriteDynamicImportsOfDll
 
 	KexRtlPathFindFileName
 	KexRtlPathRemoveExtension
@@ -11,7 +15,6 @@ EXPORTS
 	KexRtlQueryKeyValueData
 	KexRtlQueryKeyMultipleValueData
 	KexRtlUnicodeStringEndsWith
-	KexRtlFindUnicodeSubstring
 	KexRtlAdvanceUnicodeString
 	KexRtlRetreatUnicodeString
 	KexRtlSetUnicodeStringBufferEnd
@@ -20,22 +23,13 @@ EXPORTS
 	KexRtlCreateDirectoryRecursive
 	KexRtlNtStatusToString
 	KexRtlSectionTableFromRva
+	KexRtlSectionTableFromName
 	KexRtlNullTerminateUnicodeString
 	KexRtlUnicodeStringContainsEmbeddedNull
 	KexRtlCreateUntrustedDirectoryObject
 	KexRtlGenerateRandomData
-
-	; String Mapper APIs - we will continue exporting them by their old names in
-	; addition to their new names just in case anyone is using them
-	KexRtlCreateStringMapper				= SmpCreateStringMapper
-	KexRtlDeleteStringMapper				= SmpDeleteStringMapper
-	KexRtlInsertEntryStringMapper			= SmpInsertEntryStringMapper
-	KexRtlLookupEntryStringMapper			= SmpLookupEntryStringMapper
-	KexRtlRemoveEntryStringMapper			= SmpRemoveEntryStringMapper
-	KexRtlApplyStringMapper					= SmpApplyStringMapper
-	KexRtlInsertMultipleEntriesStringMapper	= SmpInsertMultipleEntriesStringMapper
-	KexRtlLookupMultipleEntriesStringMapper	= SmpLookupMultipleEntriesStringMapper
-	KexRtlBatchApplyStringMapper			= SmpBatchApplyStringMapper
+	KexRtlDecryptMemory
+	KexRtlEncryptMemory
 
 	SmpCreateStringMapper
 	SmpDeleteStringMapper
@@ -47,29 +41,43 @@ EXPORTS
 	SmpLookupMultipleEntriesStringMapper
 	SmpBatchApplyStringMapper
 
-	KexRtlWow64GetProcessMachines
-	KexRtlSetBit
-	KexRtlClearBit
-	KexRtlQueryPackageIdentity
-	KexRtlQueryPackageIdentityEx
-	KexRtlCheckPortableOperatingSystem
-	KexRtlUnsubscribeWnfStateChangeNotification
-	KexRtlQueryWnfStateData
-	KexRtlPublishWnfStateData
-	KexRtlSubscribeWnfStateChangeNotification
-	KexRtlAddGrowableFunctionTable
+	MlsInitialize
+	MlsCleanup
+	MlsGetCurrentLangId
+	MlsSetCurrentLangId
+	MlsMapString
 
-	KexRtlWaitOnAddress
-	KexRtlWakeAddressSingle
-	KexRtlWakeAddressAll
+	RtlWaitOnAddress
+	RtlWakeAddressSingle
+	RtlWakeAddressAll
+	RtlWow64GetProcessMachines
+	RtlWow64IsWowGuestMachineSupported
+	RtlSetBit
+	RtlClearBit
+	RtlQueryPackageIdentity
+	RtlQueryPackageIdentityEx
+	RtlCheckPortableOperatingSystem
+	RtlUnsubscribeWnfStateChangeNotification
+	RtlQueryWnfStateData
+	RtlPublishWnfStateData
+	RtlSubscribeWnfStateChangeNotification
+	RtlAddGrowableFunctionTable
+	RtlDeleteGrowableFunctionTable
+	RtlGetDeviceFamilyInfoEnum
+	RtlUnsubscribeWnfNotificationWaitForCompletion
+	RtlGetPersistedStateLocation
+	RtlFindUnicodeSubstring
+	RtlCanonicalizeDomainName
+	RtlGetSystemTimePrecise
+	RtlIsZeroMemory
+	RtlIsProcessorFeaturePresent
 
-	KexEtwEventSetInformation
+	EtwEventSetInformation				= Ext_EtwEventSetInformation
 
 	KexLdrGetSystemDllBase
 	KexLdrGetRemoteSystemDllBase
 	KexLdrGetNativeSystemDllBase
 	KexLdrMiniGetProcedureAddress
-	KexLdrFindDllInitRoutine = KexLdrFindImageEntryPoint
 	KexLdrFindImageEntryPoint
 	KexLdrGetDllFullName
 	KexLdrGetDllFullNameFromAddress
@@ -96,6 +104,7 @@ EXPORTS
 	AshExeBaseNameIs
 	AshModuleBaseNameIs
 	AshModuleIsWindowsModule
+	AshModuleIsDynamicRewriteExemptedModule
 
 	VxlOpenLog
 	VxlCloseLog
@@ -106,6 +115,8 @@ EXPORTS
 	VxlSeverityToText
 
 	NtCompareObjects
+	NtWaitForAlertByThreadId
+	NtAlertThreadByThreadId
 
 	Ext_NtQueryInformationThread
 	Ext_NtSetInformationThread
@@ -114,6 +125,8 @@ EXPORTS
 	Ext_NtNotifyChangeMultipleKeys
 	Ext_NtCreateSection
 	Ext_NtAssignProcessToJobObject
+	Ext_NtWriteFile
+	Ext_NtSetInformationFile
 
 	Ext_RtlInitializeCriticalSection
 	Ext_RtlInitializeCriticalSectionAndSpinCount

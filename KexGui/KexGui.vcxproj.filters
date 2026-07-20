@@ -50,5 +50,11 @@
     <ClCompile Include="locale.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="wndpos.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="mls.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

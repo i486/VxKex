@@ -344,7 +344,7 @@ STATIC HRESULT STDMETHODCALLTYPE CGlobalizationPreferencesStatics_NotImplemented
 	IN	IGlobalizationPreferencesStatics	*This,
 	OUT	IVectorView_HSTRING					**VectorView)
 {
-	KexLogWarningEvent(L"Unimplemented method of IGlobalizationPreferencesStatics called");
+	KexLogUnimplementedFunctionEvent();
 	return E_NOTIMPL;
 }
 

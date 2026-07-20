@@ -18,24 +18,24 @@
     <ClCompile Include="main.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="dlgproc.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="help.c">
+    <ClCompile Include="parseline.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="cmdline.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="compile.c">
+    <ClCompile Include="multifile.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="onefile.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="util.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="buildcfg.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="mlsbdic.h">

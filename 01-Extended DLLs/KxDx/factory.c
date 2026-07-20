@@ -56,11 +56,6 @@ HRESULT WINAPI CreateDXGIFactory2(
 				WrapDXGIFactory((IDXGIFactory2 *) *Factory);
 			}
 		} else {
-			//
-			// TODO: Paint.NET depends on IDXGIFactory7.
-			// See if we can implement that in a satisfactory way.
-			//
-
 			ReportNoInterfaceError(RefIID, Result, L"Failed to create DXGI factory");
 		}
 	}

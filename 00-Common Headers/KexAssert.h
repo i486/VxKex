@@ -23,6 +23,7 @@
 //
 //     vxiiduu               26-Sep-2022  Initial creation.
 //     vxiiduu               22-Feb-2022  Remove obsolete CHECKED macro.
+//     vxiiduu               24-Jun-2026  Add KEX_FORCE_GRAPHICAL_ASSERTS option.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -59,12 +60,12 @@
 //
 #if defined(_DEBUG) || defined(RELEASE_ASSERTS_ENABLED)
 #  define ASSERTS_ENABLED
-#  if defined(KEX_TARGET_TYPE_EXE) && !defined(KEX_DISABLE_GRAPHICAL_ASSERTS)
-#    define ASSERT(Condition)	if (!(Condition)) { \
+#  if defined(KEX_FORCE_GRAPHICAL_ASSERTS) || (defined(KEX_TARGET_TYPE_EXE) && !defined(KEX_DISABLE_GRAPHICAL_ASSERTS))
+#    define ASSERT(Condition)	do { if (!(Condition)) { \
 									BOOLEAN ShouldRaiseException = ReportAssertionFailure( \
 										__FILEW__, __LINE__, __FUNCTIONW__, L#Condition); \
 									if (ShouldRaiseException) __int2c(); \
-								}
+								} } while (0)
 #    define SOFT_ASSERT ASSERT
 #  else
 #    define ASSERT(Condition)	do { if (!(Condition)) { DbgPrint("Assertion failure: %s (%s:%d in %s)\r\n", #Condition, __FILE__, __LINE__, __FUNCTION__);  __int2c(); } } while(0)
@@ -76,12 +77,20 @@
 #endif
 
 #ifndef _DEBUG
-#  define ASSUME __assume
+#  define ASSUME(Condition) __assume(Condition)
 #  define NOT_REACHED ASSUME(FALSE)
 #else
-#  define ASSUME ASSERT
+#  define ASSUME(Condition) ASSERT(Condition); __assume(Condition)
 #  define NOT_REACHED ASSUME(("Execution should not have reached this point", FALSE))
 #endif
+
+// Similar to C_ASSERT but works inside of code.
+// The reason C_ASSERT does not work inside code is because in C89 you can't
+// make a typedef in any situations where you couldn't define a local variable.
+//
+// Note that STATIC_ASSERT does not work *outside* a code block, so C_ASSERT
+// is still needed.
+#define STATIC_ASSERT(Condition) ((VOID) sizeof(char[(Condition) ? 1 : -1]))
 
 // Use NOTHING in an empty block to make it clear that you did not intend
 // to put any code here.

@@ -48,6 +48,27 @@ VOID STDMETHODCALLTYPE ID2D1Device1_SetRenderingPriority(
 	return;
 }
 
+HRESULT STDMETHODCALLTYPE ID2D1Device1_CreateDeviceContext(
+	IN	ID2D1Device1			*This,
+	IN	ULONG					Options,
+	OUT	PPVOID					DeviceContext)
+{
+	//
+	// Aeolus (which I think is based on "JUCE") tries to call this function
+	// infinitely until it succeeds (which of course it never does). I'm not
+	// sure whether fully implementing this interface will make it actually
+	// work.
+	//
+	// Currently, Aeolus just displays a transparent "ghost" window with
+	// invisible contents.
+	//
+
+	KexLogUnimplementedFunctionEvent();
+	KexDebugCheckpoint();
+	*DeviceContext = NULL;
+	return E_NOTIMPL;
+}
+
 VOID WrapDirect2DDevice(
 	IN OUT	ID2D1Device	*Device)
 {
@@ -60,6 +81,7 @@ VOID WrapDirect2DDevice(
 	Vtbl.Base.Base.Base.QueryInterface = (HRESULT (STDMETHODCALLTYPE *)(IUnknown *, REFIID, PPVOID)) ID2D1Device1_QueryInterface;
 	Vtbl.GetRenderingPriority = ID2D1Device1_GetRenderingPriority;
 	Vtbl.SetRenderingPriority = ID2D1Device1_SetRenderingPriority;
+	Vtbl.CreateDeviceContext = ID2D1Device1_CreateDeviceContext;
 
 	Device->lpVtbl = (ID2D1DeviceVtbl *) &Vtbl;
 }

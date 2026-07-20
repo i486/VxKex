@@ -32,6 +32,7 @@
 #define NOSOUND
 #define _UXTHEME_H_
 
+#pragma comment(lib, "KexDll.lib")
 #pragma comment(lib, "ole32.lib")
 #pragma comment(lib, "oleaut32.lib")
 #pragma comment(lib, "urlmon.lib")

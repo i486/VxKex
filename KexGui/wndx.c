@@ -90,7 +90,7 @@ KEXGDECLSPEC EXTERN_C ULONG KEXGAPI ContextMenu(
 KEXGDECLSPEC EXTERN_C HWND KEXGAPI ToolTip(
 	IN	HWND	DialogWindow,
 	IN	INT		ToolId,
-	IN	PWSTR	Format,
+	IN	PCWSTR	Format,
 	IN	...)
 {
 	TOOLINFO ToolInfo;
@@ -146,10 +146,10 @@ KEXGDECLSPEC EXTERN_C HWND KEXGAPI ToolTip(
 
 		if (FAILED(Result)) {
 			// hopefully this is ok, better than no tooltip.
-			Buffer = Format;
+			Buffer = (PWSTR) Format;
 		}
 	} else {
-		Buffer = Format;
+		Buffer = (PWSTR) Format;
 	}
 
 	//

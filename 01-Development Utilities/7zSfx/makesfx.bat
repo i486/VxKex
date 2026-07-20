@@ -18,6 +18,16 @@ md Archive\Kex32
 md Archive\Kex64
 
 REM
+REM Compile all MLS BDI files
+REM
+
+call "..\..\02-Prebuilt Data\Compile Dictionaries.bat"
+if %errorlevel% neq 0 (
+	pause
+	exit %errorlevel%
+)
+
+REM
 REM Bitness Agnostic Data
 REM
 
@@ -25,6 +35,7 @@ copy ..\..\%DBGREL%\KexSetup.exe Archive\ >nul
 
 copy "..\..\00-Documentation\Application Compatibility List.docx" Archive\Core\ >nul
 copy "..\..\00-Documentation\Changelog.txt" Archive\Core\ >nul
+xcopy "..\..\02-Prebuilt Data\KexDir\*" Archive\Core\ /E >nul
 
 REM
 REM 32-bit Core
@@ -34,7 +45,6 @@ copy ..\..\%DBGREL%\KexDll.dll Archive\Core32\ >nul
 copy ..\..\%DBGREL%\KexShlEx.dll Archive\Core32\ >nul
 copy ..\..\%DBGREL%\KexCfg.exe Archive\Core32\ >nul
 copy ..\..\%DBGREL%\VxlView.exe Archive\Core32\ >nul
-copy ..\..\%DBGREL%\CpiwBypa.dll Archive\Core32\ >nul
 copy ..\..\%DBGREL%\VxKexLdr.exe Archive\Core32\ >nul
 
 REM
@@ -51,6 +61,7 @@ copy ..\..\%DBGREL%\KxMi.dll Archive\Kex32\ >nul
 copy ..\..\%DBGREL%\KxNet.dll Archive\Kex32\ >nul
 copy ..\..\%DBGREL%\KxNt.dll Archive\Kex32\ >nul
 copy ..\..\%DBGREL%\KxUser.dll Archive\Kex32\ >nul
+copy ..\..\%DBGREL%\KxSchanl.dll Archive\Kex32\ >nul
 
 REM
 REM 64-bit Core
@@ -60,7 +71,6 @@ copy ..\..\x64\%DBGREL%\KexDll.dll Archive\Core64\ >nul
 copy ..\..\x64\%DBGREL%\KexShlEx.dll Archive\Core64\ >nul
 copy ..\..\x64\%DBGREL%\KexCfg.exe Archive\Core64\ >nul
 copy ..\..\x64\%DBGREL%\VxlView.exe Archive\Core64\ >nul
-copy ..\..\x64\%DBGREL%\CpiwBypa.dll Archive\Core64\ >nul
 copy ..\..\x64\%DBGREL%\VxKexLdr.exe Archive\Core64\ >nul
 
 REM
@@ -77,6 +87,7 @@ copy ..\..\x64\%DBGREL%\KxMi.dll Archive\Kex64\ >nul
 copy ..\..\x64\%DBGREL%\KxNet.dll Archive\Kex64\ >nul
 copy ..\..\x64\%DBGREL%\KxNt.dll Archive\Kex64\ >nul
 copy ..\..\x64\%DBGREL%\KxUser.dll Archive\Kex64\ >nul
+copy ..\..\x64\%DBGREL%\KxSchanl.dll Archive\Kex64\ >nul
 
 REM
 REM Prebuilt DLLs
@@ -94,7 +105,6 @@ if %DBGREL%==Debug (
 	copy ..\..\%DBGREL%\KexShlEx.pdb Archive\Core32\ >nul
 	copy ..\..\%DBGREL%\KexCfg.pdb Archive\Core32\ >nul
 	copy ..\..\%DBGREL%\VxlView.pdb Archive\Core32\ >nul
-	copy ..\..\%DBGREL%\CpiwBypa.pdb Archive\Core32\ >nul
 	copy ..\..\%DBGREL%\VxKexLdr.pdb Archive\Core32\ >nul
 
 	copy ..\..\%DBGREL%\KxAdvapi.pdb Archive\Kex32\ >nul
@@ -107,12 +117,12 @@ if %DBGREL%==Debug (
 	copy ..\..\%DBGREL%\KxNet.pdb Archive\Kex32\ >nul
 	copy ..\..\%DBGREL%\KxNt.pdb Archive\Kex32\ >nul
 	copy ..\..\%DBGREL%\KxUser.pdb Archive\Kex32\ >nul
+	copy ..\..\%DBGREL%\KxSchanl.pdb Archive\Kex32\ >nul
 
 	copy ..\..\x64\%DBGREL%\KexDll.pdb Archive\Core64\ >nul
 	copy ..\..\x64\%DBGREL%\KexShlEx.pdb Archive\Core64\ >nul
 	copy ..\..\x64\%DBGREL%\KexCfg.pdb Archive\Core64\ >nul
 	copy ..\..\x64\%DBGREL%\VxlView.pdb Archive\Core64\ >nul
-	copy ..\..\x64\%DBGREL%\CpiwBypa.pdb Archive\Core64\ >nul
 	copy ..\..\x64\%DBGREL%\VxKexLdr.pdb Archive\Core64\ >nul
 
 	copy ..\..\x64\%DBGREL%\KxAdvapi.pdb Archive\Kex64\ >nul
@@ -125,13 +135,13 @@ if %DBGREL%==Debug (
 	copy ..\..\x64\%DBGREL%\KxNet.pdb Archive\Kex64\ >nul
 	copy ..\..\x64\%DBGREL%\KxNt.pdb Archive\Kex64\ >nul
 	copy ..\..\x64\%DBGREL%\KxUser.pdb Archive\Kex64\ >nul
+	copy ..\..\x64\%DBGREL%\KxSchanl.pdb Archive\Kex64\ >nul
 
-	copy "..\..\02-Prebuilt DLLs\x86\*.pdb" Archive\Kex32\ >nul
-	copy "..\..\02-Prebuilt DLLs\x64\*.pdb" Archive\Kex64\ >nul
+	copy "..\..\02-Prebuilt DLLs\x86\*.pdb" Archive\Kex32\ >nul 2>nul
+	copy "..\..\02-Prebuilt DLLs\x64\*.pdb" Archive\Kex64\ >nul 2>nul
 )
 
 copy /y 7zS2.sfx ..\..\KexSetup_%DBGREL%.exe >nul
-
 
 REM vtrplnt copies the version resources from the original kexsetup into
 REM the packed SFX version.
@@ -140,12 +150,12 @@ REM 7zip data.
 
 vtrplnt.exe /%DBGREL%
 
-REM ===========================================================================
-REM FOR FINAL RELEASE: switch to the upper command for higher compression
-REM ===========================================================================
-
-REM 7zr a -y Archive.7z .\Archive\* -mmt1 -mx9 -m0=LZMA:d32
-7zr a -y Archive.7z .\Archive\* -mmt1 -mx1 -m0=LZMA:d32
+if %DBGREL%==Debug (
+	7zr a -y Archive.7z .\Archive\* -mmt1 -mx1 -m0=LZMA:d32
+) else (
+    REM use high compression for release builds
+	7zr a -y Archive.7z .\Archive\* -mmt1 -mx9 -m0=LZMA:d32
+)
 
 if %errorlevel% neq 0 (
 	pause

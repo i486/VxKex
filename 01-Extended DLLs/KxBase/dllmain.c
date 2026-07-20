@@ -22,6 +22,7 @@
 //
 //     vxiiduu              07-Nov-2022  Initial creation.
 //     vxiiduu              10-Feb-2024  Rename to KXBASE (from kernel33).
+//     vxiiduu              27-Jun-2026  CPIW patch moved to KexDll.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -58,12 +59,6 @@ BOOL WINAPI DllMain(
 			KexHkInstallBasicHook(GetSystemTime, KxBasepGetSystemTimeHook, NULL);
 			KexHkInstallBasicHook(GetSystemTimeAsFileTime, KxBasepGetSystemTimeAsFileTimeHook, NULL);
 		}
-
-		//
-		// Patch subsystem version check inside CreateProcessInternalW.
-		//
-
-		KexPatchCpiwSubsystemVersionCheck();
 
 		//
 		// Get base named object directories and put handles to them in KexData.

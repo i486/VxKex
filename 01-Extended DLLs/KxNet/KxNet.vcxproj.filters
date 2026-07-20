@@ -30,6 +30,12 @@
     <ClCompile Include="winsock.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="gaiasync.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="stubs.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="buildcfg.h">

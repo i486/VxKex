@@ -31,6 +31,7 @@
 //
 //     vxiiduu              03-Feb-2024  Initial creation.
 //     vxiiduu              22-Feb-2024  Use SafeRelease instead of if statement.
+//     vxiiduu              22-May-2026  Add new parameters for TLS and ANSI.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -365,13 +366,17 @@ BOOLEAN KxCfgpAssembleKexCfgCommandLine(
 		Buffer,
 		BufferCch,
 		L"/EXE:\"%s\" /ENABLE:%lu /DISABLEFORCHILD:%lu "
-		L"/DISABLEAPPSPECIFIC:%lu /WINVERSPOOF:%lu /STRONGSPOOF:%08x",
+		L"/DISABLEAPPSPECIFIC:%lu /DISABLECONENHANCE:%lu /WINVERSPOOF:%lu "
+		L"/STRONGSPOOF:%08x /TLSFORCEENABLE:%08x /TLSFORCEDISABLE:%08x",
 		ExeFullPath,
 		Configuration->Enabled,
-		Configuration->DisableForChild,
-		Configuration->DisableAppSpecificHacks,
-		Configuration->WinVerSpoof,
-		Configuration->StrongSpoofOptions);
+		Configuration->IfeoParameters.DisableForChild,
+		Configuration->IfeoParameters.DisableAppSpecific,
+		Configuration->IfeoParameters.DisableConsoleEnhancements,
+		Configuration->IfeoParameters.WinVerSpoof,
+		Configuration->IfeoParameters.StrongVersionSpoof,
+		Configuration->IfeoParameters.TlsForceEnabledProtocols,
+		Configuration->IfeoParameters.TlsForceDisabledProtocols);
 
 	ASSERT (SUCCEEDED(Result));
 

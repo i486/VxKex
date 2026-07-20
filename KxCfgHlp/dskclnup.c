@@ -17,18 +17,15 @@
 // This file contains routines which install or uninstall the Disk Cleanup
 // handler for the .vxl files in the log directory.
 //
-// The KexDir and LogDir parameters are intended only for use from the
-// installer. Specify NULL if not running from the installer.
-//
 
 KXCFGDECLSPEC BOOLEAN KXCFGAPI KxCfgInstallDiskCleanupHandler(
-	IN	PCWSTR	KexDir OPTIONAL,
-	IN	PCWSTR	LogDir OPTIONAL,
 	IN	HANDLE	TransactionHandle OPTIONAL)
 {
 	HKEY KeyHandle;
 	WCHAR IconPath[MAX_PATH];
-	WCHAR LogDirBuffer[MAX_PATH];
+	WCHAR SystemLogDir[MAX_PATH];
+	WCHAR UserLogDir[MAX_PATH];
+	WCHAR LogDirs[ARRAYSIZE(SystemLogDir) + ARRAYSIZE(UserLogDir) + 1]; // +1 for the '|'
 
 	//
 	// HKLM\Software\Microsoft\Windows\CurrentVersion\Explorer\
@@ -36,14 +33,14 @@ KXCFGDECLSPEC BOOLEAN KXCFGAPI KxCfgInstallDiskCleanupHandler(
 	//   VxKex Log Files (*) (key)
 	//     (Default)				= REG_SZ "{C0E13E61-0CC6-11d1-BBB6-0060978B2AE6}"
 	//     Description				= REG_SZ "VxKex may create log files each time you launch an application, "
-	//										 "which consume disk space. Log files older than 3 days can safely "
+	//										 "which consume disk space. Log files older than a day can safely "
 	//										 "be deleted."
 	//     Display					= REG_SZ "VxKex Log Files"
 	//     FileList					= REG_SZ "*.vxl"
 	//     Flags					= REG_DWORD (DDEVCF_DONTSHOWIFZERO)
-	//     Folder					= REG_SZ "<LogDir>"
+	//     Folder					= REG_SZ "<LogDir1>|<LogDir2>|..."
 	//     IconPath					= REG_SZ "<KexDir>\VxlView.exe,1"
-	//     LastAccess				= REG_DWORD 0x00000003
+	//     LastAccess				= REG_DWORD 0x00000001
 	//
 
 	KeyHandle = KxCfgpCreateKey(
@@ -59,28 +56,23 @@ KXCFGDECLSPEC BOOLEAN KXCFGAPI KxCfgInstallDiskCleanupHandler(
 		return FALSE;
 	}
 
-	if (KexDir) {
-		StringCchPrintf(IconPath, ARRAYSIZE(IconPath), L"%s\\VxlView.exe,1", KexDir);
-	} else {
-		KxCfgGetKexDir(IconPath, ARRAYSIZE(IconPath));
-		PathCchAppend(IconPath, ARRAYSIZE(IconPath), L"VxlView.exe,1");
-	}
+	KxCfgGetKexDir(IconPath, ARRAYSIZE(IconPath));
+	PathCchAppend(IconPath, ARRAYSIZE(IconPath), L"VxlView.exe,1");
 
-	if (!LogDir) {
-		KxCfgQueryLoggingSettings(NULL, LogDirBuffer, ARRAYSIZE(LogDirBuffer));
-		LogDir = LogDirBuffer;
-	}
+	KxCfgQueryLoggingSettings(FALSE, NULL, SystemLogDir, ARRAYSIZE(SystemLogDir), TransactionHandle);
+	KxCfgQueryLoggingSettings(TRUE, NULL, UserLogDir, ARRAYSIZE(UserLogDir), TransactionHandle);
+	StringCchPrintf(LogDirs, ARRAYSIZE(LogDirs), L"%s|%s", SystemLogDir, UserLogDir);
 
 	RegWriteString(KeyHandle, NULL, NULL, L"{C0E13E61-0CC6-11d1-BBB6-0060978B2AE6}");
 	RegWriteString(KeyHandle, NULL, L"Display", L"VxKex Log Files");
 	RegWriteString(KeyHandle, NULL, L"Description",
 		L"VxKex may create log files each time you launch an application, "
-		L"which consumes disk space. Log files older than 3 days can safely "
+		L"which consumes disk space. Log files older than a day can safely "
 		L"be deleted.");
-	RegWriteString(KeyHandle, NULL, L"Folder", LogDir);
+	RegWriteString(KeyHandle, NULL, L"Folder", LogDirs);
 	RegWriteString(KeyHandle, NULL, L"FileList", L"*.vxl");
 	RegWriteString(KeyHandle, NULL, L"IconPath", IconPath);
-	RegWriteI32(KeyHandle, NULL, L"LastAccess", 3);
+	RegWriteI32(KeyHandle, NULL, L"LastAccess", 1);
 	RegWriteI32(KeyHandle, NULL, L"Flags", DDEVCF_DONTSHOWIFZERO);
 
 	SafeClose(KeyHandle);

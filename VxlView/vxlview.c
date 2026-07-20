@@ -54,7 +54,7 @@ INT_PTR CALLBACK MainWndProc(
 		InitializeDetailsWindow();
 		
 		UpdateMainMenu();
-		RestoreWindowPlacement();
+		RestoreWindowPlacement(MainWindow, APP_REG_KEY);
 		RestoreListViewColumns();
 
 		CommandLine = GetCommandLineWithoutImageName();
@@ -77,7 +77,7 @@ INT_PTR CALLBACK MainWndProc(
 		}
 	} else if (Message == WM_CLOSE) {
 		SaveListViewColumns();
-		SaveWindowPlacement();
+		SaveWindowPlacement(MainWindow, APP_REG_KEY);
 		CleanupBackend();
 		ExitProcess(0);
 	} else if (Message == WM_SIZE && (WParam == SIZENORMAL || WParam == SIZEFULLSCREEN)) {

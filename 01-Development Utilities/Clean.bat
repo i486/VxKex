@@ -12,6 +12,9 @@ del KexSetup_Debug.exe KexSetup_Release.exe
 rmdir /S /Q ipch
 del /A /F /S /Q *.user *.sdf
 
+del "02-Prebuilt Data\*.pdb"
+del "02-Prebuilt Data\KexDir\Globalization\Dictionaries\*.bdi"
+
 for /R /D %%f in (x64) do (
     if not "%%f"=="%cd%\02-Prebuilt DLLs\x64" (
         rmdir /S /Q "%%f"

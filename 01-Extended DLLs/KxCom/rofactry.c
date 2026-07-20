@@ -22,6 +22,25 @@ KXCOMAPI HRESULT WINAPI RoGetActivationFactory(
 	return CActivationFactory_QueryInterface(&CActivationFactory, RefIID, Factory);
 }
 
+// Added for Cavalry
+KXCOMAPI HRESULT WINAPI RoRegisterActivationFactories(
+	IN	HSTRING					*ActivatableClassIds,
+	IN	PPVOID					ActivationFactoryCallbacks,
+	IN	ULONG					Count,
+	OUT	PRO_REGISTRATION_COOKIE	Cookie)
+{
+	KexLogUnimplementedFunctionEvent();
+	return E_NOTIMPL;
+}
+
+// Added for Cavalry
+KXCOMAPI VOID WINAPI RoRevokeActivationFactories(
+	IN	RO_REGISTRATION_COOKIE	Cookie)
+{
+	KexLogUnimplementedFunctionEvent();
+	return;
+}
+
 KXCOMAPI HRESULT WINAPI RoActivateInstance(
 	IN	HSTRING			ActivatableClassId,
 	OUT	IInspectable	**Instance)

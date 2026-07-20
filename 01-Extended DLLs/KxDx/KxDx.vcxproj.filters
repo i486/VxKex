@@ -59,6 +59,9 @@
     <ClCompile Include="d3d11on12.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="opengl.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="kxdx.def">

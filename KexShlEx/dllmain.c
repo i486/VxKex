@@ -92,7 +92,7 @@ BOOL WINAPI DllMain(
 	if (Reason == DLL_PROCESS_ATTACH) {
 		DllHandle = InstanceHandle;
 		DisableThreadLibraryCalls(DllHandle);
-		KexgApplicationFriendlyName = FRIENDLYAPPNAME;
+		KexgApplicationFriendlyName = _(FRIENDLYAPPNAME);
 	}
 
 	return TRUE;

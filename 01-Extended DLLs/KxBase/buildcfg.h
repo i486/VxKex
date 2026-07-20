@@ -45,6 +45,8 @@
 #  pragma comment(lib, "cfgmgr32_x86.lib")
 #endif
 
+#pragma comment(lib, "KexDll.lib")
+
 #define KEX_COMPONENT L"KxBase"
 #define KEX_ENV_WIN32
 #define KEX_TARGET_TYPE_DLL

@@ -230,7 +230,7 @@ KXBASEAPI BOOL WINAPI GetFileInformationByName(
 	OUT	PVOID					FileInformationBuffer,
 	IN	ULONG					BufferCb)
 {
-	KexLogWarningEvent(
+	KexLogDebugEvent(
 		L"Unsupported API GetFileInformationByName called\r\n\r\n"
 		L"FileName:             %s\r\n"
 		L"FileInformationClass: %d",
@@ -321,6 +321,21 @@ KXBASEAPI BOOL WINAPI Ext_WriteFile(
 {
 	ULONG DummyNumberOfBytesWritten;
 
+	if (IsConsoleHandle(FileHandle) && BaseIsConsoleAnsiSupportEnabled(FileHandle)) {
+		//
+		// In order to support ANSI escape sequences, we need to redirect
+		// WriteFile to Ext_WriteConsoleA if we're writing to a console and the
+		// ANSI escape sequence processing is enabled.
+		//
+
+		return Ext_WriteConsoleA(
+			FileHandle,
+			Buffer,
+			NumberOfBytesToWrite,
+			NumberOfBytesWritten,
+			Overlapped);
+	}
+
 	// See comment in Ext_DeviceIoControl for why this is necessary.
 	// They changed the behavior of WriteFile in Windows 8 as well.
 	if (NumberOfBytesWritten == NULL) {
@@ -333,4 +348,28 @@ KXBASEAPI BOOL WINAPI Ext_WriteFile(
 		NumberOfBytesToWrite,
 		NumberOfBytesWritten,
 		Overlapped);
+}
+
+KXBASEAPI BOOL WINAPI Ext_SetHandleInformation(
+	IN	HANDLE	Handle,
+	IN	ULONG	Mask,
+	IN	ULONG	Flags)
+{
+	//
+	// In Windows 7, console handles cannot have their inheritable status
+	// changed. However, in Windows 10, this operation is permitted. Some
+	// applications, such as Python, will create errors if we don't pretend
+	// the operation succeeded.
+	//
+	// https://github.com/python/cpython/commit/28fca0c422b425a6be43be31add0a5328c16b0b8
+	//
+	// The Python code "os.dup(0)" will cause an OSError: [WinError 87]
+	// exception unless we make the following fix.
+	//
+
+	if (IsConsoleHandle(Handle) && (Mask & HANDLE_FLAG_INHERIT)) {
+		Mask &= ~HANDLE_FLAG_INHERIT;
+	}
+
+	return SetHandleInformation(Handle, Mask, Flags);
 }

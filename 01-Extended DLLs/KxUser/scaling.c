@@ -1,101 +1,59 @@
 #include "buildcfg.h"
 #include "kxuserp.h"
 
+KXUSERAPI BOOL WINAPI IsValidDpiAwarenessContext(
+	IN	DPI_AWARENESS_CONTEXT	Value)
+{
+	return FALSE;
+}
+
 KXUSERAPI BOOL WINAPI AreDpiAwarenessContextsEqual(
 	IN	DPI_AWARENESS_CONTEXT	Value1,
 	IN	DPI_AWARENESS_CONTEXT	Value2)
 {
-	return (Value1 == Value2);
-}
-
-KXUSERAPI BOOL WINAPI IsValidDpiAwarenessContext(
-	IN	DPI_AWARENESS_CONTEXT	Value)
-{
-	switch (Value) {
-	case DPI_AWARENESS_CONTEXT_UNAWARE:
-	case DPI_AWARENESS_CONTEXT_UNAWARE_GDISCALED:
-	case DPI_AWARENESS_CONTEXT_SYSTEM_AWARE:
-	case DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE:
-	case DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2:
-		return TRUE;
-	default:
-		return FALSE;
-	}
+	return (IsValidDpiAwarenessContext(Value1) &&
+			IsValidDpiAwarenessContext(Value2) &&
+			((Value1 ^ Value2) & INT_MAX) == 0);
 }
 
 KXUSERAPI DPI_AWARENESS WINAPI GetAwarenessFromDpiAwarenessContext(
 	IN	DPI_AWARENESS_CONTEXT	Value)
 {
-	switch (Value) {
-	case DPI_AWARENESS_CONTEXT_UNAWARE:
-	case DPI_AWARENESS_CONTEXT_UNAWARE_GDISCALED:
-		return DPI_AWARENESS_UNAWARE;
-	case DPI_AWARENESS_CONTEXT_SYSTEM_AWARE:
-		return DPI_AWARENESS_SYSTEM_AWARE;
-	case DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE:
-	case DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2:
-		return DPI_AWARENESS_PER_MONITOR_AWARE;
-	default:
-		return DPI_AWARENESS_INVALID;
-	}
+	return DPI_AWARENESS_INVALID;
 }
 
-KXUSERAPI DPI_AWARENESS_CONTEXT WINAPI GetThreadDpiAwarenessContext(
-	VOID)
+KXUSERAPI DPI_AWARENESS_CONTEXT WINAPI GetDpiAwarenessContextForProcess(
+	IN	HANDLE					ProcessHandle)
 {
-	if (IsProcessDPIAware()) {
-		return DPI_AWARENESS_CONTEXT_SYSTEM_AWARE;
-	} else {
-		return DPI_AWARENESS_CONTEXT_UNAWARE;
-	}
-}
+	if (ProcessHandle == NULL ||
+		ProcessHandle == NtCurrentProcess() ||
+		GetProcessId(ProcessHandle) == (ULONG) NtCurrentTeb()->ClientId.UniqueProcess) {
 
-KXUSERAPI DPI_AWARENESS_CONTEXT WINAPI SetThreadDpiAwarenessContext(
-	IN	DPI_AWARENESS_CONTEXT	DpiContext)
-{
-	BOOLEAN OldDpiAwareness;
-
-	OldDpiAwareness = IsProcessDPIAware();
-
-	switch (DpiContext) {
-	case DPI_AWARENESS_CONTEXT_UNAWARE:
-	case DPI_AWARENESS_CONTEXT_UNAWARE_GDISCALED:
-		NOTHING;
-		break;
-	case DPI_AWARENESS_CONTEXT_SYSTEM_AWARE:
-	case DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE:
-	case DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2:
-		SetProcessDPIAware();
-		break;
-	default:
-		return 0;
+		if (IsProcessDPIAware()) {
+			return DPI_AWARENESS_CONTEXT_SYSTEM_AWARE;
+		}
 	}
 
-	if (OldDpiAwareness) {
-		return DPI_AWARENESS_CONTEXT_SYSTEM_AWARE;
-	} else {
-		return DPI_AWARENESS_CONTEXT_UNAWARE;
-	}
+	return DPI_AWARENESS_CONTEXT_UNAWARE;
 }
 
 KXUSERAPI BOOL WINAPI SetProcessDpiAwarenessContext(
 	IN	DPI_AWARENESS_CONTEXT	DpiContext)
 {
-	switch (DpiContext) {
-	case DPI_AWARENESS_CONTEXT_UNAWARE:
-	case DPI_AWARENESS_CONTEXT_UNAWARE_GDISCALED:
-		NOTHING;
-		break;
-	case DPI_AWARENESS_CONTEXT_SYSTEM_AWARE:
-	case DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE:
-	case DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2:
-		SetProcessDPIAware();
-		break;
-	default:
-		return FALSE;
-	}
+	SetLastError(ERROR_ACCESS_DENIED);
+	return FALSE;
+}
 
-	return TRUE;
+KXUSERAPI DPI_AWARENESS_CONTEXT WINAPI GetThreadDpiAwarenessContext(
+	VOID)
+{
+	return GetDpiAwarenessContextForProcess(NULL);
+}
+
+KXUSERAPI DPI_AWARENESS_CONTEXT WINAPI SetThreadDpiAwarenessContext(
+	IN	DPI_AWARENESS_CONTEXT	DpiContext)
+{
+	return 0;
 }
 
 KXUSERAPI DPI_AWARENESS_CONTEXT WINAPI GetWindowDpiAwarenessContext(
@@ -110,7 +68,7 @@ KXUSERAPI DPI_AWARENESS_CONTEXT WINAPI GetWindowDpiAwarenessContext(
 	}
 
 	if (WindowProcessId == (ULONG) NtCurrentTeb()->ClientId.UniqueProcess) {
-		return GetThreadDpiAwarenessContext();
+		return GetDpiAwarenessContextForProcess(NULL);
 	}
 
 	return DPI_AWARENESS_CONTEXT_UNAWARE;
@@ -147,21 +105,6 @@ KXUSERAPI HRESULT WINAPI GetProcessDpiAwareness(
 	return S_OK;
 }
 
-KXUSERAPI DPI_AWARENESS_CONTEXT WINAPI GetDpiAwarenessContextForProcess(
-	IN	HANDLE					ProcessHandle)
-{
-	if (ProcessHandle == NULL ||
-		ProcessHandle == NtCurrentProcess() ||
-		GetProcessId(ProcessHandle) == (ULONG) NtCurrentTeb()->ClientId.UniqueProcess) {
-
-		if (IsProcessDPIAware()) {
-			return DPI_AWARENESS_CONTEXT_SYSTEM_AWARE;
-		}
-	}
-
-	return DPI_AWARENESS_CONTEXT_UNAWARE;
-}
-
 KXUSERAPI BOOL WINAPI SetProcessDpiAwarenessInternal(
 	IN	PROCESS_DPI_AWARENESS	DpiAwareness)
 {
@@ -194,14 +137,36 @@ KXUSERAPI HRESULT WINAPI SetProcessDpiAwareness(
 	return S_OK;
 }
 
+KXUSERAPI UINT WINAPI GetDpiForSystem(
+	VOID)
+{
+	STATIC ULONG SystemDpi = 0;
+
+	if (!IsProcessDPIAware()) {
+		return USER_DEFAULT_SCREEN_DPI;
+	}
+
+	if (SystemDpi == 0) {
+		HDC DeviceContext;
+
+		DeviceContext = GetDC(NULL);
+		if (!DeviceContext) {
+			return USER_DEFAULT_SCREEN_DPI;
+		}
+
+		SystemDpi = GetDeviceCaps(DeviceContext, LOGPIXELSX);
+		ReleaseDC(NULL, DeviceContext);
+	}
+
+	return SystemDpi;
+}
+
 KXUSERAPI HRESULT WINAPI GetDpiForMonitor(
 	IN	HMONITOR			Monitor,
 	IN	MONITOR_DPI_TYPE	DpiType,
 	OUT	PULONG				DpiX,
 	OUT	PULONG				DpiY)
 {
-	HDC DeviceContext;
-
 	if (DpiType >= MDT_MAXIMUM_DPI) {
 		return E_INVALIDARG;
 	}
@@ -210,23 +175,24 @@ KXUSERAPI HRESULT WINAPI GetDpiForMonitor(
 		return E_INVALIDARG;
 	}
 
-	if (!IsProcessDPIAware()) {
-		*DpiX = USER_DEFAULT_SCREEN_DPI;
-		*DpiY = USER_DEFAULT_SCREEN_DPI;
-		return S_OK;
+	//
+	// APPSPECIFICHACK: Java applications using the "awt.dll" framework do not
+	// scale properly on high DPI displays. I couldn't find out how to fix this
+	// properly, so just pretend the screen is 96DPI. It's usable on 120DPI
+	// monitors but unfortunately anything higher and text starts getting too small.
+	//
+
+	unless (KexData->IfeoParameters.DisableAppSpecific) {
+		if (AshModuleBaseNameIs(ReturnAddress(), L"awt.dll")) {
+			*DpiX = USER_DEFAULT_SCREEN_DPI;
+			*DpiY = USER_DEFAULT_SCREEN_DPI;
+			return S_OK;
+		}
 	}
 
-	DeviceContext = GetDC(NULL);
-	if (!DeviceContext) {
-		*DpiX = USER_DEFAULT_SCREEN_DPI;
-		*DpiY = USER_DEFAULT_SCREEN_DPI;
-		return S_OK;
-	}
+	*DpiX = GetDpiForSystem();
+	*DpiY = *DpiX;
 
-	*DpiX = GetDeviceCaps(DeviceContext, LOGPIXELSX);
-	*DpiY = GetDeviceCaps(DeviceContext, LOGPIXELSY);
-
-	ReleaseDC(NULL, DeviceContext);
 	return S_OK;
 }
 
@@ -234,41 +200,8 @@ KXUSERAPI HRESULT WINAPI GetScaleFactorForMonitor(
 	IN	HMONITOR				Monitor,
 	OUT	PDEVICE_SCALE_FACTOR	ScaleFactor)
 {
-	HDC DeviceContext;
-	ULONG LogPixelsX;
-
-	DeviceContext = GetDC(NULL);
-	if (!DeviceContext) {
-		*ScaleFactor = SCALE_100_PERCENT;
-		return S_OK;
-	}
-
-	LogPixelsX = GetDeviceCaps(DeviceContext, LOGPIXELSX);
-	ReleaseDC(NULL, DeviceContext);
-
-	*ScaleFactor = (DEVICE_SCALE_FACTOR) (9600 / LogPixelsX);
+	*ScaleFactor = (DEVICE_SCALE_FACTOR) (9600 / GetDpiForSystem());
 	return S_OK;
-}
-
-KXUSERAPI UINT WINAPI GetDpiForSystem(
-	VOID)
-{
-	HDC DeviceContext;
-	ULONG LogPixelsX;
-
-	if (!IsProcessDPIAware()) {
-		return USER_DEFAULT_SCREEN_DPI;
-	}
-
-	DeviceContext = GetDC(NULL);
-	if (!DeviceContext) {
-		return USER_DEFAULT_SCREEN_DPI;
-	}
-
-	LogPixelsX = GetDeviceCaps(DeviceContext, LOGPIXELSX);
-	ReleaseDC(NULL, DeviceContext);
-
-	return LogPixelsX;
 }
 
 KXUSERAPI UINT WINAPI GetDpiForWindow(

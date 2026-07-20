@@ -47,7 +47,7 @@ KXCOMAPI HRESULT WINAPI CoDecrementMTAUsage(
 	}
 
 	Status = NtAlertThread(Cookie);
-	NtClose(Cookie);
+	SafeClose(Cookie);
 
 	if (NT_SUCCESS(Status)) {
 		return S_OK;

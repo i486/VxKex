@@ -40,12 +40,18 @@
 #define GetLastErrorAsString() Win32ErrorAsString(GetLastError())
 #define NtStatusAsString(Status) Win32ErrorAsString(RtlNtStatusToDosErrorNoTeb(Status))
 
+#define SafeFindClose(FindHandle) \
+	do { \
+		if (FindHandle != NULL) { \
+			BOOL SafeFindCloseSuccess; \
+			SafeFindCloseSuccess = FindClose(FindHandle); \
+			ASSERT (SafeFindCloseSuccess); \
+			FindHandle = NULL; \
+		} \
+	} while (0)
+
 // Use CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE) instead
 #pragma deprecated(CoInitialize)
-
-KW32MLDECLSPEC LONGLONG KW32MLAPI CompareFileTimes(
-	IN	FILETIME	FileTime1,
-	IN	FILETIME	FileTime2);
 
 KW32MLDECLSPEC PWSTR KW32MLAPI GetCommandLineWithoutImageName(
 	VOID);
@@ -95,3 +101,6 @@ KW32MLDECLSPEC EXTERN_C BOOLEAN KW32MLAPI SupersedeFile(
 
 KW32MLDECLSPEC HANDLE KW32MLAPI CreateSimpleTransaction(
 	IN	PCWSTR	Description);
+
+KW32MLDECLSPEC EXTERN_C BOOLEAN KW32MLAPI FileExists(
+	IN	PCWSTR	Path);

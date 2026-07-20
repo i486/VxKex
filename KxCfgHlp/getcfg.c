@@ -20,6 +20,9 @@
 // Revision History:
 //
 //     vxiiduu              02-Feb-2024  Initial creation.
+//     vxiiduu              17-May-2026  Add support for TLS IFEO parameters.
+//     vxiiduu              26-Jun-2026  Make Configuration parameter optional
+//                                       for KxCfgGetConfiguration.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -32,10 +35,12 @@
 // Retrieve VxKex configuration for a particular program.
 // Returns TRUE on success and FALSE on failure. Call GetLastError() to obtain
 // more information.
+// If Configuration is NULL, this function returns TRUE if there is an IFEO key
+// for the program, and FALSE if there is no IFEO key.
 //
 KXCFGDECLSPEC BOOLEAN KXCFGAPI KxCfgGetConfiguration(
 	IN	PCWSTR							ExeFullPath,
-	OUT	PKXCFG_PROGRAM_CONFIGURATION	Configuration)
+	OUT	PKXCFG_PROGRAM_CONFIGURATION	Configuration OPTIONAL)
 {
 	NTSTATUS Status;
 	ULONG ErrorCode;
@@ -44,16 +49,13 @@ KXCFGDECLSPEC BOOLEAN KXCFGAPI KxCfgGetConfiguration(
 
 	WCHAR VerifierDlls[256];
 	ULONG GlobalFlag;
-	ULONG KEX_DisableForChild;
-	ULONG KEX_DisableAppSpecific;
-	ULONG KEX_WinVerSpoof;
-	ULONG KEX_StrongVersionSpoof;
 
 	ASSERT (ExeFullPath != NULL);
 	ASSERT (ExeFullPath[0] != '\0');
-	ASSERT (Configuration != NULL);
 
-	RtlZeroMemory(Configuration, sizeof(*Configuration));
+	if (Configuration != NULL) {
+		KexRtlZeroMemory(Configuration, sizeof(*Configuration));
+	}
 
 	//
 	// Open the IFEO key for this program.
@@ -69,6 +71,12 @@ KXCFGDECLSPEC BOOLEAN KXCFGAPI KxCfgGetConfiguration(
 	if (!NT_SUCCESS(Status)) {
 		SetLastError(RtlNtStatusToDosError(Status));
 		return FALSE;
+	}
+
+	if (Configuration == NULL) {
+		// All the caller wants to know is if the IFEO key exists.
+		SafeClose(KeyHandle);
+		return TRUE;
 	}
 
 	//
@@ -87,12 +95,27 @@ KXCFGDECLSPEC BOOLEAN KXCFGAPI KxCfgGetConfiguration(
 	}
 
 	RegReadI32(KeyHandle, NULL, L"GlobalFlag", &GlobalFlag);
-	RegReadI32(KeyHandle, NULL, L"KEX_DisableForChild", &KEX_DisableForChild);
-	RegReadI32(KeyHandle, NULL, L"KEX_DisableAppSpecific", &KEX_DisableAppSpecific);
-	RegReadI32(KeyHandle, NULL, L"KEX_WinVerSpoof", &KEX_WinVerSpoof);
-	RegReadI32(KeyHandle, NULL, L"KEX_StrongVersionSpoof", &KEX_StrongVersionSpoof);
 
-	RegCloseKey(KeyHandle);
+	{
+		ULONG Index;
+		KEX_IFEO_PARAMETER_DEFINITION IfeoParameterDefinitions[] = {
+			#define IFEO_PARAMETER_BASE_POINTER &Configuration->IfeoParameters
+			#include <KexIfeo.h>
+			#undef IFEO_PARAMETER_BASE_POINTER
+		};
+
+		for (Index = 0; Index < ARRAYSIZE(IfeoParameterDefinitions); ++Index) {
+			LdrQueryImageFileKeyOption(
+				KeyHandle,
+				IfeoParameterDefinitions[Index].RegistryValueName,
+				IfeoParameterDefinitions[Index].RegistryDataType,
+				IfeoParameterDefinitions[Index].TargetBuffer,
+				IfeoParameterDefinitions[Index].TargetBufferCb,
+				NULL);
+		}
+	}
+
+	SafeClose(KeyHandle);
 
 	//
 	// Parse GlobalFlag and VerifierDlls to determine whether VxKex is enabled.
@@ -103,15 +126,6 @@ KXCFGDECLSPEC BOOLEAN KXCFGAPI KxCfgGetConfiguration(
 			Configuration->Enabled = TRUE;
 		}
 	}
-
-	//
-	// Fill out the remaining members of the structure.
-	//
-
-	Configuration->DisableForChild = !!KEX_DisableForChild;
-	Configuration->DisableAppSpecificHacks = !!KEX_DisableAppSpecific;
-	Configuration->WinVerSpoof = (KEX_WIN_VER_SPOOF) KEX_WinVerSpoof;
-	Configuration->StrongSpoofOptions = KEX_StrongVersionSpoof;
 
 	return TRUE;
 }

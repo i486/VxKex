@@ -1,10 +1,22 @@
 #include "buildcfg.h"
 #include "kxuserp.h"
 
+STATIC BOOLEAN g_MouseInPointerEnabled = FALSE;
+
 KXUSERAPI BOOL WINAPI GetPointerDevices(
-	IN OUT	UINT32				*DeviceCount,
-	OUT		POINTER_DEVICE_INFO	*PointerDevices)
+	IN OUT	PULONG					DeviceCount,
+	OUT		PPOINTER_DEVICE_INFO	PointerDevices OPTIONAL)
 {
+	if (DeviceCount == NULL) {
+		RtlSetLastWin32Error(ERROR_INVALID_PARAMETER);
+		return FALSE;
+	}
+
+	//
+	// I don't think mice are returned by this function, considering there
+	// is no POINTER_DEVICE_TYPE enum value for mice.
+	//
+
 	*DeviceCount = 0;
 	return TRUE;
 }
@@ -24,7 +36,7 @@ KXUSERAPI BOOL WINAPI GetPointerInfo(
 	PointerInfo->pointerType = PT_MOUSE;
 	PointerInfo->pointerId = PointerId;
 	PointerInfo->frameId = 0;
-	PointerInfo->pointerFlags = POINTER_FLAG_NONE;
+	PointerInfo->pointerFlags = POINTER_FLAG_PRIMARY | POINTER_FLAG_CONFIDENCE;
 	PointerInfo->sourceDevice = NULL;
 	PointerInfo->hwndTarget = NULL;
 	GetCursorPos(&PointerInfo->ptPixelLocation);
@@ -42,9 +54,28 @@ KXUSERAPI BOOL WINAPI GetPointerInfo(
 }
 
 KXUSERAPI BOOL WINAPI GetPointerTouchInfo(
-	IN	DWORD	PointerId,
-	OUT	LPVOID	TouchInfo)
+	IN	ULONG				PointerId,
+	OUT	PPOINTER_TOUCH_INFO	TouchInfo)
 {
+	KexDebugCheckpoint();
+	RtlSetLastWin32Error(ERROR_NOT_SUPPORTED);
+	return FALSE;
+}
+
+//
+// Added based on a user report that certain Unity 6 games require it.
+// https://github.com/i486/VxKex/issues/279#issuecomment-4778250083
+//
+// According to MSDN docs, this function is only applicable for PT_TOUCH
+// pointer types, which we don't support. Apps shouldn't ever call this
+// function.
+//
+KXUSERAPI BOOL WINAPI GetPointerTouchInfoHistory(
+	IN		ULONG				PointerId,
+	IN OUT	ULONG				NumberOfTouchInfo,
+	OUT		PPOINTER_TOUCH_INFO	TouchInfo)
+{
+	KexDebugCheckpoint();
 	RtlSetLastWin32Error(ERROR_NOT_SUPPORTED);
 	return FALSE;
 }
@@ -54,6 +85,7 @@ KXUSERAPI BOOL WINAPI GetPointerFrameTouchInfo(
 	IN OUT	LPDWORD PointerCount,
 	OUT		LPVOID	TouchInfo)
 {
+	KexDebugCheckpoint();
 	RtlSetLastWin32Error(ERROR_NOT_SUPPORTED);
 	return FALSE;
 }
@@ -64,6 +96,7 @@ KXUSERAPI BOOL WINAPI GetPointerFrameTouchInfoHistory(
 	IN OUT	LPDWORD PointerCount,
 	OUT		LPVOID	TouchInfo)
 {
+	KexDebugCheckpoint();
 	RtlSetLastWin32Error(ERROR_NOT_SUPPORTED);
 	return FALSE;
 }
@@ -72,6 +105,7 @@ KXUSERAPI BOOL WINAPI GetPointerPenInfo(
 	IN	DWORD	PointerId,
 	OUT	LPVOID	PenInfo)
 {
+	KexDebugCheckpoint();
 	RtlSetLastWin32Error(ERROR_NOT_SUPPORTED);
 	return FALSE;
 }
@@ -81,6 +115,7 @@ KXUSERAPI BOOL WINAPI GetPointerPenInfoHistory(
 	IN OUT	LPDWORD	EntriesCount,
 	OUT		LPVOID	PenInfo)
 {
+	KexDebugCheckpoint();
 	RtlSetLastWin32Error(ERROR_NOT_SUPPORTED);
 	return FALSE;
 }
@@ -181,15 +216,32 @@ KXUSERAPI BOOL WINAPI SetWindowFeedbackSetting(
 KXUSERAPI BOOL WINAPI IsMouseInPointerEnabled(
 	VOID)
 {
-	return FALSE;
+	return g_MouseInPointerEnabled;
 }
 
 KXUSERAPI BOOL WINAPI EnableMouseInPointer(
 	IN	BOOL	Enabled)
 {
-	if (Enabled == TRUE) {
+	STATIC BOOLEAN AlreadyCalled = FALSE;
+
+	// normalize boolean into the range (0,1)
+	Enabled = !!Enabled;
+
+	if (AlreadyCalled) {
+		if (Enabled == g_MouseInPointerEnabled) {
+			return TRUE;
+		}
+
 		RtlSetLastWin32Error(ERROR_NOT_SUPPORTED);
 		return FALSE;
+	}
+
+	AlreadyCalled = TRUE;
+	g_MouseInPointerEnabled = Enabled;
+
+	if (Enabled) {
+		// Mouse-in-pointer mode requires window message interception to work.
+		EnableWindowMessageInterception();
 	}
 
 	return TRUE;

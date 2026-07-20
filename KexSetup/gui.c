@@ -20,9 +20,12 @@
 // Revision History:
 //
 //     vxiiduu               02-Feb-2024  Initial creation.
+//     vxiiduu               30-Apr-2026  Fix Enter key doing nothing during
+//                                        completion scenes
 //
 ///////////////////////////////////////////////////////////////////////////////
 
+#include "buildcfg.h"
 #include "kexsetup.h"
 #include <ShlObj.h>
 
@@ -85,7 +88,7 @@ VOID UpdateDiskFreeSpace(
 	WCHAR InstallationDir[MAX_PATH];
 	WCHAR InstallationVolume[MAX_PATH];
 	WCHAR FormattedSize[16];
-	WCHAR LabelText[22 + ARRAYSIZE(FormattedSize)] = L"Disk space available: ";
+	WCHAR LabelText[22 + ARRAYSIZE(FormattedSize)] = {0};
 	ULARGE_INTEGER uliFreeSpace;
 
 	StaticControlWindow = GetDlgItem(MainWindow, IDS1SPACEAVAIL);
@@ -94,6 +97,7 @@ VOID UpdateDiskFreeSpace(
 
 	if (GetDiskFreeSpaceEx(InstallationVolume, &uliFreeSpace, NULL, NULL)) {
 		if (StrFormatByteSize(uliFreeSpace.QuadPart, FormattedSize, ARRAYSIZE(FormattedSize))) {
+			StringCchCat(LabelText, ARRAYSIZE(LabelText), _(L"Disk space available: "));
 			StringCchCat(LabelText, ARRAYSIZE(LabelText), FormattedSize);
 			SetDlgItemText(MainWindow, IDS1SPACEAVAIL, LabelText);
 			return;
@@ -123,8 +127,8 @@ ULONG GetDirectorySize(
 	ASSERT (DirectoryPath[0] != '\0');
 
 	DirectorySize = 0;
-	FindSpec = StackAlloc(WCHAR, wcslen(DirectoryPath) + 2 + 1);
 	FindSpecCch = (ULONG) wcslen(DirectoryPath) + 2 + 1;
+	FindSpec = StackAlloc(WCHAR, FindSpecCch);
 	StringCchPrintf(FindSpec, FindSpecCch, L"%s\\*", DirectoryPath);
 
 	FindHandle = FindFirstFileEx(
@@ -140,19 +144,12 @@ ULONG GetDirectorySize(
 	}
 
 	do {
-		// skip . and ..
-		if (FindData.cFileName[0] == '.') {
-			if (FindData.cFileName[1] == '.' && FindData.cFileName[2] == '\0') {
-				continue;
-			}
-
-			if (FindData.cFileName[1] == '\0') {
-				continue;
-			}
-		}
-
 		if (FindData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
 			WCHAR SubDirPath[MAX_PATH];
+
+			if (StringEqual(FindData.cFileName, L".") || StringEqual(FindData.cFileName, L"..")) {
+				continue;
+			}
 
 			// recurse
 			StringCchCopy(SubDirPath, ARRAYSIZE(SubDirPath), DirectoryPath);
@@ -163,8 +160,11 @@ ULONG GetDirectorySize(
 		}
 
 		DirectorySize += FindData.nFileSizeLow;
-	} until (!FindNextFile(FindHandle, &FindData) && GetLastError() == ERROR_NO_MORE_FILES);
+	} until (!FindNextFile(FindHandle, &FindData));
 
+	ASSERT (GetLastError() == ERROR_NO_MORE_FILES);
+
+	SafeFindClose(FindHandle);
 	return DirectorySize;
 }
 
@@ -234,15 +234,15 @@ VOID SetScene(
 	}
 
 	// Set the header text that appears in the white banner at the top of the window.
-	SetDlgItemText(MainWindow, IDHDRTEXT, HeaderTexts[SceneNumber - 1][0]);
-	SetDlgItemText(MainWindow, IDHDRSUBTEXT, HeaderTexts[SceneNumber - 1][1]);
+	SetDlgItemText(MainWindow, IDHDRTEXT, _(HeaderTexts[SceneNumber - 1][0]));
+	SetDlgItemText(MainWindow, IDHDRSUBTEXT, _(HeaderTexts[SceneNumber - 1][1]));
 
 	if (SceneNumber == SCENE_SELECT_INSTALLATION_DIR) {
 		WCHAR FormattedSpaceString[16];
-		WCHAR RequiredSpaceString[64] = L"Disk space required: up to ";
+		WCHAR RequiredSpaceString[64] = {0};
 
 		ASSERT (OperationMode == OperationModeInstall);
-		SetDlgItemText(MainWindow, IDNEXT, L"&Install");
+		SetDlgItemText(MainWindow, IDNEXT, _(L"&Install"));
 		Button_SetShield(GetDlgItem(MainWindow, IDNEXT), TRUE);
 
 		// populate the installation location edit control with KexDir
@@ -256,12 +256,17 @@ VOID SetScene(
 		StringCchCat(
 			RequiredSpaceString,
 			ARRAYSIZE(RequiredSpaceString),
+			_(L"Disk space required: up to "));
+
+		StringCchCat(
+			RequiredSpaceString,
+			ARRAYSIZE(RequiredSpaceString),
 			FormattedSpaceString);
 
 		SetDlgItemText(MainWindow, IDS1SPACEREQ, RequiredSpaceString);
 	} else if (SceneNumber == SCENE_UNINSTALL_CONFIRM) {
 		ASSERT (OperationMode == OperationModeUninstall);
-		SetDlgItemText(MainWindow, IDNEXT, L"&Uninstall");
+		SetDlgItemText(MainWindow, IDNEXT, _(L"&Uninstall"));
 		Button_SetShield(GetDlgItem(MainWindow, IDNEXT), TRUE);
 	} else if (SceneNumber == SCENE_UPDATE_CHANGELOG) {
 		HWND EditWindow;
@@ -275,7 +280,7 @@ VOID SetScene(
 		CannotDisplay = FALSE;
 
 		ASSERT (OperationMode == OperationModeUpgrade);
-		SetDlgItemText(MainWindow, IDNEXT, L"&Update");
+		SetDlgItemText(MainWindow, IDNEXT, _(L"&Update"));
 		Button_SetShield(GetDlgItem(MainWindow, IDNEXT), TRUE);
 
 		GetModuleFileName(NULL, ChangelogPath, ARRAYSIZE(ChangelogPath));
@@ -330,9 +335,7 @@ CannotDisplayChangelog:
 		if (CannotDisplay) {
 			ASSERT (FALSE);
 
-			Changelog = L"The changelog cannot be displayed.\r\n"
-						L"Visit the website to read it:\r\n"
-						_L(KEX_WEB_STR);
+			Changelog = L"The changelog cannot be displayed.";
 		}
 
 		EditWindow = GetDlgItem(MainWindow, IDS7CHANGELOG);
@@ -342,7 +345,7 @@ CannotDisplayChangelog:
 		HWND NextButton;
 
 		NextButton = GetDlgItem(MainWindow, IDNEXT);
-		SetWindowText(NextButton, L"&Finish");
+		SetWindowText(NextButton, _(L"&Finish"));
 		Button_SetShield(NextButton, FALSE);
 
 		switch (SceneNumber) {
@@ -356,13 +359,22 @@ CannotDisplayChangelog:
 		default:
 			SendDlgItemMessage(MainWindow, IDPROGRESS, PBM_SETMARQUEE, FALSE, 0);
 			HideAndDisableControl(IDPROGRESS);
-			HideAndDisableControl(IDCANCEL2);
+			ShowWindow(GetDlgItem(MainWindow, IDCANCEL2), SW_HIDE);
 			EnableWindow(NextButton, TRUE);
+			SetFocus(MainWindow);
 			break;
 		}
 	}
 
 	CurrentScene = SceneNumber;
+
+	//
+	// We have to call MLS to translate the window contents here, rather than
+	// during WM_INITDIALOG or so on because the MLS window static translation
+	// function does not work on hidden controls.
+	//
+
+	MlsgTranslateWindow(MainWindow);
 }
 
 HGDIOBJ SetStaticControlBackground(
@@ -425,16 +437,22 @@ DWORD WINAPI WaitForElevatedProcessEnd(
 	GetExitCodeProcess(ElevatedProcess, (PULONG) &ExitCode);
 
 	if (WaitResult == WAIT_TIMEOUT) {
-		ErrorBoxF(L"The elevated setup process appears to have stopped responding.", ExitCode);
-		SendMessage(MainWindow, WM_USER + 3, 0, 0);
+		ErrorBoxF(
+			_(L"The elevated setup process appears to have stopped responding."),
+			ExitCode);
+
+		SendMessage(MainWindow, KSM_NOTIFY_ELEVATED_PROCESS_FATAL_EXIT, 0, 0);
 	} else if (!NT_SUCCESS(ExitCode)) {
-		ErrorBoxF(L"The elevated setup process exited with an error code: 0x%08lx", ExitCode);
-		SendMessage(MainWindow, WM_USER + 3, 0, 0);
+		ErrorBoxF(
+			_(L"The elevated setup process exited with an error code: 0x%08lx"),
+			ExitCode);
+
+		SendMessage(MainWindow, KSM_NOTIFY_ELEVATED_PROCESS_FATAL_EXIT, 0, 0);
 	} else {
 		// Instead of calling SetScene directly, we need to ask the main thread
 		// to do it. Calling SetScene directly works but subtly breaks the
 		// Finish button.
-		SendMessage(MainWindow, WM_USER + 2, 0, 0);
+		SendMessage(MainWindow, KSM_INCREMENT_SCENE, 0, 0);
 	}
 
 	return 0;
@@ -460,10 +478,9 @@ INT_PTR CALLBACK DialogProc(
 		} else if (OperationMode == OperationModeUninstall) {
 			CheckDlgButton(Window, IDS4PRESERVECONFIG, PreserveConfig ? BST_CHECKED : BST_UNCHECKED);
 
-			ToolTip(Window, IDS4PRESERVECONFIG,
-				L"Preserve the application compatibility settings (such as Windows version spoofing) "
-				L"for applications. VxKex will still be disabled for these applications and you will "
-				L"need to re-enable VxKex if you decide to reinstall.");
+			ToolTip(Window, IDS4PRESERVECONFIG, _(
+				L"Preserve all VxKex per-application settings. VxKex will be automatically "
+				L"re-enabled for applications if you reinstall."));
 		}
 	} else if (Message == WM_CLOSE) {
 		DialogProc(Window, WM_COMMAND, IDCANCEL2, 0);
@@ -481,8 +498,8 @@ INT_PTR CALLBACK DialogProc(
 
 				UserResponse = MessageBox(
 					Window,
-					L"Do you want to cancel Setup?",
-					FRIENDLYAPPNAME,
+					_(L"Do you want to cancel Setup?"),
+					_(FRIENDLYAPPNAME),
 					MB_ICONQUESTION | MB_YESNO);
 
 				if (UserResponse == IDYES) {
@@ -564,7 +581,7 @@ INT_PTR CALLBACK DialogProc(
 				// elevation prompt, so it's not an error for us.
 				if (ShellExecuteResult <= 32 && ShellExecuteResult != SE_ERR_ACCESSDENIED) {
 					ErrorBoxF(
-						L"ShellExecute failed with error code %d. Setup cannot continue.",
+						_(L"ShellExecute failed with error code %d. Setup cannot continue."),
 						ShellExecuteResult);
 					ExitProcess(STATUS_UNSUCCESSFUL);
 				}
@@ -576,7 +593,7 @@ INT_PTR CALLBACK DialogProc(
 		}
 	} else if (Message == WM_CTLCOLORSTATIC) {
 		return (INT_PTR) SetStaticControlBackground(Window, (HWND) LParam, (HDC) WParam);
-	} else if (Message == WM_USER + 1) {
+	} else if (Message == KSM_NOTIFY_ELEVATED_PROCESS_START) {
 		// LPARAM indicates a process handle sent by the elevated process.
 		ASSERT (LParam != 0);
 		ASSERT (ElevatedProcess == NULL);
@@ -591,9 +608,9 @@ INT_PTR CALLBACK DialogProc(
 			NULL,
 			0,
 			NULL);
-	} else if (Message == WM_USER + 2) {
+	} else if (Message == KSM_INCREMENT_SCENE) {
 		SetScene(CurrentScene + 1);
-	} else if (Message == WM_USER + 3) {
+	} else if (Message == KSM_NOTIFY_ELEVATED_PROCESS_FATAL_EXIT) {
 		// sent after displaying a fatal error dialog to the user
 		EndDialog(Window, 0);
 	} else {

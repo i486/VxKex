@@ -1,207 +1,144 @@
-///////////////////////////////////////////////////////////////////////////////
-//
-// Module Name:
-//
-//     cmdline.c
-//
-// Abstract:
-//
-//     Code to handle and act on command-line arguments.
-//
-// Author:
-//
-//     vxiiduu (21-May-2025)
-//
-// Environment:
-//
-//     Console (GUI for errors)
-//
-// Revision History:
-//
-//     vxiiduu              21-May-2025  Initial creation.
-//
-///////////////////////////////////////////////////////////////////////////////
-
 #include "buildcfg.h"
 #include "mlsbdic.h"
 
 //
-// Note: This code is mostly stolen out of KexCfg\cmdline.c.
-// TODO: Deduplicate this code by moving it into KexW32ML or something.
+// Scan a quoted or non-quoted argument parameter and return its length.
 //
-NTSTATUS NTAPI CmdlineParseStringParameter(
-	IN	PCWSTR	CommandLine,
-	IN	PCWSTR	FlagString,
-	IN	ULONG	FlagStringCch,
-	OUT	PWSTR	ParameterBuffer,
-	IN	ULONG	ParameterBufferCch)
+
+STATIC ULONG GetLengthOfMaybeQuotedArgumentParameter(
+	IN	PCWSTR		Ptr,
+	OUT	PBOOLEAN	IsQuoted)
 {
-	PCWSTR Parameter;
+	PCWCHAR ValueStart;
+	ULONG Length;
 
-	if (!CommandLine || !FlagString || !ParameterBuffer ||
-		FlagStringCch == 0 || ParameterBufferCch == 0) {
-
-		return STATUS_INVALID_PARAMETER;
-	}
-
-	ParameterBuffer[0] = '\0';
-
-	Parameter = StringFindI(CommandLine, FlagString);
-	if (!Parameter) {
-		return STATUS_NOT_FOUND;
-	}
-
-	if (Parameter) {
-		BOOLEAN HasQuotes;
-
-		Parameter += FlagStringCch;
-
-		if (Parameter[0] == '\0') {
-			return STATUS_NO_DATA_DETECTED;
+	if (*Ptr == L'"') {
+		++Ptr;
+		ValueStart = Ptr;
+		Length = 0;
+				
+		while (*Ptr != L'\0' && *Ptr != L'"') {
+			++Ptr;
+			++Length;
+		}
+				
+		if (*Ptr == L'"') {
+			++Ptr;
 		}
 
-		if (Parameter[0] == '"') {
-			HasQuotes = TRUE;
-			++Parameter;
+		*IsQuoted = TRUE;
+	} else {
+		ValueStart = Ptr;
+		Length = 0;
+				
+		while (*Ptr != L'\0' && *Ptr != L' ' && *Ptr != L'\t' && 
+				*Ptr != L'\r' && *Ptr != L'\n') {
+
+			++Ptr;
+			++Length;
 		}
 
-		// A failure in this function is ignored. We will determine the validity
-		// of the arguments independently.
-		// StringCchCopy is guaranteed to always null terminate ParameterBuffer
-		// even if there was an error copying.
-		StringCchCopy(ParameterBuffer, ParameterBufferCch, Parameter);
-
-		if (HasQuotes) {
-			PWCHAR EndQuote;
-
-			// Find the matching quote and remove it.
-			EndQuote = (PWCHAR) StringFind(ParameterBuffer, L"\"");
-
-			if (!EndQuote) {
-				// The ending quote was not found.
-				// Either the buffer is too small or there is no end quote.
-				return STATUS_COULD_NOT_INTERPRET;
-			}
-
-			*EndQuote = '\0';
-		} else {
-			PWCHAR EndSpace;
-
-			// A space, or the end of the command line, delimits the end of the argument
-			// in the case that the parameter is not quoted.
-			EndSpace = (PWCHAR) StringFind(ParameterBuffer, L" ");
-
-			if (EndSpace) {
-				*EndSpace = '\0';
-			}
-		}
+		*IsQuoted = FALSE;
 	}
 
-	return STATUS_SUCCESS;
+	return Length;
 }
 
-STATIC VOID BdicParseInOutParameter(
-	IN	PCWSTR	CommandLine,
-	IN	PCWSTR	FlagString,
-	IN	ULONG	FlagStringCch,
-	OUT	PWSTR	ParameterBuffer,
-	IN	ULONG	ParameterBufferCch)
+//
+// Parse the command line string to extract /IN and /OUT arguments.
+//
+
+BOOLEAN ParseCommandLine(
+	IN	PWSTR		CommandLine,
+	OUT	PWCHAR		InPath,
+	IN	SIZE_T		InPathCch,
+	OUT	PWCHAR		OutPath,
+	IN	SIZE_T		OutPathCch,
+	OUT	PBOOLEAN	OutPresent)
 {
-	NTSTATUS Status;
-	HRESULT Result;
-
-	Status = CmdlineParseStringParameter(
-		CommandLine,
-		FlagString,
-		FlagStringCch,
-		ParameterBuffer,
-		ParameterBufferCch);
-
-	if (NT_SUCCESS(Status)) {
-		PCWSTR Extension;
-
-		// Validate the path (ensure .dic or .bdi extension).
-		Result = PathCchFindExtension(ParameterBuffer, ParameterBufferCch, &Extension);
-		if (FAILED(Result) || (!StringEqualI(Extension, L".dic") && !StringEqualI(Extension, L".bdi"))) {
-
-			ErrorBoxF(L"The argument to %s must be a file with a .dic or .bdi extension.", FlagString);
-			ExitProcess(STATUS_INVALID_PARAMETER);
+	PWCHAR Ptr;
+	BOOLEAN InSeen;
+	BOOLEAN OutSeen;
+	BOOLEAN IsQuoted;
+	SIZE_T Length;
+	
+	InSeen = FALSE;
+	OutSeen = FALSE;
+	*OutPresent = FALSE;
+	InPath[0] = '\0';
+	OutPath[0] = '\0';
+	
+	Ptr = CommandLine;
+	
+	while (*Ptr != '\0') {
+		while (IsSpace(*Ptr)) {
+			++Ptr;
 		}
-	} else unless (Status == STATUS_NOT_FOUND) {
-		switch (Status) {
-		case STATUS_NO_DATA_DETECTED:
-			ErrorBoxF(L"%s was specified without a file name.", FlagString);
+		
+		if (*Ptr == '\0') {
 			break;
-		case STATUS_COULD_NOT_INTERPRET:
-			ErrorBoxF(L"The argument to %*s was too long or missing an end quote.", FlagString);
-			break;
-		default:
-			ASSUME (("Other status values indicate a coding error", FALSE));
 		}
+		
+		if (StringBeginsWithI(Ptr, L"/IN:")) {
+			if (InSeen) {
+				ErrorBoxF(L"Duplicate /IN argument.");
+				return FALSE;
+			}
+			
+			InSeen = TRUE;
+			Ptr += ARRAYSIZE(L"/IN:") - 1;
 
-		ExitProcess(Status);
-	}
-}
+			Length = GetLengthOfMaybeQuotedArgumentParameter(Ptr, &IsQuoted);
+			
+			if (Length == 0) {
+				ErrorBoxF(L"Missing value for /IN argument.");
+				return FALSE;
+			}
+			
+			if (Length >= InPathCch) {
+				ErrorBoxF(L"Input path is too long.");
+				return FALSE;
+			}
 
-VOID HandleCommandLine(
-	IN	PWSTR	CommandLine)
-{
-	WCHAR InputFilePath[MAX_PATH];
-	WCHAR OutputFilePath[MAX_PATH];
-
-	if (StringSearchI(CommandLine, L"/HELP") || StringSearch(CommandLine, L"/?")) {
-		DisplayHelpMessage();
-		ExitProcess(STATUS_SUCCESS);
-	}
-
-	BdicParseInOutParameter(
-		CommandLine,
-		L"/IN:",
-		StringLiteralLength(L"/IN:"),
-		InputFilePath,
-		ARRAYSIZE(InputFilePath));
-
-	BdicParseInOutParameter(
-		CommandLine,
-		L"/OUT:",
-		StringLiteralLength(L"/OUT:"),
-		OutputFilePath,
-		ARRAYSIZE(OutputFilePath));
-
-	if (InputFilePath[0] == '\0') {
-		ErrorBoxF(L"You must specify an input file. Use /? for more information.");
-		ExitProcess(STATUS_NOT_FOUND);
-	}
-
-	//
-	// If there's no output file specified, just use the input file but replace the
-	// extension (.dic -> .bdi and vice versa).
-	//
-
-	if (OutputFilePath[0] == '\0') {
-		HRESULT Result;
-		PCWSTR Extension;
-
-		// This call shouldn't fail because the destination buffer is the same size
-		// as the source buffer.
-		Result = StringCchCopy(OutputFilePath, ARRAYSIZE(OutputFilePath), InputFilePath);
-		ASSERT (SUCCEEDED(Result));
-
-		// This call shouldn't fail because BdicParseInOutParameter already made sure
-		// we have a valid extension.
-		Result = PathCchFindExtension(OutputFilePath, ARRAYSIZE(OutputFilePath), &Extension);
-		ASSERT (SUCCEEDED(Result));
-
-		if (StringEqualI(Extension, L".dic")) {
-			Result = PathCchRenameExtension(OutputFilePath, ARRAYSIZE(OutputFilePath), L".bdi");
+			Ptr += IsQuoted;
+			KexRtlCopyMemory(InPath, Ptr, Length * sizeof(WCHAR));
+			InPath[Length] = '\0';
+			Ptr += Length + IsQuoted;
+		} else if (StringBeginsWithI(Ptr, L"/OUT:")) {
+			if (OutSeen) {
+				ErrorBoxF(L"Duplicate /OUT argument.");
+				return FALSE;
+			}
+			
+			OutSeen = TRUE;
+			*OutPresent = TRUE;
+			Ptr += ARRAYSIZE(L"/OUT:") - 1;
+			
+			Length = GetLengthOfMaybeQuotedArgumentParameter(Ptr, &IsQuoted);
+			
+			if (Length == 0) {
+				ErrorBoxF(L"Missing value for /OUT argument.");
+				return FALSE;
+			}
+			
+			if (Length >= OutPathCch) {
+				ErrorBoxF(L"Output path is too long.");
+				return FALSE;
+			}
+			
+			Ptr += IsQuoted;
+			KexRtlCopyMemory(OutPath, Ptr, Length * sizeof(WCHAR));
+			OutPath[Length] = '\0';
+			Ptr += Length + IsQuoted;
 		} else {
-			ASSUME (StringEqualI(Extension, L".bdi"));
-			Result = PathCchRenameExtension(OutputFilePath, ARRAYSIZE(OutputFilePath), L".dic");
+			ErrorBoxF(L"Unknown command line argument.");
+			return FALSE;
 		}
-
-		// Shouldn't be any error since both extensions are the same length.
-		ASSERT (SUCCEEDED(Result));
 	}
-
-	BdicCompileBdiDic(InputFilePath, OutputFilePath);
+	
+	if (!InSeen) {
+		return FALSE;
+	}
+	
+	return TRUE;
 }

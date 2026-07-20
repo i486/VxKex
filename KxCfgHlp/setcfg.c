@@ -20,11 +20,16 @@
 // Revision History:
 //
 //     vxiiduu              02-Feb-2024  Initial creation.
+//     vxiiduu              17-May-2026  Add support for TLS IFEO parameters.
+//     vxiiduu              23-May-2026  IFEO code deduplication (KexIfeo.h)
+//     vxiiduu              24-Jun-2026  Delete GlobalFlags, VerifierFlags and
+//                                       VerifierDlls when empty.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "buildcfg.h"
 #include <KexComm.h>
+#include <KexDll.h>
 #include <KxCfgHlp.h>
 #include <KexW32ML.h>
 
@@ -48,10 +53,6 @@ KXCFGDECLSPEC BOOLEAN KXCFGAPI KxCfgSetConfiguration(
 	WCHAR VerifierDlls[256];
 	ULONG GlobalFlag;
 	ULONG VerifierFlags;
-	ULONG KEX_DisableForChild;
-	ULONG KEX_DisableAppSpecific;
-	ULONG KEX_WinVerSpoof;
-	ULONG KEX_StrongVersionSpoof;
 
 	ASSERT (ExeFullPath != NULL);
 	ASSERT (ExeFullPath[0] != '\0');
@@ -75,12 +76,7 @@ KXCFGDECLSPEC BOOLEAN KXCFGAPI KxCfgSetConfiguration(
 	// of all zeroes means deleting the VxKex configuration for a program.
 	//
 
-	if (Configuration->Enabled == FALSE &&
-		Configuration->DisableForChild == FALSE &&
-		Configuration->DisableAppSpecificHacks == FALSE &&
-		Configuration->WinVerSpoof == WinVerSpoofNone &&
-		Configuration->StrongSpoofOptions == 0) {
-
+	if (KexRtlIsZeroMemory(Configuration, sizeof(*Configuration))) {
 		return KxCfgDeleteConfiguration(ExeFullPath, TransactionHandle);
 	}
 
@@ -131,13 +127,13 @@ KXCFGDECLSPEC BOOLEAN KXCFGAPI KxCfgSetConfiguration(
 
 			Success = RegReOpenKey(&KeyHandle, KEY_READ | KEY_WRITE, TransactionHandle);
 			if (!Success) {
-				RegCloseKey(KeyHandle);
+				SafeClose(KeyHandle);
 				return FALSE;
 			}
 		} else {
 			// We need to create a proper IFEO subkey that uses a filter.
 			// Do this by calling a helper function:
-			RegCloseKey(KeyHandle);
+			SafeClose(KeyHandle);
 
 			Success = KxCfgpCreateIfeoKeyForProgram(
 				ExeFullPath,
@@ -195,54 +191,73 @@ KXCFGDECLSPEC BOOLEAN KXCFGAPI KxCfgSetConfiguration(
 		VerifierFlags = 0x80000000;
 	}
 
-	KEX_DisableForChild		= Configuration->DisableForChild;
-	KEX_DisableAppSpecific	= Configuration->DisableAppSpecificHacks;
-	KEX_WinVerSpoof			= Configuration->WinVerSpoof;
-	KEX_StrongVersionSpoof	= Configuration->StrongSpoofOptions;
-
 	try {
-		ErrorCode = RegWriteI32(KeyHandle, NULL, L"KEX_DisableForChild", KEX_DisableForChild);
-		if (ErrorCode) {
-			return FALSE;
+		ULONG Index;
+		KEX_IFEO_PARAMETER_DEFINITION IfeoParameterDefinitions[] = {
+			#define IFEO_PARAMETER_BASE_POINTER &Configuration->IfeoParameters
+			#include <KexIfeo.h>
+			#undef IFEO_PARAMETER_BASE_POINTER
+		};
+
+		for (Index = 0; Index < ARRAYSIZE(IfeoParameterDefinitions); ++Index) {
+			ULONG ValueDataCb;
+
+			if (IfeoParameterDefinitions[Index].RegistryDataType == REG_SZ) {
+				ValueDataCb = (ULONG) wcslen(
+					(PCWSTR) IfeoParameterDefinitions[Index].TargetBuffer);
+				ValueDataCb += 1;
+				ValueDataCb *= sizeof(WCHAR);
+			} else {
+				ValueDataCb = IfeoParameterDefinitions[Index].TargetBufferCb;
+			}
+
+			ErrorCode = RegSetValueEx(
+				KeyHandle,
+				IfeoParameterDefinitions[Index].RegistryValueName,
+				0,
+				IfeoParameterDefinitions[Index].RegistryDataType,
+				(PCBYTE) IfeoParameterDefinitions[Index].TargetBuffer,
+				ValueDataCb);
+
+			if (ErrorCode != ERROR_SUCCESS) {
+				return FALSE;
+			}
 		}
 
-		ErrorCode = RegWriteI32(KeyHandle, NULL, L"KEX_DisableAppSpecific", KEX_DisableAppSpecific);
-		if (ErrorCode) {
-			return FALSE;
+		ErrorCode = ERROR_SUCCESS;
+
+		if (GlobalFlag) {
+			ErrorCode = RegWriteI32(KeyHandle, NULL, L"GlobalFlag", GlobalFlag);
+
+			if (ErrorCode) {
+				return FALSE;
+			}
+		} else {
+			RegDeleteValue(KeyHandle, L"GlobalFlag");
 		}
 
-		ErrorCode = RegWriteI32(KeyHandle, NULL, L"KEX_WinVerSpoof", KEX_WinVerSpoof);
-		if (ErrorCode) {
-			return FALSE;
+		if (VerifierFlags) {
+			ErrorCode = RegWriteI32(KeyHandle, NULL, L"VerifierFlags", VerifierFlags);
+		
+			if (ErrorCode) {
+				return FALSE;
+			}
+		} else {
+			RegDeleteValue(KeyHandle, L"VerifierFlags");
 		}
 
-		ErrorCode = RegWriteI32(KeyHandle, NULL, L"KEX_StrongVersionSpoof", KEX_StrongVersionSpoof);
-		if (ErrorCode) {
-			return FALSE;
-		}
+		if (VerifierDlls[0] != '\0') {
+			ErrorCode = RegWriteString(KeyHandle, NULL, L"VerifierDlls", VerifierDlls);
 
-		ErrorCode = RegWriteI32(KeyHandle, NULL, L"GlobalFlag", GlobalFlag);
-		if (ErrorCode) {
-			return FALSE;
-		}
-
-		ErrorCode = RegWriteI32(KeyHandle, NULL, L"VerifierFlags", VerifierFlags);
-		if (ErrorCode) {
-			return FALSE;
-		}
-
-		ErrorCode = RegWriteString(
-			KeyHandle,
-			NULL,
-			L"VerifierDlls",
-			VerifierDlls);
-
-		if (ErrorCode) {
-			return FALSE;
+			if (ErrorCode) {
+				return FALSE;
+			}
+		} else {
+			RegDeleteValue(KeyHandle, L"VerifierDlls");
 		}
 	} finally {
 		SetLastError(ErrorCode);
-		RegCloseKey(KeyHandle);
+		SafeClose(KeyHandle);
 	}
 
 	return TRUE;

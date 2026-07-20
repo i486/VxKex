@@ -31,7 +31,15 @@
 //                                       to fix a rare bug where memory protections
 //                                       of executable pages can get clobbered and
 //                                       cause a crash.
-//     vxiiduu              27-Apr-2026  Add the ability to undo DLL rewriting.
+//     vxiiduu              02-May-2026  Tidy up DLL classification functions.
+//                                       Remove coreclr and mono-2.0-bdwgc from
+//                                       the list of non-rewrite DLLs since we
+//                                       have implemented proper compatibility.
+//     vxiiduu              02-Jul-2026  Fix bug in KexApplyUserDllRewrite where
+//                                       rewrite entries could be ignored if the
+//                                       value is empty at the end of the string.
+//     vxiiduu              02-Jul-2026  Replace the heap allocation with using the
+//                                       TEB in KexpRewriteImportTableDllNameInPlace.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -66,6 +74,35 @@ NTSTATUS KexRemoveDllRewriteEntry(
 	return SmpRemoveEntryStringMapper(
 		DllRewriteStringMapper,
 		DllName);
+}
+
+NTSTATUS KexAddUpdateRemoveDllRewriteEntry(
+	IN	PCUNICODE_STRING	DllName,
+	IN	PCUNICODE_STRING	RewrittenDllName OPTIONAL)
+{
+	NTSTATUS Status;
+
+	ASSUME (VALID_UNICODE_STRING(DllName));
+	ASSUME (RewrittenDllName == NULL || WELL_FORMED_UNICODE_STRING(RewrittenDllName));
+
+	Status = KexRemoveDllRewriteEntry(DllName);
+	ASSERT (NT_SUCCESS(Status) || Status == STATUS_STRING_MAPPER_ENTRY_NOT_FOUND);
+
+	if (!NT_SUCCESS(Status) && Status != STATUS_STRING_MAPPER_ENTRY_NOT_FOUND) {
+		return Status;
+	}
+
+	if (RewrittenDllName &&
+		RewrittenDllName->Length != 0 &&
+		RewrittenDllName->Buffer != NULL) {
+
+		Status = KexAddDllRewriteEntry(DllName, RewrittenDllName);
+	} else {
+		Status = STATUS_SUCCESS;
+	}
+
+	ASSERT (NT_SUCCESS(Status));
+	return Status;
 }
 
 //
@@ -153,7 +190,7 @@ NTSTATUS KexInitializeDllRewrite(
 //
 STATIC NTSTATUS KexpLookupDllRewriteEntry(
 	IN	PCUNICODE_STRING		DllName,
-	OUT	PUNICODE_STRING			RewrittenDllName)
+	OUT	PUNICODE_STRING			RewrittenDllName OPTIONAL)
 {
 	NTSTATUS Status;
 	UNICODE_STRING CleanDllName;
@@ -164,7 +201,6 @@ STATIC NTSTATUS KexpLookupDllRewriteEntry(
 
 	ASSERT (DllRewriteStringMapper != NULL);
 	ASSERT (VALID_UNICODE_STRING(DllName));
-	ASSERT (RewrittenDllName != NULL);
 
 	CleanDllName = *DllName;
 
@@ -220,10 +256,26 @@ STATIC NTSTATUS KexpLookupDllRewriteEntry(
 	// a mistake with the DLL rewrite table.
 	//
 
-	ASSERT (RewrittenDllName->Length <= MaximumRewrittenLength);
-	ASSERT (VALID_UNICODE_STRING(RewrittenDllName));
+	if (RewrittenDllName != NULL) {
+		ASSERT (RewrittenDllName->Length <= MaximumRewrittenLength);
+		ASSERT (VALID_UNICODE_STRING(RewrittenDllName));
+	}
 
 	return STATUS_SUCCESS;
+}
+
+//
+// Returns TRUE if a DLL rewrite lookup for a particular DLL name would succeed.
+// Returns FALSE otherwise.
+//
+BOOLEAN KexDoesDllRewriteEntryExist(
+	IN	PCUNICODE_STRING		DllName)
+{
+	NTSTATUS Status;
+
+	Status = KexpLookupDllRewriteEntry(DllName, NULL);
+
+	return NT_SUCCESS(Status);
 }
 
 //
@@ -250,11 +302,12 @@ STATIC NTSTATUS KexpRewriteImportTableDllNameInPlace(
 	ASSERT (AnsiDllName->Buffer != NULL);
 
 	//
-	// This Unicode DLL name gets allocated from the heap.
-	// We have to remember to free it.
+	// Convert the ANSI DLL name to Unicode since the string mapper API requires
+	// a Unicode string.
 	//
-	
-	Status = RtlAnsiStringToUnicodeString(&DllName, AnsiDllName, TRUE);
+
+	RtlInitEmptyUnicodeStringFromTeb(&DllName);
+	Status = RtlAnsiStringToUnicodeString(&DllName, AnsiDllName, FALSE);
 	ASSERT (NT_SUCCESS(Status));
 
 	if (!NT_SUCCESS(Status)) {
@@ -274,7 +327,7 @@ STATIC NTSTATUS KexpRewriteImportTableDllNameInPlace(
 	ASSERT (NT_SUCCESS(Status) || Status == STATUS_STRING_MAPPER_ENTRY_NOT_FOUND);
 
 	if (!NT_SUCCESS(Status)) {
-		goto Exit;
+		return Status;
 	}
 
 Retry:
@@ -312,7 +365,7 @@ Retry:
 				&DllName,
 				&RewrittenDllName);
 
-			goto Exit;
+			return Status;
 		}
 
 		//
@@ -362,50 +415,290 @@ Retry:
 		ASSERT (NT_SUCCESS(Status));
 	}
 
-Exit:
 	if (NT_SUCCESS(Status)) {
 		KexLogDetailEvent(L"Rewrote DLL import: %wZ -> %wZ", &DllName, &RewrittenDllName);
 	}
 
-	RtlFreeUnicodeString(&DllName);
 	return Status;
 }
 
 //
-// Determine whether the imports of a particular DLL (identified by name and
-// path) should be rewritten.
+// Returns TRUE if a given DLL is a part of Windows.
+// Items in %SystemRoot% are considered Windows DLLs unless they are specifically
+// exempted.
 //
-BOOLEAN KexShouldRewriteImportsOfDll(
-	IN	PCUNICODE_STRING	FullDllName)
+KEXAPI BOOLEAN NTAPI KexIsWindowsDll(
+	IN	PCUNICODE_STRING	FullDllName,
+	IN	PCUNICODE_STRING	BaseDllName)
 {
-	NTSTATUS Status;
-	UNICODE_STRING BaseDllName;
-
-	//
-	// Find the file name of the DLL.
-	//
-
-	Status = KexRtlPathFindFileName(FullDllName, &BaseDllName);
-	ASSERT (NT_SUCCESS(Status));
-
-	if (!NT_SUCCESS(Status)) {
-		return FALSE;
-	}
-
 	if (RtlPrefixUnicodeString(&KexData->WinDir, FullDllName, TRUE)) {
-		UNICODE_STRING Kernel;
 		UNICODE_STRING Msvcp140;
+		UNICODE_STRING SlashTemp;
+		UNICODE_STRING DllNameAfterWinDir;
 
 		//
 		// The DLL is in the Windows directory.
 		//
+
+		DllNameAfterWinDir = *FullDllName;
+		KexRtlAdvanceUnicodeString(&DllNameAfterWinDir, KexData->WinDir.Length);
+		RtlInitConstantUnicodeString(&SlashTemp, L"\\Temp");
+
+		if (RtlPrefixUnicodeString(&SlashTemp, &DllNameAfterWinDir, TRUE)) {
+			//
+			// DLL path starts with %SystemRoot%\Temp. In this case, we won't consider
+			// it a Windows module.
+			//
+			// Some installers, such as the newest versions of the Microsoft C++ v14
+			// Redistributable, copy themselves to %SystemRoot%\Temp and then run from
+			// there and check the Windows version.
+			//
+			// We don't want such installers to be considered Windows components.
+			//
+
+			return FALSE;
+		}
+
+		RtlInitConstantUnicodeString(&Msvcp140, L"msvcp140");
+
+		if (RtlPrefixUnicodeString(&Msvcp140, BaseDllName, TRUE)) {
+			//
+			// New versions of the Microsoft Visual C++ 2015-2022 runtime
+			// are no longer compatible with Windows 7. These DLLs are installed
+			// into system32, so we need to add such an exception here.
+			//
+
+			return FALSE;
+		}
+
+		//
+		// Otherwise, it's a Windows DLL.
+		//
+
+		return TRUE;
+	}
+
+	return FALSE;
+}
+
+//
+// Returns TRUE if a given DLL is a VxKex extended DLL.
+// Items in KexDir are considered VxKex components only if their base names start
+// with "Kx" i.e. KxBase, KxUser, etc.
+//
+KEXAPI BOOLEAN NTAPI KexIsVxKexExtendedDll(
+	IN	PCUNICODE_STRING	FullDllName,
+	IN	PCUNICODE_STRING	BaseDllName)
+{
+	if (RtlPrefixUnicodeString(&KexData->KexDir, FullDllName, TRUE) &&
+		KexRtlUnicodeStringCch(BaseDllName) >= 2 &&
+		ToUpper(BaseDllName->Buffer[0]) == 'K' &&
+		ToUpper(BaseDllName->Buffer[1]) == 'X') {
+
+		// This is a VxKex API extension DLL.
+		return TRUE;
+	}
+
+	return FALSE;
+}
+
+//
+// Returns TRUE if a given DLL is exempted from DLL rewrite for compatibility
+// reasons (i.e. rewriting its imports or dynamic loads will cause problems).
+//
+KEXAPI BOOLEAN NTAPI KexIsRewriteExemptedDll(
+	IN	PCUNICODE_STRING	FullDllName,
+	IN	PCUNICODE_STRING	BaseDllName)
+{
+	unless (KexData->IfeoParameters.DisableAppSpecific) {
+		//
+		// APPSPECIFICHACK: Although Mirillis Action supports Windows 7, it installs
+		// global hooks which cause crashes when dxgi is rewritten to kxdx.
+		//
+		// APPSPECIFICHACK: Do not interfere with RTSS/MSI Afterburner. It is
+		// compatible with Win7 and rewriting imports causes the OSD to not appear.
+		//
+		// APPSPECIFICHACK: Rewriting MacType imports causes a crash. MacType is
+		// compatible with Win7 so there is no need to rewrite it anyway.
+		//
+
+		STATIC CONST UNICODE_STRING RewriteExemptedDlls[] = {
+#ifdef _M_X64
+			RTL_CONSTANT_STRING(L"action_x64.dll"),
+			RTL_CONSTANT_STRING(L"RTSSHooks64.dll"),
+			RTL_CONSTANT_STRING(L"MacType64.dll"),
+			RTL_CONSTANT_STRING(L"MacType64.Core.dll"),
+#else
+			RTL_CONSTANT_STRING(L"action_x86.dll"),
+			RTL_CONSTANT_STRING(L"RTSSHooks.dll"),
+			RTL_CONSTANT_STRING(L"MacType.dll"),
+			RTL_CONSTANT_STRING(L"MacType.Core.dll"),
+#endif
+		};
+
+		ULONG Index;
+
+		for (Index = 0; Index < ARRAYSIZE(RewriteExemptedDlls); ++Index) {
+			if (RtlEqualUnicodeString(BaseDllName, &RewriteExemptedDlls[Index], TRUE)) {
+				return TRUE;
+			}
+		}
+	}
+
+	//
+	// Allow the user to specify his own rewrite-exempted DLLs.
+	// This is the support for the KEX_DllRewriteExemptions IFEO option.
+	//
+
+	if (KexData->IfeoParameters.DllRewriteExemptions[0] != '\0') {
+		STATIC UNICODE_STRING UserSpecifiedRewriteExemptedDlls[256];
+		STATIC ULONG NumberOfUserSpecifiedRewriteExemptedDlls = 0;
+		STATIC BOOLEAN UserSpecifiedRewriteExemptedDllsInitialized = FALSE;
+		ULONG Index;
+
+		//
+		// We won't worry about thread safety for this one-time initialization
+		// because it's idempotent (i.e. running multiple times doesn't hurt).
+		//
+
+		if (!UserSpecifiedRewriteExemptedDllsInitialized) {
+			ULONG StartIndex;
+			PWSTR Exemptions;
+			ULONG ExemptionCount;
+
+			Index = 0;
+			ExemptionCount = 0;
+			Exemptions = KexData->IfeoParameters.DllRewriteExemptions;
+
+			//
+			// Parse a bar-delimited list of DLL names.
+			//
+
+			until (Exemptions[Index] == '\0') {
+				PUNICODE_STRING Exemption;
+
+				StartIndex = Index;
+
+				// Find the next delimiter (which can either be a bar or the end of
+				// the string).
+				until (Exemptions[Index] == '|' || Exemptions[Index] == '\0') {
+					++Index;
+				}
+
+				if (Index <= StartIndex) {
+					// Zero-length entry - ignore it and move on.
+					ASSERT (Exemptions[Index] != '\0');
+					++Index;
+					continue;
+				}
+
+				if (ExemptionCount >= ARRAYSIZE(UserSpecifiedRewriteExemptedDlls)) {
+					ASSERT (("Too many user-specified rewrite exempted DLLs", FALSE));
+					break;
+				}
+
+				ASSERT ((Index - StartIndex) * sizeof(WCHAR) <= USHRT_MAX);
+
+				Exemption = &UserSpecifiedRewriteExemptedDlls[ExemptionCount];
+				Exemption->Length = (USHORT) ((Index - StartIndex) * sizeof(WCHAR));
+				Exemption->MaximumLength = Exemption->Length;
+				Exemption->Buffer = &Exemptions[StartIndex];
+				ASSERT (VALID_UNICODE_STRING(Exemption));
+
+				if (Exemptions[Index] == '|') {
+					// skip past the delimiter
+					++Index;
+				}
+
+				++ExemptionCount;
+			}
+
+			ASSERT (Index < ARRAYSIZE(KexData->IfeoParameters.DllRewriteExemptions));
+
+			NumberOfUserSpecifiedRewriteExemptedDlls = ExemptionCount;
+			UserSpecifiedRewriteExemptedDllsInitialized = TRUE;
+		}
+
+		//
+		// Check if the specified DLL is in the user-specified exemption list.
+		//
+
+		for (Index = 0; Index < NumberOfUserSpecifiedRewriteExemptedDlls; ++Index) {
+			if (RtlEqualUnicodeString(BaseDllName, &UserSpecifiedRewriteExemptedDlls[Index], TRUE)) {
+				return TRUE;
+			}
+		}
+	}
+
+	return FALSE;
+}
+
+KEXAPI BOOLEAN NTAPI KexIsRewriteForcedWindowsDll(
+	IN	PCUNICODE_STRING	FullDllName,
+	IN	PCUNICODE_STRING	BaseDllName)
+{
+	//
+	// Rewrite WebIO (used by WinHTTP) and WinInet, so that schannel.dll
+	// and secur32.dll get caught. This is to enable support for KxSChanl
+	// and TLS 1.3.
+	//
+	// Rewrite clr.dll since that allows .NET Framework applications to use
+	// KxSChanl. (e.g. Fiddler Classic)
+	//
+	// Rewrite SSPICLI so that we can redirect the SecurityProviders
+	// registry value to our own (see Ext_RegQueryValueExW in KxAdvapi).
+	//
+
+	UNICODE_STRING RewriteForcedDlls[] = {
+		RTL_CONSTANT_STRING(L"webio.dll"),
+		RTL_CONSTANT_STRING(L"wininet.dll"),
+		RTL_CONSTANT_STRING(L"clr.dll"),
+		RTL_CONSTANT_STRING(L"sspicli.dll"),
+	};
+
+	ULONG Index;
+
+	for (Index = 0; Index < ARRAYSIZE(RewriteForcedDlls); ++Index) {
+		if (RtlEqualUnicodeString(BaseDllName, &RewriteForcedDlls[Index], TRUE)) {
+			return TRUE;
+		}
+	}
+
+	return FALSE;
+}
+
+//
+// Determine whether a particular DLL should have its static imports rewritten.
+//
+BOOLEAN KexShouldRewriteStaticImportsOfDll(
+	IN	PCUNICODE_STRING	FullDllName,
+	IN	PCUNICODE_STRING	BaseDllName)
+{
+	if (KexIsWindowsDll(FullDllName, BaseDllName)) {
+		UNICODE_STRING Kernel;
+
+		if (KexIsRewriteForcedWindowsDll(FullDllName, BaseDllName)) {
+			return TRUE;
+		}
+
+		RtlInitConstantUnicodeString(&Kernel, L"kernel");
+
+		if (RtlPrefixUnicodeString(&Kernel, BaseDllName, TRUE)) {
+			//
+			// Rewrite the imports of kernelbase and kernel32. We want to do this
+			// so that certain functions such as LoadLibrary and CreateFileMapping
+			// end up going through KxNt (LdrLoadDll/NtCreateSection).
+			//
+
+			return TRUE;
+		}
 
 		if (KexData->IfeoParameters.WinVerSpoof > WinVerSpoofWin7) {
 			UNICODE_STRING Iertutil;
 
 			RtlInitConstantUnicodeString(&Iertutil, L"iertutil.dll");
 
-			if (RtlEqualUnicodeString(&BaseDllName, &Iertutil, TRUE)) {
+			if (RtlEqualUnicodeString(BaseDllName, &Iertutil, TRUE)) {
 				//
 				// iertutil.dll checks versions and can shit itself if the
 				// version number is too high. So we need to rewrite its
@@ -416,30 +709,8 @@ BOOLEAN KexShouldRewriteImportsOfDll(
 			}
 		}
 
-		RtlInitConstantUnicodeString(&Kernel, L"kernel");
-
-		if (RtlPrefixUnicodeString(&Kernel, &BaseDllName, TRUE)) {
-			//
-			// Rewrite the imports of kernelbase and kernel32. We want to do this
-			// so that certain functions such as LoadLibrary and CreateFileMapping
-			// end up going through KxNt (LdrLoadDll/NtCreateSection).
-			//
-
-			return TRUE;
-		}
-
-		RtlInitConstantUnicodeString(&Msvcp140, L"msvcp140");
-
-		if (RtlPrefixUnicodeString(&Msvcp140, &BaseDllName, TRUE)) {
-			// New versions of the Microsoft Visual C++ 2015-2022 runtime
-			// are no longer compatible with Windows 7. These DLLs are installed
-			// into system32, so we need to add such an exception here.
-
-			return TRUE;
-		}
-
 		//
-		// Otherwise, do not rewrite imports of Windows DLLs.
+		// Otherwise, do not rewrite the static imports of Windows DLLs.
 		//
 
 		return FALSE;
@@ -452,68 +723,47 @@ BOOLEAN KexShouldRewriteImportsOfDll(
 	// of Windows.
 	//
 
-	if (RtlPrefixUnicodeString(&KexData->KexDir, FullDllName, TRUE)) {
-
-		if (KexRtlUnicodeStringCch(&BaseDllName) >= 2 &&
-			ToUpper(BaseDllName.Buffer[0]) == 'K' &&
-			ToUpper(BaseDllName.Buffer[1]) == 'X') {
-
-			// This is a VxKex API extension DLL.
-			return FALSE;
-		}
-
-		// Prebuilt DLL. Rewrite it and don't perform any further checks.
-		return TRUE;
+	if (KexIsVxKexExtendedDll(FullDllName, BaseDllName)) {
+		return FALSE;
 	}
 
-	unless (KexData->IfeoParameters.DisableAppSpecific) {
-		UNICODE_STRING TargetDllName;
+	//
+	// Check if a DLL is exempted from rewrite for compatibility reasons.
+	//
 
-		//
-		// APPSPECIFICHACK: This is some sort of .NET DLL that will screw up if we
-		// rewrite its imports. No idea why. What typically happens if you allow its
-		// imports to be rewritten is you get a blank window that can be interacted
-		// with (i.e. all the buttons and things are "working") but you just can't
-		// see anything the app is drawing.
-		//
-
-		RtlInitConstantUnicodeString(&TargetDllName, L"wpfgfx_");
-
-		if (RtlPrefixUnicodeString(&TargetDllName, &BaseDllName, TRUE)) {
-			return FALSE;
-		}
-
-		//
-		// APPSPECIFICHACK: This is some kind of .NET DLL which will crash with an
-		// access violation if we rewrite its imports. It is found in Unity games.
-		//
-
-		RtlInitConstantUnicodeString(&TargetDllName, L"mono-2.0-bdwgc.dll");
-
-		if (RtlEqualUnicodeString(&BaseDllName, &TargetDllName, TRUE)) {
-			return FALSE;
-		}
-
-		//
-		// APPSPECIFICHACK: Although Mirillis Action supports Windows 7, it installs
-		// global hooks which cause crashes when dxgi is rewritten to kxdx.
-		//
-
-		if (KexRtlCurrentProcessBitness() == 64) {
-			RtlInitConstantUnicodeString(&TargetDllName, L"action_x64.dll");
-		} else {
-			RtlInitConstantUnicodeString(&TargetDllName, L"action_x86.dll");
-		}
-
-		if (RtlEqualUnicodeString(&BaseDllName, &TargetDllName, TRUE)) {
-			return FALSE;
-		}
+	if (KexIsRewriteExemptedDll(FullDllName, BaseDllName)) {
+		return FALSE;
 	}
 
 	//
 	// If there's no other rules that apply to this DLL, then we will rewrite
 	// its imports.
 	//
+
+	return TRUE;
+}
+
+//
+// Determine whether a DLL should have its dynamic imports rewritten.
+//
+KEXAPI BOOLEAN NTAPI KexShouldRewriteDynamicImportsOfDll(
+	IN	PCUNICODE_STRING	FullDllName,
+	IN	PCUNICODE_STRING	BaseDllName)
+{
+	if (KexIsWindowsDll(FullDllName, BaseDllName)) {
+		if (KexIsRewriteForcedWindowsDll(FullDllName, BaseDllName)) {
+			return TRUE;
+		}
+
+		return FALSE;
+	}
+
+	if (KexIsWindowsDll(FullDllName, BaseDllName) ||
+		KexIsVxKexExtendedDll(FullDllName, BaseDllName) ||
+		KexIsRewriteExemptedDll(FullDllName, BaseDllName)) {
+
+		return FALSE;
+	}
 
 	return TRUE;
 }
@@ -616,7 +866,8 @@ NTSTATUS KexRewriteImageImportDirectory(
 	}
 
 	//
-	// Check if this is kernel32.
+	// Check if this is kernel32. If so, only rewrite its NTDLL import
+	// (there is also a kernelbase import which we do not want to rewrite).
 	//
 
 	RtlInitConstantUnicodeString(&Kernel32, L"kernel32.dll");
@@ -805,7 +1056,7 @@ NTSTATUS KexRewriteDllPath(
 
 	if (!NT_SUCCESS(Status)) {
 		return Status;
-	} 
+	}
 
 	KexLogDebugEvent(
 		L"DLL name or path was successfully rewritten: %wZ -> %wZ\r\n\r\n"
@@ -817,5 +1068,127 @@ NTSTATUS KexRewriteDllPath(
 	RtlCopyUnicodeString(RewrittenDllNameOut, &RewrittenDllName);
 
 	ASSERT (VALID_UNICODE_STRING(RewrittenDllNameOut));
+	return Status;
+}
+
+//
+// Implements support for KEX_DllRewriteEntries IFEO parameter.
+// RewriteSpec is a null-terminated string which contains bar-delimited key-value
+// pairs. Keys and values are separated by a colon character.
+//
+// Example: "d3d12:dxvk|xinput1_5:xinput1_3|dxgi:" (DXGI.dll would be removed from
+// the rewrite list in that case).
+//
+
+NTSTATUS KexApplyUserDllRewrite(
+	IN	PWSTR	RewriteSpec)
+{
+	NTSTATUS Status;
+	ULONG Index;
+	UNICODE_STRING Key;
+	UNICODE_STRING Value;
+
+	enum {
+		InKey,
+		InValue
+	} State;
+
+	Index = 0;
+	State = InKey;
+	Status = STATUS_SUCCESS;
+
+	if (RewriteSpec[0] == '\0') {
+		return Status;
+	}
+
+	while (TRUE) {
+		ULONG StartIndex;
+
+		StartIndex = Index;
+
+		until (RewriteSpec[Index] == '|' ||
+			   RewriteSpec[Index] == ':' ||
+			   RewriteSpec[Index] == '\0') {
+
+			++Index;
+		}
+
+		if (State == InKey) {
+			switch (RewriteSpec[Index]) {
+			case ':':
+				ASSERT ((Index - StartIndex) * sizeof(WCHAR) <= USHRT_MAX);
+				Key.Buffer = &RewriteSpec[StartIndex];
+				Key.Length = (USHORT) ((Index - StartIndex) * sizeof(WCHAR));
+				Key.MaximumLength = Key.Length;
+				ASSERT (VALID_UNICODE_STRING(&Key));
+
+				if (Key.Length == 0) {
+					// This is not reasonable.
+					return STATUS_INVALID_PARAMETER;
+				}
+
+				State = InValue;
+				break;
+			case '|':
+			case '\0':
+				// Invalid for these characters to appear now.
+				return STATUS_INVALID_PARAMETER;
+			}
+		} else if (State == InValue) {
+			switch (RewriteSpec[Index]) {
+			case '|':
+			case '\0':
+				ASSERT ((Index - StartIndex) * sizeof(WCHAR) <= USHRT_MAX);
+				Value.Buffer = &RewriteSpec[StartIndex];
+				Value.Length = (USHORT) ((Index - StartIndex) * sizeof(WCHAR));
+				Value.MaximumLength = Value.Length;
+				ASSERT (WELL_FORMED_UNICODE_STRING(&Value));
+
+				if (Value.Length > Key.Length) {
+					// DLL rewrite value must be less than or equal to the key length,
+					// since we overwrite the DLL name in-place.
+					return STATUS_INVALID_PARAMETER;
+				}
+
+				// If Value.Length is zero, this function will simply remove the DLL
+				// rewrite entry from the mapper.
+				Status = KexAddUpdateRemoveDllRewriteEntry(
+					&Key,
+					&Value);
+
+				if (Status == STATUS_STRING_MAPPER_ENTRY_NOT_FOUND) {
+					// We don't consider this an error.
+					Status = STATUS_SUCCESS;
+				}
+
+				ASSERT (NT_SUCCESS(Status));
+
+				if (!NT_SUCCESS(Status)) {
+					return Status;
+				}
+
+				if (RewriteSpec[Index] == '|') {
+					State = InKey;
+				}
+
+				break;
+			case ':':
+				return STATUS_INVALID_PARAMETER;
+			}
+		} else {
+			NOT_REACHED;
+		}
+
+		if (RewriteSpec[Index] == '\0') {
+			break;
+		}
+
+		++Index;
+	}
+
+	if (State != InValue) {
+		return STATUS_INVALID_PARAMETER;
+	}
+
 	return Status;
 }

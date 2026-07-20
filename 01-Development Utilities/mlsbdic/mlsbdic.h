@@ -2,61 +2,88 @@
 //
 // Module Name:
 //
-//     mlsbdic.h
+//	 mlsbdic.h
 //
 // Abstract:
 //
-//     Internal header file for the BDI compiler
+//	 Internal header file for the BDI compiler
 //
 // Author:
 //
-//     vxiiduu (21-May-2025)
+//	 vxiiduu (21-May-2025)
 //
 // Environment:
 //
-//     N/A
+//	 N/A
 //
 // Revision History:
 //
-//     vxiiduu              21-May-2025  Initial creation.
+//	 vxiiduu			  21-May-2025  Initial creation.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
 
+#include "buildcfg.h"
 #include <KexComm.h>
+#include <KexW32ML.h>
 #include <KexGui.h>
 #include <KexMls.h>
-#include "resource.h"
 
 //
 // cmdline.c
 //
 
-VOID HandleCommandLine(
-	IN	PWSTR	CommandLine);
+BOOLEAN ParseCommandLine(
+	IN	PWSTR		CommandLine,
+	OUT	PWCHAR		InPath,
+	IN	SIZE_T		InPathCch,
+	OUT	PWCHAR		OutPath,
+	IN	SIZE_T		OutPathCch,
+	OUT	PBOOLEAN	OutPresent);
 
 //
-// compile.c
+// multifile.c
 //
 
-BOOLEAN BdicCompileBdiDic(
-	IN	PCWSTR	InputFilePath,
-	IN	PCWSTR	OutputFilePath);
+BOOLEAN ProcessDirectory(
+	IN	PCWSTR	InputDir,
+	IN	PCWSTR	OutputDir);
 
 //
-// dlgproc.c
+// onefile.c
 //
 
-INT_PTR CALLBACK BdicDialogProc(
-	IN	HWND	Window,
-	IN	UINT	Message,
-	IN	WPARAM	WParam,
-	IN	LPARAM	LParam);
+BOOLEAN ProcessFile(
+	IN	PCWSTR	InputPath,
+	IN	PCWSTR	OutputPath);
 
 //
-// help.c
+// parseline.c
 //
 
-VOID DisplayHelpMessage(
+BOOLEAN ParseDictionaryLine(
+	IN	PWCHAR	Line,
+	IN	ULONG	LineCch,
+	OUT	PWCHAR	EnglishBuffer,
+	IN	ULONG	EnglishBufferCch,
+	OUT	PULONG	EnglishCch,
+	OUT	PWCHAR	ForeignBuffer,
+	IN	ULONG	ForeignBufferCch,
+	OUT	PULONG	ForeignCch);
+
+//
+// util.c
+//
+
+VOID ShowUsage(
 	VOID);
+
+PCWSTR FindLastChar(
+	IN	PCWSTR	String,
+	IN	WCHAR	Char);
+
+VOID GenerateOutputPath(
+	IN	PCWSTR	InputPath,
+	OUT	PWCHAR	OutputPath,
+	IN	SIZE_T	OutputPathCch);

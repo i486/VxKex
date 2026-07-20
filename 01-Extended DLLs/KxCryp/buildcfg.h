@@ -38,6 +38,7 @@
 
 #define KXCRYPAPI
 
+#pragma comment(lib, "KexDll.lib")
 #pragma comment(lib, "bcrypt.lib")
 #pragma comment(lib, "secur32.lib")
 

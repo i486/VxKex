@@ -19,30 +19,13 @@
 // Revision History:
 //
 //     vxiiduu               01-Oct-2022  Initial creation.
+//     vxiiduu               11-Jul-2026  Remove unused functions.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "buildcfg.h"
 #include <KexComm.h>
 #include <KexW32ML.h>
-
-//
-// The return value is in milliseconds.
-// The return value is positive if FileTime2 is later than FileTime1.
-// The return value is negative if FileTime2 is earlier than FileTime1.
-//
-KW32MLDECLSPEC EXTERN_C LONGLONG KW32MLAPI CompareFileTimes(
-	IN	FILETIME	FileTime1,
-	IN	FILETIME	FileTime2)
-{
-	LONGLONG FileTime1AsInt64;
-	LONGLONG FileTime2AsInt64;
-
-	FileTime1AsInt64 = *((PLONGLONG) &FileTime1);
-	FileTime2AsInt64 = *((PLONGLONG) &FileTime2);
-
-	return (FileTime2AsInt64 - FileTime1AsInt64) / 10000;
-}
 
 KW32MLDECLSPEC EXTERN_C PWSTR KW32MLAPI GetCommandLineWithoutImageName(
 	VOID)

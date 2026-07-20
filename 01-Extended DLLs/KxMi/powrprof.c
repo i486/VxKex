@@ -18,9 +18,6 @@ KXMIAPI ULONG WINAPI PowerRegisterSuspendResumeNotification(
 	IN	HANDLE			Recipient,
 	OUT	PHPOWERNOTIFY	RegistrationHandle)
 {
-	KexLogWarningEvent(L"Unimplemented API PowerRegisterSuspendResumeNotification called");
-	KexDebugCheckpoint();
-
 	if (Flags != DEVICE_NOTIFY_CALLBACK) {
 		return RtlNtStatusToDosError(STATUS_INVALID_PARAMETER);
 	}
@@ -31,8 +28,5 @@ KXMIAPI ULONG WINAPI PowerRegisterSuspendResumeNotification(
 KXMIAPI ULONG WINAPI PowerUnregisterSuspendResumeNotification(
 	IN OUT	HPOWERNOTIFY	RegistrationHandle)
 {
-	KexLogWarningEvent(L"Unimplemented API PowerUnregisterSuspendResumeNotification called");
-	KexDebugCheckpoint();
-
 	return RtlNtStatusToDosError(STATUS_NOT_SUPPORTED);
 }

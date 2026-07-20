@@ -36,6 +36,8 @@
 	 PROCESS_CREATION_MITIGATION_POLICY_DEP_ATL_THUNK_ENABLE | \
 	 PROCESS_CREATION_MITIGATION_POLICY_SEHOP_ENABLE)
 
+#define PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE 0x00020016
+
 // undocumented STARTUPINFO flag
 #define STARTF_HASSHELLDATA		0x400
 
@@ -55,6 +57,9 @@
 #define ERROR_NOT_SAME_OBJECT					1656L
 #define APPMODEL_ERROR_NO_PACKAGE				15700L
 #define APPMODEL_ERROR_NO_APPLICATION			15703L
+
+#define ENABLE_VIRTUAL_TERMINAL_INPUT			0x0200
+#define ENABLE_VIRTUAL_TERMINAL_PROCESSING		0x0004
 
 #pragma endregion
 
@@ -121,7 +126,7 @@ typedef struct _KERNELBASE_GLOBAL_DATA {
 	BOOLEAN					BaseRunningInServerProcess;
 
 	//
-	// These strings are what gets queried when you call GetSystemDirectory or
+	// These strings are what gets queried when you call GetSystemWindowsDirectory or
 	// GetWindowsDirectory.
 	//
 
@@ -578,6 +583,8 @@ typedef enum _FILE_INFO_BY_NAME_CLASS {
 	MaximumFileInfoByNameClass
 } TYPEDEF_TYPE_NAME(FILE_INFO_BY_NAME_CLASS);
 
+typedef PVOID TYPEDEF_TYPE_NAME(HPCON);
+
 #pragma endregion
 
 #if defined(KEX_ENV_WIN32)
@@ -699,6 +706,10 @@ KXBASEAPI BOOL WINAPI GetProcessMitigationPolicy(
 	IN	PROCESS_MITIGATION_POLICY	MitigationPolicy,
 	OUT	PVOID						Buffer,
 	IN	SIZE_T						BufferCb);
+
+KXBASEAPI BOOL WINAPI IsProcessCritical(
+	IN	HANDLE	ProcessHandle,
+	OUT	PBOOL	Critical);
 
 //
 // file.c
@@ -865,5 +876,23 @@ KXBASEAPI BOOL WINAPI Ext_RemoveDllDirectory(
 
 KXBASEAPI BOOL WINAPI Ext_SetDefaultDllDirectories(
 	IN	ULONG	DirectoryFlags);
+
+//
+// console.c
+//
+
+KXBASEAPI BOOL WINAPI Ext_WriteConsoleA(
+	IN	HANDLE	ConsoleHandle,
+	IN	PCVOID	Buffer,
+	IN	ULONG	CchToWrite,
+	OUT	PULONG	CchWritten OPTIONAL,
+	IN	PVOID	Reserved OPTIONAL);
+
+KXBASEAPI BOOL WINAPI Ext_WriteConsoleW(
+	IN	HANDLE	ConsoleHandle,
+	IN	PCVOID	Buffer,
+	IN	ULONG	CchToWrite,
+	OUT	PULONG	CchWritten OPTIONAL,
+	IN	PVOID	Reserved OPTIONAL);
 
 #endif // if defined(KEX_ENV_WIN32)

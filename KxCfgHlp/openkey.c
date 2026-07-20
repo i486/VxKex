@@ -20,6 +20,9 @@
 // Revision History:
 //
 //     vxiiduu              02-Feb-2024  Initial creation.
+//     vxiiduu              04-Jul-2026  Make KxCfgOpenVxKexRegistryKey not fail
+//                                       if the per-user key does not exist. It
+//                                       will be created instead.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -37,11 +40,19 @@ KXCFGDECLSPEC HKEY KXCFGAPI KxCfgOpenVxKexRegistryKey(
 	IN	ACCESS_MASK	DesiredAccess,
 	IN	HANDLE		TransactionHandle OPTIONAL)
 {
-	return KxCfgpOpenKey(
-		PerUserKey ? HKEY_CURRENT_USER : HKEY_LOCAL_MACHINE,
-		L"Software\\VXsoft\\VxKex",
-		DesiredAccess,
-		TransactionHandle);
+	if (PerUserKey) {
+		return KxCfgpCreateKey(
+			HKEY_CURRENT_USER,
+			L"Software\\VXsoft\\VxKex",
+			DesiredAccess,
+			TransactionHandle);
+	} else {
+		return KxCfgpOpenKey(
+			HKEY_LOCAL_MACHINE,
+			L"Software\\VXsoft\\VxKex",
+			DesiredAccess,
+			TransactionHandle);
+	}
 }
 
 //

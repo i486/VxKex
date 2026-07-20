@@ -140,16 +140,37 @@
     <ClCompile Include="ntjob.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="rtlrng.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="ntobj.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="critsect.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="dllundo.c">
+    <ClCompile Include="ashinit.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="rtlmisc.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ashdetec.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="rtlsec.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="initapc.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="kexrtlp.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ntalrtid.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ntcondrv.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ntfile.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -165,6 +186,9 @@
   </ItemGroup>
   <ItemGroup>
     <MASM Include="syscal64.asm">
+      <Filter>Source Files</Filter>
+    </MASM>
+    <MASM Include="initapc64.asm">
       <Filter>Source Files</Filter>
     </MASM>
   </ItemGroup>

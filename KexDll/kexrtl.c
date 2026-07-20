@@ -7,6 +7,9 @@
 // Abstract:
 //
 //     Various useful run-time routines.
+//     This file is only for functions which are unique to VxKex and are not
+//     in Windows 8, 8.1, 10 etc.
+//     In other words, functions in this file are not to be exported via KxNt.
 //
 // Author:
 //
@@ -16,6 +19,8 @@
 //
 //     vxiiduu              17-Oct-2022  Initial creation.
 //     vxiiduu              29-Oct-2022  Fix bug in KexRtlPathFindFileName
+//     vxiiduu              06-May-2026  Move non-VxKex functions to rtlmisc.c
+//     vxiiduu              23-Jun-2026  Add KexRtlSectionTableFromName.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -414,92 +419,6 @@ KEXAPI BOOLEAN NTAPI KexRtlUnicodeStringEndsWith(
 	return RtlEqualUnicodeString(&EndOfString, EndsWith, CaseInsensitive);
 }
 
-//
-// Similar to RtlFindUnicodeSubstring in Win10 NTDLL (but does not
-// respect NLS).
-// Returns the address of the character in Haystack where Needle starts,
-// or NULL if Needle could not be found.
-//
-KEXAPI PWCHAR NTAPI KexRtlFindUnicodeSubstring(
-	PCUNICODE_STRING	Haystack,
-	PCUNICODE_STRING	Needle,
-	BOOLEAN				CaseInsensitive)
-{
-	ULONG LengthOfNeedle;
-	ULONG LengthOfHaystack;
-	PWCHAR NeedleBuffer;
-	PWCHAR NeedleBufferEnd;
-	PWCHAR HaystackBuffer;
-	PWCHAR HaystackBufferEnd;
-	PWCHAR HaystackBufferRealEnd;
-	PWCHAR StartOfNeedleInHaystack;
-	WCHAR NeedleFirst;
-
-	LengthOfNeedle = Needle->Length & ~1;
-	LengthOfHaystack = Haystack->Length & ~1;
-
-	if (LengthOfNeedle > LengthOfHaystack || !LengthOfHaystack || !LengthOfNeedle) {
-		return NULL;
-	}
-
-	NeedleBuffer = Needle->Buffer;
-	NeedleBufferEnd = (PWCHAR) (((PBYTE) NeedleBuffer) + LengthOfNeedle);
-	HaystackBuffer = Haystack->Buffer;
-	HaystackBufferEnd = (PWCHAR) (((PBYTE) HaystackBuffer) + LengthOfHaystack - LengthOfNeedle);
-	HaystackBufferRealEnd = (PWCHAR) (((PBYTE) HaystackBufferEnd) + LengthOfNeedle);
-
-	if (CaseInsensitive) {
-		NeedleFirst = ToUpper(*NeedleBuffer);
-
-		while (TRUE) {
-			NeedleBuffer = Needle->Buffer + 1;
-
-			while (ToUpper(*HaystackBuffer) != NeedleFirst) {
-				++HaystackBuffer; // Multiple evaluation. Can't increment inside macro
-
-				if (HaystackBuffer > HaystackBufferEnd) {
-					return NULL;
-				}
-			}
-
-			StartOfNeedleInHaystack = HaystackBuffer++;
-
-			while (ToUpper(*HaystackBuffer) == ToUpper(*NeedleBuffer)) {
-				++HaystackBuffer;
-				++NeedleBuffer;
-
-				if (HaystackBuffer > HaystackBufferRealEnd) {
-					break;
-				} else if (NeedleBuffer >= NeedleBufferEnd) {
-					return StartOfNeedleInHaystack;
-				}
-			}
-		}
-	} else {
-		NeedleFirst = *NeedleBuffer;
-
-		while (TRUE) {
-			NeedleBuffer = Needle->Buffer + 1;
-
-			while (*HaystackBuffer++ != NeedleFirst) {
-				if (HaystackBuffer > HaystackBufferEnd) {
-					return NULL;
-				}
-			}
-
-			StartOfNeedleInHaystack = HaystackBuffer - 1;
-
-			while (*HaystackBuffer++ == *NeedleBuffer++) {
-				if (HaystackBuffer > HaystackBufferRealEnd) {
-					break;
-				} else if (NeedleBuffer >= NeedleBufferEnd) {
-					return StartOfNeedleInHaystack;
-				}
-			}
-		}
-	}
-}
-
 KEXAPI VOID NTAPI KexRtlAdvanceUnicodeString(
 	OUT	PUNICODE_STRING	String,
 	IN	USHORT			AdvanceCb)
@@ -789,9 +708,7 @@ KEXAPI PIMAGE_SECTION_HEADER NTAPI KexRtlSectionTableFromRva(
 	// directly after the optional header.
 	//
 
-	SectionHeader = (PIMAGE_SECTION_HEADER) RVA_TO_VA(
-		&NtHeaders->OptionalHeader,
-		NtHeaders->FileHeader.SizeOfOptionalHeader);
+	SectionHeader = IMAGE_FIRST_SECTION(NtHeaders);
 
 	//
 	// Search through all the sections and find one that contains our RVA.
@@ -809,6 +726,62 @@ KEXAPI PIMAGE_SECTION_HEADER NTAPI KexRtlSectionTableFromRva(
 	}
 
 	// The section could not be found.
+	return NULL;
+}
+
+//
+// Find a section header from the name of the section, e.g. .qtmimed or .text
+// The section name is case sensitive.
+//
+KEXAPI PIMAGE_SECTION_HEADER NTAPI KexRtlSectionTableFromName(
+	IN	PIMAGE_NT_HEADERS	NtHeaders,
+	IN	PCANSI_STRING		SectionName)
+{
+	PIMAGE_SECTION_HEADER SectionHeader;
+	BYTE DesiredName[IMAGE_SIZEOF_SHORT_NAME];
+	ULONG NumberOfSections;
+	ULONG SectionIndex;
+
+	SectionIndex = 0;
+	NumberOfSections = NtHeaders->FileHeader.NumberOfSections;
+
+	if (NumberOfSections == 0) {
+		// No sections in this image.
+		return NULL;
+	}
+
+	if (SectionName->Length > IMAGE_SIZEOF_SHORT_NAME) {
+		// There will never be a section which matches this name, since section
+		// names are limited to 8 ASCII characters.
+		return NULL;
+	}
+
+	//
+	// Form the DesiredName array by zero-padding the input SectionName string.
+	// Section names are zero-padded.
+	//
+
+	KexRtlZeroMemory(DesiredName, sizeof(DesiredName));
+	KexRtlCopyMemory(DesiredName, SectionName->Buffer, SectionName->Length);
+
+	//
+	// Scan each section and check if the name matches.
+	//
+
+	SectionHeader = IMAGE_FIRST_SECTION(NtHeaders);
+
+	while (SectionIndex < NumberOfSections) {
+		STATIC_ASSERT (sizeof(DesiredName) == RTL_FIELD_SIZE(IMAGE_SECTION_HEADER, Name));
+
+		if (RtlEqualMemory(SectionHeader->Name, DesiredName, sizeof(DesiredName))) {
+			// Found it.
+			return SectionHeader;
+		}
+
+		++SectionIndex;
+		++SectionHeader;
+	}
+
 	return NULL;
 }
 
@@ -896,121 +869,4 @@ KEXAPI NTSTATUS NTAPI KexRtlCreateUntrustedDirectoryObject(
 	ObjectAttributes->SecurityDescriptor = NULL;
 
 	return Status;
-}
-
-// Compatible with RtlSetBit from win8+.
-KEXAPI VOID NTAPI KexRtlSetBit(
-	IN	PRTL_BITMAP	BitmapHeader,
-	IN	ULONG		BitNumber)
-{
-	_bittestandset((PLONG) BitmapHeader->Buffer, BitNumber);
-}
-
-// Compatible with RtlClearBit from win8+.
-KEXAPI VOID NTAPI KexRtlClearBit(
-	IN	PRTL_BITMAP	BitmapHeader,
-	IN	ULONG		BitNumber)
-{
-	_bittestandreset((PLONG) BitmapHeader->Buffer, BitNumber);
-}
-
-//
-// Stubs.
-//
-
-KEXAPI NTSTATUS NTAPI KexRtlQueryPackageIdentity(
-	IN		PVOID		TokenObject,
-	OUT		PWSTR		PackageFullName,
-	IN OUT	PSIZE_T		PackageSize,
-	OUT		PWSTR		AppId,
-	IN OUT	PSIZE_T		AppIdSize,
-	OUT		PBOOLEAN	Packaged)
-{
-	return STATUS_NOT_FOUND;
-}
-
-KEXAPI NTSTATUS NTAPI KexRtlQueryPackageIdentityEx(
-	IN		PVOID		TokenObject,
-	OUT		PWSTR		PackageFullName,
-	IN OUT	PSIZE_T		PackageSize,
-	OUT		PWSTR		AppId,
-	IN OUT	PSIZE_T		AppIdSize,
-	OUT		LPGUID		DynamicId OPTIONAL,
-	OUT		PULONG64	Flags)
-{
-	return STATUS_NOT_FOUND;
-}
-
-KEXAPI NTSTATUS NTAPI KexRtlCheckPortableOperatingSystem(
-	OUT	PBOOLEAN	IsPortable)
-{
-	*IsPortable = FALSE;
-	return STATUS_SUCCESS;
-}
-
-KEXAPI NTSTATUS NTAPI KexRtlUnsubscribeWnfStateChangeNotification(
-	IN	PVOID	Subscription)
-{
-	return STATUS_NOT_IMPLEMENTED;
-}
-
-KEXAPI NTSTATUS NTAPI KexRtlQueryWnfStateData(
-	PULONG		ChangeStamp,
-	ULONGLONG	StateName,
-	PVOID		Callback,
-	PVOID		CallbackContext,
-	PULONG		TypeId)
-{
-	return STATUS_NOT_IMPLEMENTED;
-}
-
-KEXAPI NTSTATUS NTAPI KexRtlPublishWnfStateData(
-	ULONGLONG	StateName,
-	PVOID		TypeId,
-	PVOID		StateData,
-	ULONG		StateDataLength,
-	PCVOID		ExplicitScope)
-{
-	return STATUS_NOT_IMPLEMENTED;
-}
-
-KEXAPI NTSTATUS NTAPI KexRtlSubscribeWnfStateChangeNotification(
-	PVOID		Subscription,
-	ULONGLONG	StateName,
-	ULONG		ChangeStamp,
-	PVOID		Callback,
-	PVOID		CallbackContext,
-	PVOID		TypeId,
-	ULONG		SerializationGroupIndex)
-{
-	return STATUS_NOT_IMPLEMENTED;
-}
-
-#ifndef _M_X64
-typedef PVOID TYPEDEF_TYPE_NAME(RUNTIME_FUNCTION);
-#endif
-
-KEXAPI NTSTATUS NTAPI KexRtlAddGrowableFunctionTable(
-	OUT	PPVOID				DynamicTable,
-	IN	PRUNTIME_FUNCTION	FunctionTable,
-	IN	ULONG				EntryCount,
-	IN	ULONG				MaximumEntryCount,
-	IN	ULONG_PTR			RangeBase,
-	IN	ULONG_PTR			RangeEnd)
-{
-#ifdef _M_X64
-	BOOLEAN Success;
-
-	Success = RtlAddFunctionTable(FunctionTable, EntryCount, RangeBase);
-
-	if (Success) {
-		*DynamicTable = NULL;
-		return STATUS_SUCCESS;
-	} else {
-		return STATUS_UNSUCCESSFUL;
-	}
-#else
-	ASSERT (FALSE);
-	return STATUS_NOT_IMPLEMENTED;
-#endif
 }

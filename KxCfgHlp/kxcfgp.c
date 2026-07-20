@@ -142,8 +142,7 @@ BOOLEAN KxCfgpCreateIfeoKeyForProgram(
 	// Generate a random identifier to name the subkey inside the EXE key.
 	//
 
-	// this "algorithm" is not cryptographically secure or anything but it
-	// should prevent time-based collisions
+	// this "algorithm" should prevent time-based collisions
 	QueryPerformanceCounter(&RandomSeed);
 	RandomSeed.LowPart += (ULONG) (NtCurrentTeb()->ClientId.UniqueProcess);
 	RandomSeed.HighPart -= (ULONG) (NtCurrentTeb()->ClientId.UniqueThread);

@@ -26,32 +26,6 @@
 #include "buildcfg.h"
 #include "kexdllp.h"
 
-STATIC NTSTATUS AshpAddUpdateRemoveDllRewriteEntry(
-	IN	PCUNICODE_STRING	DllName,
-	IN	PCUNICODE_STRING	RewrittenDllName OPTIONAL)
-{
-	NTSTATUS Status;
-
-	ASSUME (VALID_UNICODE_STRING(DllName));
-	ASSUME (RewrittenDllName == NULL || WELL_FORMED_UNICODE_STRING(RewrittenDllName));
-
-	Status = KexRemoveDllRewriteEntry(DllName);
-	ASSERT (NT_SUCCESS(Status) || Status == STATUS_STRING_MAPPER_ENTRY_NOT_FOUND);
-
-	if (!NT_SUCCESS(Status) && Status != STATUS_STRING_MAPPER_ENTRY_NOT_FOUND) {
-		return Status;
-	}
-
-	if (RewrittenDllName && RewrittenDllName->Buffer != NULL) {
-		Status = KexAddDllRewriteEntry(DllName, RewrittenDllName);
-	} else {
-		Status = STATUS_SUCCESS;
-	}
-
-	ASSERT (NT_SUCCESS(Status));
-	return Status;
-}
-
 NTSTATUS AshSelectDWriteImplementation(
 	IN	KEX_DWRITE_IMPLEMENTATION	Implementation)
 {
@@ -71,5 +45,5 @@ NTSTATUS AshSelectDWriteImplementation(
 		NOT_REACHED;
 	}
 
-	return AshpAddUpdateRemoveDllRewriteEntry(&DllName, &RewrittenDllName);
+	return KexAddUpdateRemoveDllRewriteEntry(&DllName, &RewrittenDllName);
 }

@@ -22,6 +22,9 @@ EXPORTS
 	D3D12SerializeRootSignature						@115
 	D3D12SerializeVersionedRootSignature			@116
 
+	;; dxgi.c
+	DXGIGetDebugInterface1
+
 	;; dcmpstub.c
 	DCompositionCreateDevice
 	DCompositionCreateDevice2
@@ -32,3 +35,7 @@ EXPORTS
 	MFMapDX9FormatToDXGIFormat
 	;MFCreateDXGIDeviceManager
 	MFCreateDXGISurfaceBuffer
+
+	;; opengl.c
+	glGetIntegerv		= Ext_glGetIntegerv
+	wglGetProcAddress	= Ext_wglGetProcAddress

@@ -11,6 +11,7 @@
 #define DISABLE_PROTECTED_FUNCTION FALSE
 
 #pragma comment(lib, "KexSmp.lib")
+#pragma comment(lib, "KexMLS.lib")
 
 #define KEX_COMPONENT L"KexDll"
 #define KEX_ENV_NATIVE

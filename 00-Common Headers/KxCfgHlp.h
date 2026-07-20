@@ -44,12 +44,12 @@
 // Type definitions
 //
 
+// Increment KXCFG_PRESERVED_CONFIGURATION_VERSION whenever breaking changes
+// are made to the KXCFG_PROGRAM_CONFIGURATION structure or its sub-structures,
+// such as KEX_IFEO_PARAMETERS.
 typedef struct {
 	BOOLEAN				Enabled;
-	BOOLEAN				DisableForChild;
-	BOOLEAN				DisableAppSpecificHacks;
-	KEX_WIN_VER_SPOOF	WinVerSpoof;
-	ULONG				StrongSpoofOptions;
+	KEX_IFEO_PARAMETERS	IfeoParameters;
 } TYPEDEF_TYPE_NAME(KXCFG_PROGRAM_CONFIGURATION);
 
 //
@@ -81,7 +81,7 @@ KXCFGDECLSPEC HKEY KXCFGAPI KxCfgOpenLegacyVxKexRegistryKey(
 
 KXCFGDECLSPEC BOOLEAN KXCFGAPI KxCfgGetConfiguration(
 	IN	PCWSTR							ExeFullPath,
-	OUT	PKXCFG_PROGRAM_CONFIGURATION	Configuration);
+	OUT	PKXCFG_PROGRAM_CONFIGURATION	Configuration OPTIONAL);
 
 KXCFGDECLSPEC BOOLEAN KXCFGAPI KxCfgEnumerateConfiguration(
 	IN	PKXCFG_ENUMERATE_CONFIGURATION_CALLBACK	ConfigurationCallback,
@@ -118,6 +118,13 @@ KXCFGDECLSPEC BOOLEAN KXCFGAPI KxCfgEnableExplorerCpiwBypass(
 KXCFGDECLSPEC BOOLEAN KXCFGAPI KxCfgQueryExplorerCpiwBypass(
 	VOID);
 
+KXCFGDECLSPEC BOOLEAN KXCFGAPI KxCfgQueryLegacyExplorerCpiwBypass(
+	VOID);
+
+KXCFGDECLSPEC BOOLEAN KXCFGAPI KxCfgEnableLegacyExplorerCpiwBypass(
+	IN	BOOLEAN	Enable,
+	IN	HANDLE	TransactionHandle OPTIONAL);
+
 KXCFGDECLSPEC BOOLEAN KXCFGAPI KxCfgQueryShellContextMenuEntries(
 	OUT	PBOOLEAN	ExtendedMenu OPTIONAL);
 
@@ -127,21 +134,36 @@ KXCFGDECLSPEC BOOLEAN KXCFGAPI KxCfgConfigureShellContextMenuEntries(
 	IN	HANDLE	TransactionHandle OPTIONAL);
 
 KXCFGDECLSPEC BOOLEAN KXCFGAPI KxCfgQueryLoggingSettings(
+	IN	BOOLEAN		PerUserSettings,
 	OUT	PBOOLEAN	IsEnabled OPTIONAL,
 	OUT	PWSTR		LogDir OPTIONAL,
-	IN	ULONG		LogDirCch);
+	IN	ULONG		LogDirCch,
+	IN	HANDLE		TransactionHandle OPTIONAL);
 
 KXCFGDECLSPEC BOOLEAN KXCFGAPI KxCfgConfigureLoggingSettings(
+	IN	BOOLEAN		PerUserSettings,
 	IN	BOOLEAN		Enabled,
 	IN	PCWSTR		LogDir OPTIONAL,
 	IN	HANDLE		TransactionHandle OPTIONAL);
 
 KXCFGDECLSPEC BOOLEAN KXCFGAPI KxCfgInstallDiskCleanupHandler(
-	IN	PCWSTR	KexDir OPTIONAL,
-	IN	PCWSTR	LogDir OPTIONAL,
 	IN	HANDLE	TransactionHandle OPTIONAL);
 
 KXCFGDECLSPEC BOOLEAN KXCFGAPI KxCfgRemoveDiskCleanupHandler(
+	IN	HANDLE	TransactionHandle OPTIONAL);
+
+KXCFGDECLSPEC BOOLEAN KXCFGAPI KxCfgQueryLegacyKxSChanlSsp(
+	VOID);
+
+KXCFGDECLSPEC BOOLEAN KXCFGAPI KxCfgEnableLegacyKxSChanlSsp(
+	IN	BOOLEAN	Enable,
+	IN	HANDLE	TransactionHandle OPTIONAL);
+
+KXCFGDECLSPEC BOOLEAN KXCFGAPI KxCfgPreserveConfiguration(
+	IN	PCWSTR	ExeFullPath,
+	IN	HANDLE	TransactionHandle OPTIONAL);
+
+KXCFGDECLSPEC BOOLEAN KXCFGAPI KxCfgRestorePreservedConfiguration(
 	IN	HANDLE	TransactionHandle OPTIONAL);
 
 #ifdef KXCFGDECLSPEC

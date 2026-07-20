@@ -88,13 +88,6 @@ KXBASEAPI ULONG WINAPI OfferVirtualMemory(
 	IN	SIZE_T			Size,
 	IN	OFFER_PRIORITY	Priority)
 {
-	KexLogDebugEvent(
-		L"OfferVirtualMemory called\r\n\r\n"
-		L"VirtualAddress: 0x%p\r\n"
-		L"Size:           %lu",
-		VirtualAddress,
-		Size);
-
 	if (!Priority || Priority >= VMOfferPriorityMaximum) {
 		return ERROR_INVALID_PARAMETER;
 	}
@@ -106,13 +99,6 @@ KXBASEAPI ULONG WINAPI DiscardVirtualMemory(
 	IN	PVOID	VirtualAddress,
 	IN	SIZE_T	Size)
 {
-	KexLogDebugEvent(
-		L"DiscardVirtualMemory called\r\n\r\n"
-		L"VirtualAddress: 0x%p\r\n"
-		L"Size:           %lu",
-		VirtualAddress,
-		Size);
-
 	return OfferVirtualMemoryInternal(VirtualAddress, Size, VMOfferPriorityVeryLow, TRUE);
 }
 
@@ -123,13 +109,6 @@ KXBASEAPI ULONG WINAPI ReclaimVirtualMemory(
 	NTSTATUS Status;
 	MEMORY_BASIC_INFORMATION BasicInformation;
 	ULONG OldProtect;
-
-	KexLogDebugEvent(
-		L"ReclaimVirtualMemory called\r\n\r\n"
-		L"VirtualAddress: 0x%p\r\n"
-		L"Size:           %lu",
-		VirtualAddress,
-		Size);
 
 	if (!VirtualAddress || !Size) {
 		return ERROR_INVALID_PARAMETER;

@@ -10,6 +10,8 @@
 //     These exist because some stupid software such as Chromium is not
 //     compatible with export forwarders.
 //
+//     Stubs are also needed to support Themida-protected applications.
+//
 // Author:
 //
 //     vxiiduu (09-Mar-2024)
@@ -21,12 +23,15 @@
 // Revision History:
 //
 //     vxiiduu              09-Mar-2024  Initial creation.
+//     vxiiduu              27-Apr-2026  Add more stubs to support Themida.
+//     vxiiduu              02-May-2026  Move GetProcAddress to module.c.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "buildcfg.h"
 #include "kxbasep.h"
 
+// required for Chromium
 KXBASEAPI BOOL WINAPI Stub_DuplicateHandle(
 	IN	HANDLE		SourceProcessHandle,
 	IN	HANDLE		SourceHandle,
@@ -46,15 +51,7 @@ KXBASEAPI BOOL WINAPI Stub_DuplicateHandle(
 		Options);
 }
 
-KXBASEAPI FARPROC WINAPI Stub_GetProcAddress(
-	IN	HMODULE		ModuleHandle,
-	IN	PCSTR		ProcedureName)
-{
-	return GetProcAddress(
-		ModuleHandle,
-		ProcedureName);
-}
-
+// required for Themida
 KXBASEAPI PVOID WINAPI Stub_VirtualAlloc(
 	IN	PVOID		Address OPTIONAL,
 	IN	SIZE_T		Size,

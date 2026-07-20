@@ -36,7 +36,7 @@ typedef ULONG EVENT_INFO_CLASS;
 // due to the lack of this non-essential function.
 //
 
-KEXAPI ULONG NTAPI KexEtwEventSetInformation(
+KEXAPI ULONG NTAPI Ext_EtwEventSetInformation(
 	IN	REGHANDLE			Handle,
 	IN	EVENT_INFO_CLASS	InformationClass,
 	IN	PVOID				EventInformation,

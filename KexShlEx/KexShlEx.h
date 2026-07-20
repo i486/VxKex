@@ -127,3 +127,11 @@ UINT WINAPI PropSheetCallbackProc(
 	IN		HWND				Window,
 	IN		UINT				Message,
 	IN OUT	LPPROPSHEETPAGE		PropSheetPage);
+
+//
+// regkey.c
+//
+
+BOOLEAN OpenIfeoRegKey(
+	IN	HWND	ParentWindow OPTIONAL,
+	IN	PCWSTR	ExeFullPath);

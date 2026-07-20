@@ -20,6 +20,8 @@
 // Revision History:
 //
 //     vxiiduu              09-Feb-2024  Initial creation.
+//     vxiiduu              22-May-2026  Move parsing of hexadecimal parameters
+//                                       into a separate function.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -58,8 +60,8 @@ BOOLEAN RunningInInteractiveWindowStation(
 
 INT KexCfgMessageBox(
 	IN	HWND	ParentWindow OPTIONAL,
-	IN	PWSTR	Message,
-	IN	PWSTR	Title,
+	IN	PCWSTR	Message,
+	IN	PCWSTR	Title,
 	IN	ULONG	Flags)
 {
 	BOOLEAN Success;
@@ -86,9 +88,9 @@ INT KexCfgMessageBox(
 		Success = WTSSendMessage(
 			WTS_CURRENT_SERVER_HANDLE,
 			SessionId,
-			Title,
+			(PWSTR) Title,
 			(ULONG) wcslen(Title) * sizeof(WCHAR),
-			Message,
+			(PWSTR) Message,
 			(ULONG) wcslen(Message) * sizeof(WCHAR),
 			Flags,
 			0,
@@ -137,4 +139,26 @@ BOOLEAN KexCfgParseBooleanParameter(
 
 		ExitProcess(STATUS_INVALID_PARAMETER);
 	}
+}
+
+ULONG KexCfgParseHexadecimalParameter(
+	IN	PCWSTR	Parameter)
+{
+	ULONG Value;
+
+	if (StringBeginsWithI(Parameter, L"0x")) {
+		Parameter += StringLiteralLength(L"0x");
+	}
+
+	if (swscanf_s(Parameter, L"%lx", &Value) != 1) {
+		KexCfgMessageBox(
+			NULL,
+			L"A hexadecimal argument was invalid. Pass the /? argument for more information.",
+			FRIENDLYAPPNAME,
+			MB_ICONERROR | MB_OK);
+
+		ExitProcess(STATUS_INVALID_PARAMETER);
+	}
+
+	return Value;
 }

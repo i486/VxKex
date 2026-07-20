@@ -1,77 +1,59 @@
 #include "buildcfg.h"
 #include <KexComm.h>
 #include <KexDll.h>
-#include <bcrypt.h>
-
+#include <KxSChanl.h>
 #define SECURITY_WIN32
 #include <Security.h>
-#include <schannel.h>
+#include <bcrypt.h>
+#include <KxCryp.h>
 
 EXTERN PKEX_PROCESS_DATA KexData;
 
-typedef enum _TLS_ALGORITHM_USAGE {
-	TlsParametersCngAlgUsageKeyExchange,	// Key exchange algorithm. RSA, ECHDE, DHE, etc.
-	TlsParametersCngAlgUsageSignature,		// Signature algorithm. RSA, DSA, ECDSA, etc.
-	TlsParametersCngAlgUsageCipher,			// Encryption algorithm. AES, DES, RC4, etc.
-	TlsParametersCngAlgUsageDigest,			// Digest of cipher suite. SHA1, SHA256, SHA384, etc.
-	TlsParametersCngAlgUsageCertSig			// Signature and/or hash used to sign certificate. RSA, DSA, ECDSA, SHA1, SHA256, etc.
-} TYPEDEF_TYPE_NAME(TLS_ALGORITHM_USAGE);
+typedef struct DECLSPEC_ALIGN(4) {
+	ULONG				cbLength;		// 0x14
+	ULONG				dwMagic;		// always 'MSEC'
+	ULONG				cbBuffer;
+	ULONG				cbSecretAgreement;
+	BYTE				rgbBuffer[ANYSIZE_ARRAY];
+} TYPEDEF_TYPE_NAME(MSCRYPT_SECRET);
 
-typedef struct _CRYPTO_SETTINGS {
-	TLS_ALGORITHM_USAGE	AlgorithmUSage;
-	UNICODE_STRING		AlgorithmId;
-	ULONG				NumberOfChainingModes;
-	PUNICODE_STRING		ChainingModes;
-	ULONG				MinimumBitLength;
-	ULONG				MaximumBitLength;
-} TYPEDEF_TYPE_NAME(CRYPTO_SETTINGS);
+// Cast from BCRYPT_SECRET_HANDLE to obtain pointer to this.
+typedef struct {
+	ULONG				cbLength;
+	ULONG				dwMagic;		// always 'UUUT'
+	BCRYPT_ALG_HANDLE	hAlgorithm;
+	PMSCRYPT_SECRET		pSecret;
+} TYPEDEF_TYPE_NAME(BCRYPT_SECRET_HEADER);
 
-typedef struct _TLS_PARAMETERS {
-	ULONG				NumberOfAlpnIds;
-	PUNICODE_STRING		AlpnIds;
-	ULONG				DisabledProtocols; // bit field
-	ULONG				NumberOfCryptoSettings;
-	PCRYPTO_SETTINGS	DisabledCryptoAlgorithms;
-	ULONG				Flags;
-} TYPEDEF_TYPE_NAME(TLS_PARAMETERS);
+//
+// bcrypt.c
+//
 
-#define SCH_CRED_V4 4
-#define SCH_CRED_V5 5
+VOID CleanupCachedPredefinedHandles(
+	VOID);
 
-// added in win8
-#define SCH_SEND_AUX_RECORD 0x00200000
+//
+// credhndl.c
+//
 
-#define SCH_WIN7_VALID_FLAGS (SCH_CRED_NO_SYSTEM_MAPPER | \
-							  SCH_CRED_NO_SERVERNAME_CHECK | \
-							  SCH_CRED_MANUAL_CRED_VALIDATION | \
-							  SCH_CRED_NO_DEFAULT_CREDS | \
-						 	  SCH_CRED_AUTO_CRED_VALIDATION | \
-						 	  SCH_CRED_USE_DEFAULT_CREDS | \
-						 	  SCH_CRED_DISABLE_RECONNECTS | \
-						 	  SCH_CRED_REVOCATION_CHECK_END_CERT | \
-						 	  SCH_CRED_REVOCATION_CHECK_CHAIN | \
-						 	  SCH_CRED_REVOCATION_CHECK_CHAIN_EXCLUDE_ROOT | \
-						 	  SCH_CRED_IGNORE_NO_REVOCATION_CHECK | \
-						 	  SCH_CRED_IGNORE_REVOCATION_OFFLINE | \
-						 	  SCH_CRED_RESTRICTED_ROOTS | \
-						 	  SCH_CRED_REVOCATION_CHECK_CACHE_ONLY | \
-						 	  SCH_CRED_CACHE_ONLY_URL_RETRIEVAL | \
-						 	  SCH_CRED_MEMORY_STORE_CERT | \
-						 	  SCH_CRED_CACHE_ONLY_URL_RETRIEVAL_ON_CREATE | \
-						 	  SCH_SEND_ROOT_CERT)
+KXCRYPAPI SECURITY_STATUS SEC_ENTRY Ext_AcquireCredentialsHandleA(
+	IN	PSTR			Principal OPTIONAL,
+	IN	PSTR			Package,
+	IN	ULONG			CredentialUseFlags,
+	IN	PVOID			LogonId OPTIONAL,
+	IN	PVOID			AuthData OPTIONAL,
+	IN	SEC_GET_KEY_FN	GetKeyFn OPTIONAL,
+	IN	PVOID			GetKeyArgument OPTIONAL,
+	OUT	PCredHandle		CredentialHandle,
+	OUT	PTimeStamp		Expiry OPTIONAL);
 
-// This is the Win10+ version of SCHANNEL_CRED.
-// The naming scheme is retarded.
-typedef struct _SCH_CREDENTIALS {
-	ULONG			Version;					// always 5 (SCH_CRED_V5)
-	ULONG			CredentialsFormat;
-	ULONG			NumberOfCertificateContexts;
-	PCCERT_CONTEXT	*CertificateContexts;
-	HCERTSTORE		RootStore;
-	ULONG			NumberOfMappers;
-	struct _HMAPPER	**Mappers;
-	ULONG			SessionLifespan;
-	ULONG			Flags;
-	ULONG			NumberOfTlsParameters;
-	PTLS_PARAMETERS	TlsParameters;
-} TYPEDEF_TYPE_NAME(SCH_CREDENTIALS);
+KXCRYPAPI SECURITY_STATUS SEC_ENTRY Ext_AcquireCredentialsHandleW(
+	IN	PWSTR			Principal OPTIONAL,
+	IN	PWSTR			Package,
+	IN	ULONG			CredentialUseFlags,
+	IN	PVOID			LogonId OPTIONAL,
+	IN	PVOID			AuthData OPTIONAL,
+	IN	SEC_GET_KEY_FN	GetKeyFn OPTIONAL,
+	IN	PVOID			GetKeyArgument OPTIONAL,
+	OUT	PCredHandle		CredentialHandle,
+	OUT	PTimeStamp		Expiry OPTIONAL);

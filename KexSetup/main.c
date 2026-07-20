@@ -23,6 +23,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 #define NEED_VERSION_DEFS
+#include "buildcfg.h"
 #include "kexsetup.h"
 
 BOOLEAN Is64BitOS;
@@ -36,11 +37,12 @@ ULONG InstallerVxKexVersion;
 VOID EntryPoint(
 	VOID)
 {
-	KexgApplicationFriendlyName = FRIENDLYAPPNAME;
+	KexgApplicationFriendlyName = _(FRIENDLYAPPNAME);
 	ExistingVxKexVersion = KexSetupGetInstalledVersion();
 	InstallerVxKexVersion = KEX_VERSION_DW;
+	ASSERT (InstallerVxKexVersion & 0x80000000);
 	
-	Is64BitOS = IsWow64();
+	Is64BitOS = (KexRtlCurrentProcessBitness() != KexRtlOperatingSystemBitness());
 	GetDefaultInstallationLocation(KexDir);
 	ProcessCommandLineOptions();
 

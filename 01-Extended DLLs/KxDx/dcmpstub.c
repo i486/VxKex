@@ -8,7 +8,7 @@ KXDXAPI HRESULT WINAPI DCompositionCreateDevice(
 {
 	ASSERT (DCompositionDevice != NULL);
 
-	KexLogWarningEvent(L"Unimplemented function DCompositionCreateDevice called");
+	KexLogUnimplementedFunctionEvent();
 	*DCompositionDevice = NULL;
 	return E_NOINTERFACE;
 }
@@ -20,7 +20,7 @@ KXDXAPI HRESULT WINAPI DCompositionCreateDevice2(
 {
 	ASSERT (DCompositionDevice != NULL);
 
-	KexLogWarningEvent(L"Unimplemented function DCompositionCreateDevice2 called");
+	KexLogUnimplementedFunctionEvent();
 	*DCompositionDevice = NULL;
 	return E_NOINTERFACE;
 }
@@ -32,7 +32,7 @@ KXDXAPI HRESULT WINAPI DCompositionCreateDevice3(
 {
 	ASSERT (DCompositionDevice != NULL);
 
-	KexLogWarningEvent(L"Unimplemented function DCompositionCreateDevice3 called");
+	KexLogUnimplementedFunctionEvent();
 	*DCompositionDevice = NULL;
 	return E_NOINTERFACE;
 }
@@ -85,7 +85,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactoryMedia_CreateSwapChainForCompositionSurface
 	IN	IDXGIOutput					*RestrictToOutput OPTIONAL,
 	OUT	IDXGISwapChain1				**SwapChain)
 {
-	KexLogWarningEvent(L"Unimplemented function CreateSwapChainForCompositionSurfaceHandle called");
+	KexLogUnimplementedFunctionEvent();
 	*SwapChain = NULL;
 	return E_NOTIMPL;
 }
@@ -99,7 +99,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactoryMedia_CreateDecodeSwapChainForCompositionS
 	IN	IDXGIOutput					*RestrictToOutput OPTIONAL,
 	OUT	IUnknown					**SwapChain)
 {
-	KexLogWarningEvent(L"Unimplemented function CreateDecodeSwapChainForCompositionSurfaceHandle called");
+	KexLogUnimplementedFunctionEvent();
 	*SwapChain = NULL;
 	return E_NOTIMPL;
 }

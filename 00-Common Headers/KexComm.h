@@ -48,6 +48,7 @@
 // headers.
 #define CONCAT(a,b) a##b
 #define _L(str) CONCAT(L,str)
+#define _STR(identifier) #identifier
 #define __DATEW__ _L(__DATE__)
 #define __TIMEW__ _L(__TIME__)
 #define __TIMESTAMPW__ _L(__TIMESTAMP__)
@@ -208,7 +209,12 @@
 #  endif
 
 #  define unless(Condition) if (!(Condition))
-#  define ReturnAddress _ReturnAddress
+#  define ReturnAddress() _ReturnAddress()
+
+#  define ByteSwap16 _byteswap_ushort
+#  define ByteSwap32 _byteswap_ulong
+#  define ByteSwap64 _byteswap_uint64
+#  define ByteSwap24(x) (ByteSwap32((ULONG)(x)) >> 8)
 
 #  define PopulationCount16 __popcnt16
 #  define PopulationCount __popcnt
@@ -247,6 +253,18 @@
 #    define InterlockedCompareExchangePointer(PointerToPointer, Pointer, Compare) ((PVOID) _InterlockedCompareExchange64((LONGLONG VOLATILE *) (PointerToPointer), (LONGLONG) (Pointer), (LONGLONG) Compare))
 #  else
 #    define InterlockedCompareExchangePointer(PointerToPointer, Pointer, Compare) ((PVOID) _InterlockedCompareExchange((LONG VOLATILE *) (PointerToPointer), (LONG) (Pointer), (LONG) Compare))
+#  endif
+
+#  define InterlockedExchange _InterlockedExchange
+#  define InterlockedExchange8 _InterlockedExchange8
+#  define InterlockedExchange16 _InterlockedExchange16
+#  define InterlockedExchange64 _InterlockedExchange64
+
+#  undef InterlockedExchangePointer
+#  ifdef _M_X64
+#    define InterlockedExchangePointer(PointerToPointer, Pointer) ((PVOID) _InterlockedExchange64((LONGLONG VOLATILE *) (PointerToPointer), (LONGLONG) (Pointer)))
+#  else
+#    define InterlockedExchangePointer(PointerToPointer, Pointer) ((PVOID) _InterlockedExchange((LONG VOLATILE *) (PointerToPointer), (LONG) (Pointer)))
 #  endif
 #pragma endregion
 
@@ -287,6 +305,15 @@
 #  define CCH_TO_CB(Cch) ((Cch) << 1)
 
 //
+// Converts a bit count to the minimum number of whole bytes needed
+// to contain that many bits (rounds up). For example, BITS_TO_BYTES(521)
+// returns 66, not 65.
+//
+#  define BITS_TO_BYTES(Bits) (((ULONG)(Bits) + 7) / 8)
+
+#  define IS_POWER_OF_TWO(n) (((n) != 0) && (((n) & ((n) - 1)) == 0))
+
+//
 // Check that a kernel handle is not NULL or INVALID_HANDLE_VALUE.
 // Keep in mind that NtCurrentProcess() will not be valid if checked with
 // this macro, so you will have to special-case it in any code that uses
@@ -297,6 +324,16 @@
 	 ((Handle) != INVALID_HANDLE_VALUE) && \
 	 !(((ULONG_PTR) (Handle)) & 3) && \
 	 (((ULONG_PTR) (Handle)) <= ULONG_MAX))
+
+//
+// In the Windows source code, the CONSOLE_HANDLE macro does the same thing as
+// IsConsoleHandle does here.
+//
+#  define CONSOLE_HANDLE_SIGNATURE	0x00000003
+#  define CONSOLE_HANDLE_NEVERSET	0x10000000
+#  define CONSOLE_HANDLE_MASK		(CONSOLE_HANDLE_SIGNATURE | CONSOLE_HANDLE_NEVERSET)
+#  define IsConsoleHandle(Handle)	(((ULONG_PTR) (Handle) & CONSOLE_HANDLE_MASK) == CONSOLE_HANDLE_SIGNATURE)
+#  define IsConsoleAttached()		(NtCurrentPeb()->ProcessParameters->ConsoleHandle != NULL)
 
 #  define KexDebugCheckpoint() if (KexIsDebugBuild && NtCurrentPeb()->BeingDebugged) __debugbreak()
 

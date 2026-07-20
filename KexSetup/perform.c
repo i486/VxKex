@@ -1,4 +1,5 @@
 #define NEED_VERSION_DEFS
+#include "buildcfg.h"
 #include "kexsetup.h"
 #include <KseGuid.h>
 #include <taskschd.h>
@@ -224,20 +225,9 @@ VOID KexSetupAddKexCfgScheduledTask(
 		ASSERT (SUCCEEDED(Result));
 
 	} finally {
-		if (TaskService) {
-			ITaskService_Release(TaskService);
-			TaskService = NULL;
-		}
-
-		if (TaskFolder) {
-			ITaskFolder_Release(TaskFolder);
-			TaskFolder = NULL;
-		}
-
-		if (KexCfgTask) {
-			IRegisteredTask_Release(KexCfgTask);
-			KexCfgTask = NULL;
-		}
+		SafeRelease(TaskService);
+		SafeRelease(TaskFolder);
+		SafeRelease(KexCfgTask);
 
 		CoUninitialize();
 	}
@@ -358,7 +348,7 @@ VOID KexSetupInstallFiles(
 	//
 
 	if (Is64BitOS) {
-		GetWindowsDirectory(TargetPath, ARRAYSIZE(TargetPath));
+		GetSystemWindowsDirectory(TargetPath, ARRAYSIZE(TargetPath));
 		PathCchAppend(TargetPath, ARRAYSIZE(TargetPath), L"sysnative");
 		KexSetupMoveFileSpecToDirectory(L".\\Core64\\KexDll.*", TargetPath);
 
@@ -372,7 +362,7 @@ VOID KexSetupInstallFiles(
 		}
 	}
 
-	GetWindowsDirectory(TargetPath, ARRAYSIZE(TargetPath));
+	GetSystemWindowsDirectory(TargetPath, ARRAYSIZE(TargetPath));
 	PathCchAppend(TargetPath, ARRAYSIZE(TargetPath), L"system32"); // On 64-bit OS, this actually goes to syswow64
 	KexSetupMoveFileSpecToDirectory(L".\\Core32\\KexDll.*", TargetPath);
 
@@ -389,7 +379,7 @@ VOID KexSetupInstallFiles(
 	}
 
 	//
-	// Install native core files to KexDir, plus KexShl32 & CpiwBp32 if 64bit OS
+	// Install native core files to KexDir, plus KexShl32 if 64bit OS
 	//
 
 	if (Is64BitOS) {
@@ -398,16 +388,10 @@ VOID KexSetupInstallFiles(
 		KexSetupFormatPath(TargetPath, L"%s\\KexShl32.dll", KexDir);
 		KexSetupSupersedeFile(L".\\Core32\\KexShlEx.dll", TargetPath);
 
-		KexSetupFormatPath(TargetPath, L"%s\\CpiwBp32.dll", KexDir);
-		KexSetupSupersedeFile(L".\\Core32\\CpiwBypa.dll", TargetPath);
-
 		if (KexIsDebugBuild) {
 			// Move the pdbs as well
 			KexSetupFormatPath(TargetPath, L"%s\\KexShl32.pdb", KexDir);
 			KexSetupSupersedeFile(L".\\Core32\\KexShlEx.pdb", TargetPath);
-
-			KexSetupFormatPath(TargetPath, L"%s\\CpiwBp32.pdb", KexDir);
-			KexSetupSupersedeFile(L".\\Core32\\CpiwBypa.pdb", TargetPath);
 		}
 	} else {
 		KexSetupMoveFileSpecToDirectory(L".\\Core32\\*", KexDir);
@@ -435,18 +419,6 @@ VOID KexSetupInstallFiles(
 
 	PathCchAppend(TargetPath, ARRAYSIZE(TargetPath), L"*.old_*");
 	KexSetupDeleteFilesBySpec(TargetPath);
-
-	// remove dnsw8, which is no longer included
-	KexSetupFormatPath(TargetPath, L"%s\\Kex32\\dnsw8.dll", KexDir);
-	KexSetupDeleteFile(TargetPath);
-
-	// remove dcow8, which is no longer included
-	KexSetupFormatPath(TargetPath, L"%s\\Kex32\\dcow8.dll", KexDir);
-	KexSetupDeleteFile(TargetPath);
-
-	// remove msvw10, which is no longer included
-	KexSetupFormatPath(TargetPath, L"%s\\Kex32\\msvw10.dll", KexDir);
-	KexSetupDeleteFile(TargetPath);
 	
 	if (Is64BitOS) {
 		// remove old PDBs
@@ -458,19 +430,53 @@ VOID KexSetupInstallFiles(
 
 		PathCchAppend(TargetPath, ARRAYSIZE(TargetPath), L"*.old_*");
 		KexSetupDeleteFilesBySpec(TargetPath);
-
-		// remove dnsw8
-		KexSetupFormatPath(TargetPath, L"%s\\Kex64\\dnsw8.dll", KexDir);
-		KexSetupDeleteFile(TargetPath);
-
-		// remove dcow8
-		KexSetupFormatPath(TargetPath, L"%s\\Kex64\\dcow8.dll", KexDir);
-		KexSetupDeleteFile(TargetPath);
-
-		// remove msvw10
-		KexSetupFormatPath(TargetPath, L"%s\\Kex64\\msvw10.dll", KexDir);
-		KexSetupDeleteFile(TargetPath);
 	}
+
+	{
+		PCWSTR UnwantedPrebuiltDlls[] = {
+			L"dnsw8.dll",
+			L"dcow8.dll",
+			L"msvw10.dll",
+			L"icuin.dll",
+			L"icuuc.dll",
+			L"mshtmlmedia.dll"
+		};
+
+		ULONG Index;
+
+		//
+		// Past releases of VxKex have included some prebuilt DLLs which are no longer
+		// included and so we want to get rid of them now.
+		//
+
+		for (Index = 0; Index < ARRAYSIZE(UnwantedPrebuiltDlls); ++Index) {
+			KexSetupFormatPath(TargetPath, L"%s\\Kex32\\%s", KexDir, UnwantedPrebuiltDlls[Index]);
+			KexSetupDeleteFile(TargetPath);
+
+			if (Is64BitOS) {
+				KexSetupFormatPath(TargetPath, L"%s\\Kex64\\%s", KexDir, UnwantedPrebuiltDlls[Index]);
+				KexSetupDeleteFile(TargetPath);
+			}
+		}
+	}
+
+	//
+	// WolfSSL-based KxSChanl included a ROOT.crt (PEM formatted) certificate file.
+	// The new native KxSChanl uses a ROOT.sst file. Delete the old .crt file.
+	//
+
+	KexSetupFormatPath(TargetPath, L"%s\\Certificates\\ROOT.crt", KexDir);
+	KexSetupDeleteFile(TargetPath);
+
+	//
+	// Prior to 1.2.0.2020, CpiwBypa.dll and CpiwBp32.dll were installed into
+	// KexDir. 1.2.0.2020 and later do not use these DLLs anymore so we will
+	// get rid of them.
+	//
+
+	// Use a wildcard delete to get rid of PDBs as well (for debug builds).
+	KexSetupFormatPath(TargetPath, L"%s\\CpiwB*", KexDir);
+	KexSetupDeleteFilesBySpec(TargetPath);
 }
 
 //
@@ -496,7 +502,7 @@ BOOLEAN CALLBACK KexSetupConfigurationEnumerationCallback(
 
 		if (!Success) {
 			ErrorBoxF(
-				L"Setup was unable to delete VxKex legacy configuration for \"%s\". %s",
+				_(L"Setup was unable to delete VxKex legacy configuration for \"%s\". %s"),
 				ExeFullPathOrBaseName, GetLastErrorAsString());
 
 			RtlRaiseStatus(STATUS_KEXSETUP_FAILURE);
@@ -508,41 +514,34 @@ BOOLEAN CALLBACK KexSetupConfigurationEnumerationCallback(
 	ASSERT (!PathIsRelative(ExeFullPathOrBaseName));
 
 	if (PreserveConfig) {
-		KXCFG_PROGRAM_CONFIGURATION Configuration;
+		//
+		// Save VxKex configuration for this program to the registry if we're supposed
+		// to preserve VxKex settings.
+		// This will be restored the next time VxKex is installed.
+		//
 
-		Success = KxCfgGetConfiguration(ExeFullPathOrBaseName, &Configuration);
-		if (!Success) {
-			RtlRaiseStatus(STATUS_KEXSETUP_FAILURE);
-		}
-
-		if (Configuration.Enabled) {
-			Configuration.Enabled = FALSE;
-
-			Success = KxCfgSetConfiguration(
-				ExeFullPathOrBaseName,
-				&Configuration,
-				KexSetupTransactionHandle);
-
-			if (!Success) {
-				ErrorBoxF(
-					L"Setup was unable to disable VxKex for \"%s\". %s",
-					ExeFullPathOrBaseName, GetLastErrorAsString());
-
-				RtlRaiseStatus(STATUS_KEXSETUP_FAILURE);
-			}
-		}
-	} else {
-		Success = KxCfgDeleteConfiguration(
+		Success = KxCfgPreserveConfiguration(
 			ExeFullPathOrBaseName,
 			KexSetupTransactionHandle);
-		
-		if (!Success) {
-			ErrorBoxF(
-				L"Setup was unable to delete VxKex configuration for \"%s\". %s",
-				ExeFullPathOrBaseName, GetLastErrorAsString());
 
-			RtlRaiseStatus(STATUS_KEXSETUP_FAILURE);
+		ASSERT (Success);
+
+		if (!Success) {
+			// continue enumeration
+			return TRUE;
 		}
+	}
+
+	Success = KxCfgDeleteConfiguration(
+		ExeFullPathOrBaseName,
+		KexSetupTransactionHandle);
+		
+	if (!Success) {
+		ErrorBoxF(
+			_(L"Setup was unable to delete VxKex configuration for \"%s\". %s"),
+			ExeFullPathOrBaseName, GetLastErrorAsString());
+
+		RtlRaiseStatus(STATUS_KEXSETUP_FAILURE);
 	}
 
 	return TRUE;
@@ -580,12 +579,7 @@ VOID KexSetupUninstall(
 
 		//
 		// Schedule the temporary file and directory to be deleted later.
-		// We have to temporarily set the transaction to NULL, since the
-		// MoveFileTransacted API doesn't like it when you already have a
-		// transaction handle in the TEB.
 		//
-
-		RtlSetCurrentTransaction(NULL);
 
 		MoveFileTransacted(
 			NewKexSetupLocation,
@@ -604,8 +598,6 @@ VOID KexSetupUninstall(
 			NULL,
 			MOVEFILE_DELAY_UNTIL_REBOOT,
 			KexSetupTransactionHandle);
-		
-		RtlSetCurrentTransaction(KexSetupTransactionHandle);
 	}
 
 	//
@@ -614,12 +606,12 @@ VOID KexSetupUninstall(
 
 	KexSetupRemoveDirectoryRecursive(KexDir);
 
-	GetWindowsDirectory(PathBuffer, ARRAYSIZE(PathBuffer));
+	GetSystemWindowsDirectory(PathBuffer, ARRAYSIZE(PathBuffer));
 	PathCchAppend(PathBuffer, ARRAYSIZE(PathBuffer), L"system32\\KexDll.*");
 	KexSetupDeleteFilesBySpec(PathBuffer);
 
 	if (Is64BitOS) {
-		GetWindowsDirectory(PathBuffer, ARRAYSIZE(PathBuffer));
+		GetSystemWindowsDirectory(PathBuffer, ARRAYSIZE(PathBuffer));
 		PathCchAppend(PathBuffer, ARRAYSIZE(PathBuffer), L"sysnative\\KexDll.*");
 		KexSetupDeleteFilesBySpec(PathBuffer);
 	}
@@ -641,11 +633,15 @@ VOID KexSetupUninstall(
 				leave;
 			}
 
+			// We do all this rather than using KexSetupRemoveDirectoryRecursive
+			// because the LogDir is a user-controlled location. Imagine how bad
+			// it would be if the user set LogDir to his desktop and we just go
+			// and delete his entire desktop.
 			KexSetupRegReadString(VxKexKeyHandle, L"LogDir", PathBuffer, ARRAYSIZE(PathBuffer));
 			PathCchAppend(PathBuffer, ARRAYSIZE(PathBuffer), L"*.vxl");
 			KexSetupDeleteFilesBySpec(PathBuffer);
 			PathCchRemoveFileSpec(PathBuffer, ARRAYSIZE(PathBuffer));
-			RemoveDirectory(PathBuffer);
+			RemoveDirectoryTransacted(PathBuffer, KexSetupTransactionHandle);
 			SafeClose(VxKexKeyHandle);
 
 			VxKexKeyHandle = KxCfgOpenVxKexRegistryKey(
@@ -661,7 +657,7 @@ VOID KexSetupUninstall(
 			PathCchAppend(PathBuffer, ARRAYSIZE(PathBuffer), L"*.vxl");
 			KexSetupDeleteFilesBySpec(PathBuffer);
 			PathCchRemoveFileSpec(PathBuffer, ARRAYSIZE(PathBuffer));
-			RemoveDirectory(PathBuffer);
+			RemoveDirectoryTransacted(PathBuffer, KexSetupTransactionHandle);
 		} except (GetExceptionCode() == STATUS_KEXSETUP_FAILURE) {
 			// ignore error - not critical
 		}
@@ -680,29 +676,64 @@ VOID KexSetupUninstall(
 			L"Image File Execution Options\\{VxKexPropagationVirtualKey}");
 	}
 
-	//
-	// Delete VxKex registry key.
-	//
+	if (PreserveConfig) {
+		HKEY KeyHandle;
+		LSTATUS ErrorCode;
 
-	if (ExistingVxKexVersion < 0x80000000) {
-		KexSetupDeleteKey(HKEY_LOCAL_MACHINE, L"Software\\VXsoft\\VxKexLdr");
+		// should always be the case since PreserveConfig only happens when user is
+		// explicitly uninstalling (not when upgrading from legacy vxkex)
+		ASSERT (ExistingVxKexVersion >= 0x80000000);
+
+		//
+		// Delete InstalledVersion in the VxKex HKLM key, so that future invocations
+		// of the installer know that we're uninstalled.
+		// Upon any error, just fall back to the code path that does not preserve
+		// configuration.
+		//
+
+		KeyHandle = KxCfgOpenVxKexRegistryKey(
+			FALSE,
+			KEY_READ | KEY_WRITE,
+			KexSetupTransactionHandle);
+
+		ASSERT (KeyHandle != NULL);
+
+		if (KeyHandle == NULL) {
+			goto PreserveConfigFailure;
+		}
+
+		ErrorCode = RegDeleteValue(KeyHandle, L"InstalledVersion");
+		ASSERT (ErrorCode == ERROR_SUCCESS);
+
+		SafeClose(KeyHandle);
+
+		if (ErrorCode != ERROR_SUCCESS && ErrorCode != ERROR_FILE_NOT_FOUND) {
+			goto PreserveConfigFailure;
+		}
 	} else {
-		KexSetupDeleteKey(HKEY_LOCAL_MACHINE, L"Software\\VXsoft\\VxKex");
+PreserveConfigFailure:
+		PreserveConfig = FALSE;
+
+		//
+		// Delete VxKex HKLM and HKCU registry keys.
+		//
+
+		if (ExistingVxKexVersion < 0x80000000) {
+			KexSetupDeleteKey(HKEY_LOCAL_MACHINE, L"Software\\VXsoft\\VxKexLdr");
+		} else {
+			KexSetupDeleteKey(HKEY_LOCAL_MACHINE, L"Software\\VXsoft\\VxKex");
+		}
+
+		if (ExistingVxKexVersion < 0x80000000) {
+			KexSetupDeleteKey(HKEY_CURRENT_USER, L"Software\\VXsoft\\VxKexLdr");
+		} else {
+			KexSetupDeleteKey(HKEY_CURRENT_USER, L"Software\\VXsoft\\VxKex");
+		}
 	}
 
 	//
-	// Delete VxKex user registry key.
-	//
-
-	if (ExistingVxKexVersion < 0x80000000) {
-		KexSetupDeleteKey(HKEY_CURRENT_USER, L"Software\\VXsoft\\VxKexLdr");
-	} else {
-		KexSetupDeleteKey(HKEY_CURRENT_USER, L"Software\\VXsoft\\VxKex");
-	}
-
-	//
-	// If PreserveConfig is TRUE, disable VxKex for all programs.
-	// Otherwise, delete all VxKex program configuration.
+	// Delete all VxKex program configuration from IFEO.
+	// If PreserveConfig is TRUE, all VxKex configuration is preserved.
 	//
 
 	KxCfgEnumerateConfiguration(
@@ -738,26 +769,6 @@ VOID KexSetupUninstall(
 	ASSERT (Success);
 
 	//
-	// Unregister CpiwBypa BHO
-	//
-
-	Success = KxCfgEnableExplorerCpiwBypass(
-		FALSE,
-		KexSetupTransactionHandle);
-
-	ASSERT (Success);
-
-	try {
-		KexSetupDeleteKey(HKEY_CLASSES_ROOT, L"CLSID\\{7EF224FC-1840-433C-9BCB-2951DE71DDBD}");
-
-		if (Is64BitOS) {
-			KexSetupDeleteKey(HKEY_CLASSES_ROOT, L"Wow6432Node\\CLSID\\{7EF224FC-1840-433C-9BCB-2951DE71DDBD}");
-		}
-	} except (GetExceptionCode() == STATUS_KEXSETUP_FAILURE) {
-		ASSERT ((FALSE, "Failed to unregister CpiwBypa browser helper object"));
-	}
-
-	//
 	// Remove VxKex context menu entry
 	//
 
@@ -789,6 +800,7 @@ VOID KexSetupInstall(
 	ULONG ErrorCode;
 	HKEY KeyHandle;
 	WCHAR TargetPath[MAX_PATH];
+	WCHAR SystemLogDir[MAX_PATH];
 	WCHAR UserLogDir[MAX_PATH];
 
 	//
@@ -822,16 +834,20 @@ VOID KexSetupInstall(
 		KEY_READ | KEY_WRITE,
 		&KeyHandle);
 
-	ASSERT (KeyHandle != NULL);
-	ASSERT (KeyHandle != INVALID_HANDLE_VALUE);
-	ASSERT (InstallerVxKexVersion & 0x80000000);
-
 	try {
+		ErrorCode = ExpandEnvironmentStrings(
+			L"%PROGRAMDATA%\\VxKex\\Logs",
+			SystemLogDir,
+			ARRAYSIZE(SystemLogDir));
+
+		ASSERT (ErrorCode != 0);
+		ASSERT (ErrorCode <= ARRAYSIZE(SystemLogDir));
+
 		KexSetupRegWriteI32(KeyHandle, L"InstalledVersion", InstallerVxKexVersion);
 		KexSetupRegWriteString(KeyHandle, L"KexDir", KexDir);
-		KexSetupRegWriteString(KeyHandle, L"LogDir", L"C:\\ProgramData\\VxKex\\Logs");
+		KexSetupRegWriteString(KeyHandle, L"LogDir", SystemLogDir);
 	} finally {
-		RegCloseKey(KeyHandle);
+		SafeClose(KeyHandle);
 	}
 
 	//
@@ -844,10 +860,7 @@ VOID KexSetupInstall(
 		KEY_READ | KEY_WRITE,
 		&KeyHandle);
 
-	try {	
-		ASSERT (KeyHandle != NULL);
-		ASSERT (KeyHandle != INVALID_HANDLE_VALUE);
-
+	try {
 		//
 		// Since the HKCU LogDir value is non-critical, we won't bother informing the
 		// user of errors in ExpandEnvironmentStrings.
@@ -868,8 +881,7 @@ VOID KexSetupInstall(
 				UserLogDir);
 		}
 	} finally {
-		RegCloseKey(KeyHandle);
-		KeyHandle = NULL;
+		SafeClose(KeyHandle);
 	}
 
 	//
@@ -888,8 +900,7 @@ VOID KexSetupInstall(
 		KexSetupRegWriteI32(KeyHandle, L"VerifierFlags", 0x80000000);
 		KexSetupRegWriteString(KeyHandle, L"VerifierDlls", L"KexDll.dll");
 	} finally {
-		RegCloseKey(KeyHandle);
-		KeyHandle = NULL;
+		SafeClose(KeyHandle);
 	}
 
 	//
@@ -897,7 +908,8 @@ VOID KexSetupInstall(
 	// This step is not critical, so we do not fail if it doesn't succeed.
 	//
 
-	KxCfgEnableVxKexForMsiexec(TRUE, KexSetupTransactionHandle);
+	Success = KxCfgEnableVxKexForMsiexec(TRUE, KexSetupTransactionHandle);
+	ASSERT (Success);
 
 	//
 	// Call subroutine to install VxKex files.
@@ -938,8 +950,7 @@ VOID KexSetupInstall(
 			NULL,
 			L"vxlfile");
 	} finally {
-		RegCloseKey(KeyHandle);
-		KeyHandle = NULL;
+		SafeClose(KeyHandle);
 	}
 
 	KexSetupCreateKey(
@@ -954,8 +965,7 @@ VOID KexSetupInstall(
 			NULL,
 			L"VxLog File");
 	} finally {
-		RegCloseKey(KeyHandle);
-		KeyHandle = NULL;
+		SafeClose(KeyHandle);
 	}
 
 	KexSetupCreateKey(
@@ -972,8 +982,7 @@ VOID KexSetupInstall(
 			NULL,
 			TargetPath);
 	} finally {
-		RegCloseKey(KeyHandle);
-		KeyHandle = NULL;
+		SafeClose(KeyHandle);
 	}
 
 	KexSetupCreateKey(
@@ -991,19 +1000,14 @@ VOID KexSetupInstall(
 			NULL,
 			TargetPath);
 	} finally {
-		RegCloseKey(KeyHandle);
-		KeyHandle = NULL;
+		SafeClose(KeyHandle);
 	}
 
 	//
 	// Register disk cleanup handler for .vxl files
 	//
 
-	Success = KxCfgInstallDiskCleanupHandler(
-		KexDir,
-		UserLogDir,
-		KexSetupTransactionHandle);
-
+	Success = KxCfgInstallDiskCleanupHandler(KexSetupTransactionHandle);
 	ASSERT (Success);
 
 	//
@@ -1043,8 +1047,7 @@ VOID KexSetupInstall(
 		KexSetupRegWriteString(KeyHandle, NULL, TargetPath);
 		KexSetupRegWriteString(KeyHandle, L"ThreadingModel", L"Apartment");
 	} finally {
-		RegCloseKey(KeyHandle);
-		KeyHandle = NULL;
+		SafeClose(KeyHandle);
 	}
 
 	if (Is64BitOS) {
@@ -1061,8 +1064,7 @@ VOID KexSetupInstall(
 			KexSetupRegWriteString(KeyHandle, NULL, TargetPath);
 			KexSetupRegWriteString(KeyHandle, L"ThreadingModel", L"Apartment");
 		} finally {
-			RegCloseKey(KeyHandle);
-			KeyHandle = NULL;
+			SafeClose(KeyHandle);
 		}
 	}
 
@@ -1075,8 +1077,7 @@ VOID KexSetupInstall(
 	try {
 		KexSetupRegWriteString(KeyHandle, NULL, CLSID_STRING_KEXSHLEX);
 	} finally {
-		RegCloseKey(KeyHandle);
-		KeyHandle = NULL;
+		SafeClose(KeyHandle);
 	}
 
 	KexSetupCreateKey(
@@ -1088,8 +1089,7 @@ VOID KexSetupInstall(
 	try {
 		KexSetupRegWriteString(KeyHandle, NULL, CLSID_STRING_KEXSHLEX);
 	} finally {
-		RegCloseKey(KeyHandle);
-		KeyHandle = NULL;
+		SafeClose(KeyHandle);
 	}
 
 	KexSetupCreateKey(
@@ -1101,68 +1101,26 @@ VOID KexSetupInstall(
 	try {
 		KexSetupRegWriteString(KeyHandle, NULL, CLSID_STRING_KEXSHLEX);
 	} finally {
-		RegCloseKey(KeyHandle);
-		KeyHandle = NULL;
+		SafeClose(KeyHandle);
 	}
 
 	//
-	// Register Brower Helper Object for the Explorer CPIW bypass.
-	// This can be configured by the user using KexCfg.
-	//
-	// HKEY_CLASSES_ROOT
-	//   CLSID
-	//     {7EF224FC-1840-433C-9BCB-2951DE71DDBD} (*)
-	//       InProcServer32
-	//         (Default)			= REG_SZ "<KexDir>\CpiwBypa.dll"
-	//         ThreadingModel		= REG_SZ "Apartment"
-	// HKEY_LOCAL_MACHINE
-	//   Software
-	//     Microsoft
-	//       Windows
-	//         CurrentVersion
-	//           Explorer
-	//             Browser Helper Objects
-	//               {7EF224FC-1840-433C-9BCB-2951DE71DDBD} (*)
-	//                 (Default)	= REG_SZ "VxKex CPIW Version Check Bypass"
+	// Enable Explorer CPIW bypass by default on new installs.
 	//
 
-	KexSetupCreateKey(
-		HKEY_CLASSES_ROOT,
-		L"CLSID\\{7EF224FC-1840-433C-9BCB-2951DE71DDBD}\\InProcServer32",
-		KEY_READ | KEY_WRITE,
-		&KeyHandle);
-
-	try {
-		KexSetupFormatPath(TargetPath, L"%s\\CpiwBypa.dll", KexDir);
-		KexSetupRegWriteString(KeyHandle, NULL, TargetPath);
-		KexSetupRegWriteString(KeyHandle, L"ThreadingModel", L"Apartment");
-	} finally {
-		RegCloseKey(KeyHandle);
-		KeyHandle = NULL;
-	}
-
-	if (Is64BitOS) {
-		KexSetupCreateKey(
-			HKEY_CLASSES_ROOT,
-			L"Wow6432Node\\CLSID\\{7EF224FC-1840-433C-9BCB-2951DE71DDBD}\\InProcServer32",
-			KEY_READ | KEY_WRITE,
-			&KeyHandle);
-
-		try {
-			KexSetupFormatPath(TargetPath, L"%s\\CpiwBp32.dll", KexDir);
-			KexSetupRegWriteString(KeyHandle, NULL, TargetPath);
-			KexSetupRegWriteString(KeyHandle, L"ThreadingModel", L"Apartment");
-		} finally {
-			RegCloseKey(KeyHandle);
-			KeyHandle = NULL;
-		}
-	}
-
-	// This call will create the subkey in the Browser Helper Objects key.
 	Success = KxCfgEnableExplorerCpiwBypass(
 		TRUE,
 		KexSetupTransactionHandle);
 
+	ASSERT (Success);
+
+	//
+	// Restore any preserved configuration that may exist.
+	// Preserved configuration is created when the user previously uninstalled
+	// with the "Keep my compatibility settings" checkbox checked.
+	//
+
+	Success = KxCfgRestorePreservedConfiguration(KexSetupTransactionHandle);
 	ASSERT (Success);
 
 	//
@@ -1177,14 +1135,8 @@ VOID KexSetupInstall(
 VOID KexSetupUpgrade(
 	VOID)
 {
-	HKEY VxKexKeyHandle;
-
-	//
-	// 1. Uninstall Pre-Rewrite Version if present
-	// 2. Update VxKex Registry Key
-	// 3. Call Subroutine To Install VxKex Files
-	// 4. Update Uninstall Entry
-	//
+	BOOLEAN Success;
+	HKEY KeyHandle;
 
 	//
 	// If pre-rewrite version is present, we will do a full uninstall and reinstall.
@@ -1200,29 +1152,93 @@ VOID KexSetupUpgrade(
 	// Update the InstalledVersion in Vxkex HKLM key.
 	// Delete the DllRewrite key which was present in older versions
 	// but is no longer used.
+	// Update logging settings to 1.1.6.x and above registry values.
 	//
 
-	VxKexKeyHandle = KxCfgOpenVxKexRegistryKey(
+	KeyHandle = KxCfgOpenVxKexRegistryKey(
 		FALSE,
 		KEY_READ | KEY_WRITE,
 		KexSetupTransactionHandle);
 
-	if (!VxKexKeyHandle) {
+	if (!KeyHandle) {
 		ErrorBoxF(L"Setup was unable to open the VxKex HKLM registry key. %s", GetLastErrorAsString());
 		RtlRaiseStatus(STATUS_KEXSETUP_FAILURE);
 	}
 
 	try {
-		KexSetupRegWriteI32(VxKexKeyHandle, L"InstalledVersion", InstallerVxKexVersion);
-
-		//
-		// Delete the DllRewrite key which was present in older versions, but is
-		// no longer wanted.
-		//
-
-		KexSetupDeleteKey(VxKexKeyHandle, L"DllRewrite");
+		KexSetupRegWriteI32(KeyHandle, L"InstalledVersion", InstallerVxKexVersion);
+		KexSetupDeleteKey(KeyHandle, L"DllRewrite");
+		KexSetupChangeDisableLoggingToEnableLogging(KeyHandle);
 	} finally {
-		RegCloseKey(VxKexKeyHandle);
+		SafeClose(KeyHandle);
+	}
+
+	KeyHandle = KxCfgOpenVxKexRegistryKey(
+		TRUE,
+		KEY_READ | KEY_WRITE,
+		KexSetupTransactionHandle);
+
+	// Failure to open the HKCU key is not fatal
+	if (KeyHandle) {
+		KexSetupChangeDisableLoggingToEnableLogging(KeyHandle);
+		SafeClose(KeyHandle);
+	}
+
+	//
+	// In version 1.1.6.x we changed the disk cleanup handler to remove old
+	// log files after 1 day (instead of 3 days) and we also enabled it to clean
+	// up files in the system log directory (by default %ProgramData%\VxKex\Logs).
+	// This happened because with the enhanced MSI support added in 1.1.4.x, some
+	// logs from msiexec.exe service can go to that directory, and we don't want
+	// them to accumulate infinitely.
+	//
+	// We will refresh the disk cleanup handler in order to make sure that change
+	// gets applied to upgrade installations.
+	//
+
+	Success = KxCfgInstallDiskCleanupHandler(KexSetupTransactionHandle);
+	ASSERT (Success);
+
+	//
+	// In version 1.1.6.1896 we added a Security Support Provider which enabled
+	// support for TLS 1.3. This was registered through the registry value
+	// HKLM\SYSTEM\CurrentControlSet\Control\SecurityProviders\SecurityProviders.
+	//
+	// This was suboptimal since it caused KxSChanl to be loaded into random
+	// applications, even when VxKex was not enabled.
+	//
+	// For version 1.2.0.1994 we changed KxSChanl to no longer be globally
+	// registered. Even though 1.1.6.x was never officially released, various
+	// beta/pre-release versions were distributed, which means we now have to
+	// delete the legacy SSP registration.
+	//
+
+	Success = KxCfgEnableLegacyKxSChanlSsp(FALSE, KexSetupTransactionHandle);
+	ASSERT (Success);
+
+	//
+	// In version 1.2.0.2020 we changed the BHO-based CPIW bypass to an IFEO-based
+	// version for reliability. If the user had previously had the CPIW bypass
+	// enabled, we will upgrade it to the new version.
+	//
+
+	if (KxCfgQueryLegacyExplorerCpiwBypass()) {
+		Success = KxCfgEnableLegacyExplorerCpiwBypass(FALSE, KexSetupTransactionHandle);
+		ASSERT (Success);
+
+		Success = KxCfgEnableExplorerCpiwBypass(TRUE, KexSetupTransactionHandle);
+		ASSERT (Success);
+	}
+
+	try {
+		// Unregister and get rid of the BHO.
+		KexSetupDeleteKey(HKEY_CLASSES_ROOT, L"CLSID\\{7EF224FC-1840-433C-9BCB-2951DE71DDBD}");
+
+		if (Is64BitOS) {
+			KexSetupDeleteKey(HKEY_CLASSES_ROOT, L"Wow6432Node\\CLSID\\{7EF224FC-1840-433C-9BCB-2951DE71DDBD}");
+		}
+	} except (GetExceptionCode() == STATUS_KEXSETUP_FAILURE) {
+		ASSERT ((FALSE, "Failed to unregister CpiwBypa browser helper object"));
 	}
 
 	//
@@ -1327,7 +1343,12 @@ FailDebugPrivilege:
 		CloseHandle(ParentProcess);
 
 		ASSERT (ElevatedProcess != NULL);
-		SendMessage(MainWindow, WM_USER + 1, 0, (LPARAM) ElevatedProcess);
+
+		SendMessage(
+			MainWindow,
+			KSM_NOTIFY_ELEVATED_PROCESS_START,
+			0,
+			(LPARAM) ElevatedProcess);
 	}
 
 	//
@@ -1338,11 +1359,12 @@ FailDebugPrivilege:
 		Success = KxCfgGetKexDir(KexDir, ARRAYSIZE(KexDir));
 
 		if (!Success) {
-			ErrorBoxF(
-				L"Setup was unable to determine the location of the existing VxKex installation. %s",
+			ErrorBoxF(_(
+				L"Setup was unable to determine the location "
+				L"of the existing VxKex installation. %s"),
 				GetLastErrorAsString());
 
-			ExitProcess(STATUS_UNSUCCESSFUL);
+			ExitProcess(STATUS_KEXSETUP_FAILURE);
 		}
 	}
 
@@ -1357,12 +1379,11 @@ FailDebugPrivilege:
 
 	if (KexSetupTransactionHandle == INVALID_HANDLE_VALUE) {
 		ErrorBoxF(
-			L"Setup was unable to create a transaction for this operation. %s",
+			_(L"Setup was unable to create a transaction for this operation. %s"),
 			GetLastErrorAsString());
-		ExitProcess(STATUS_UNSUCCESSFUL);
-	}
 
-	RtlSetCurrentTransaction(KexSetupTransactionHandle);
+		ExitProcess(STATUS_KEXSETUP_FAILURE);
+	}
 
 	//
 	// Call a subroutine to perform the requested action.
@@ -1383,10 +1404,6 @@ FailDebugPrivilege:
 			NOT_REACHED;
 		}
 
-		// Accidentally calling a *Transacted file API will cause the
-		// transaction handle in the TEB to be set to NULL, so we will
-		// check for that situation here.
-		ASSERT (RtlGetCurrentTransaction() == KexSetupTransactionHandle);
 		KexSetupOkToCommitTransaction = TRUE;
 	} except (GetExceptionCode() == STATUS_KEXSETUP_FAILURE) {
 		KexSetupOkToCommitTransaction = FALSE;
@@ -1406,11 +1423,8 @@ FailDebugPrivilege:
 
 	ASSERT (NT_SUCCESS(Status));
 	SafeClose(KexSetupTransactionHandle);
-	RtlSetCurrentTransaction(NULL);
 
-	if (Success) {
-		ExitProcess(STATUS_SUCCESS);
-	} else {
-		ExitProcess(STATUS_UNSUCCESSFUL);
+	if (!Success) {
+		ExitProcess(STATUS_KEXSETUP_FAILURE);
 	}
 }

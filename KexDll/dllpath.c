@@ -300,7 +300,7 @@ STATIC INLINE NTSTATUS KexpShrinkDllPathLength(
 				break;
 			}
 
-			DuplicateEntry.Buffer = KexRtlFindUnicodeSubstring(
+			DuplicateEntry.Buffer = RtlFindUnicodeSubstring(
 				&DllPathAfterCurrentEntry,
 				&StringToSearchFor,
 				TRUE);

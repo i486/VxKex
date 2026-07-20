@@ -2,6 +2,10 @@
 #include <KexComm.h>
 #include <ShTypes.h>
 
+#ifndef KXUSERAPI
+#  define KXUSERAPI __declspec(dllimport)
+#endif
+
 typedef enum _DEVICE_SCALE_FACTOR {
 	DEVICE_SCALE_FACTOR_INVALID	= 0,
 	SCALE_100_PERCENT			= 100,
@@ -54,11 +58,11 @@ typedef ULONG_PTR DPI_AWARENESS_CONTEXT;
 #define DPI_AWARENESS_CONTEXT_UNAWARE_GDISCALED		((DPI_AWARENESS_CONTEXT) -5)
 
 typedef enum _POINTER_INPUT_TYPE {
-	PT_POINTER,
-	PT_TOUCH,
-	PT_PEN,
-	PT_MOUSE,
-	PT_TOUCHPAD
+	PT_POINTER		= 1,
+	PT_TOUCH		= 2,
+	PT_PEN			= 3,
+	PT_MOUSE		= 4,
+	PT_TOUCHPAD		= 5
 } POINTER_INPUT_TYPE;
 
 typedef enum _POINTER_BUTTON_CHANGE_TYPE {
@@ -96,7 +100,7 @@ typedef UINT32 POINTER_FLAGS;
 #define POINTER_FLAG_CAPTURECHANGED     0x00200000 // Lost capture
 #define POINTER_FLAG_HASTRANSFORM       0x00400000 // Input has a transform associated with it
 
-typedef struct _POINTER_INFO {
+typedef struct {
 	POINTER_INPUT_TYPE         pointerType;
 	UINT32                     pointerId;
 	UINT32                     frameId;
@@ -113,7 +117,20 @@ typedef struct _POINTER_INFO {
 	DWORD                      dwKeyStates;
 	UINT64                     PerformanceCount;
 	POINTER_BUTTON_CHANGE_TYPE ButtonChangeType;
-} POINTER_INFO;
+} TYPEDEF_TYPE_NAME(POINTER_INFO);
+
+typedef ULONG TYPEDEF_TYPE_NAME(TOUCH_FLAGS);
+typedef ULONG TYPEDEF_TYPE_NAME(TOUCH_MASK);
+
+typedef struct {
+	POINTER_INFO		PointerInfo;
+	TOUCH_FLAGS			TouchFlags;
+	TOUCH_MASK			TouchMask;
+	RECT				ContactRect;
+	RECT				RawContactRect;
+	ULONG				Orientation;
+	ULONG				Pressure;
+} TYPEDEF_TYPE_NAME(POINTER_TOUCH_INFO);
 
 #define POINTER_DEVICE_PRODUCT_STRING_MAX 520
 
@@ -133,7 +150,7 @@ typedef struct _POINTER_DEVICE_INFO {
 	ULONG               startingCursorId;
 	USHORT              maxActiveContacts;
 	WCHAR               productString[POINTER_DEVICE_PRODUCT_STRING_MAX];
-} POINTER_DEVICE_INFO;
+} TYPEDEF_TYPE_NAME(POINTER_DEVICE_INFO);
 
 typedef enum _SHELL_UI_COMPONENT {
 	SHELL_UI_COMPONENT_TASKBARS,
@@ -234,13 +251,23 @@ typedef enum _FEEDBACK_TYPE {
 
 #define GWFS_INCLUDE_ANCESTORS 1
 
+#define WM_POINTERUPDATE			0x0245
+#define WM_POINTERDOWN				0x0246
+#define WM_POINTERUP				0x0247
+#define WM_POINTERACTIVATE			0x024B
+#define WM_POINTERCAPTURECHANGED	0x024C
+#define WM_POINTERWHEEL				0x024E
+#define WM_POINTERHWHEEL			0x024F
+
+#define PWND_TO_HWND(pwnd) (*(HWND*)(pwnd))
+
 //
 // pointer.c
 //
 
 KXUSERAPI BOOL WINAPI GetPointerDevices(
-	IN OUT	UINT32				*DeviceCount,
-	OUT		POINTER_DEVICE_INFO	*PointerDevices);
+	IN OUT	PULONG					DeviceCount,
+	OUT		PPOINTER_DEVICE_INFO	PointerDevices OPTIONAL);
 
 KXUSERAPI BOOL WINAPI GetPointerType(
 	IN	DWORD				PointerId,
@@ -281,6 +308,9 @@ KXUSERAPI BOOL WINAPI GetPointerDeviceRects(
 	IN	HANDLE	Device,
 	OUT	LPRECT	PointerDeviceRect,
 	OUT	LPRECT	DisplayRect);
+
+KXUSERAPI BOOL WINAPI IsMouseInPointerEnabled(
+	VOID);
 
 KXUSERAPI BOOL WINAPI EnableMouseInPointer(
 	IN	BOOL	Enabled);

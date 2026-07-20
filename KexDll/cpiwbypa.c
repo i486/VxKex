@@ -18,12 +18,6 @@
 //     CreateProcessInternalW which is responsible for checking the major and
 //     minor subsystem version of executables.
 //
-//     TODO: Exploit the fact that kernel32 is always at the same base address
-//     within the same boot of the system. Perhaps cache the locations of the
-//     two patch addresses in an ephemeral registry key. This should be
-//     benchmarked as well to see if it's faster than simply scanning kernel32
-//     every time.
-//
 // Author:
 //
 //     vxiiduu (19-Feb-2024)
@@ -36,6 +30,10 @@
 // Revision History:
 //
 //     vxiiduu              19-Feb-2024   Initial creation.
+//     vxiiduu              24-Jun-2026   Use KexRtlSectionTableFromName instead
+//                                        of KexRtlSectionTableFromRva.
+//     vxiiduu              01-Jul-2026   Make KexPatchCpiwSubsystemVersionCheck
+//                                        thread-safe.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -85,9 +83,8 @@ KEXAPI NTSTATUS NTAPI KexPatchCpiwSubsystemVersionCheck(
 {
 	NTSTATUS Status;
 	UNICODE_STRING Kernel32Name;
-	ANSI_STRING CreateProcessInternalWName;
+	ANSI_STRING SectionName;
 	PVOID Kernel32;
-	PVOID CreateProcessInternalW;
 	PBYTE ExecutableSection;
 	PBYTE EndOfExecutableSection;
 	ULONG SizeOfExecutableSection;
@@ -95,9 +92,9 @@ KEXAPI NTSTATUS NTAPI KexPatchCpiwSubsystemVersionCheck(
 	PIMAGE_SECTION_HEADER TextSectionHeader;
 	BOOLEAN FoundAddressOfNtMajorVersion;
 	BOOLEAN FoundAddressOfNtMinorVersion;
-	STATIC BOOLEAN AlreadyPatched = FALSE;
+	STATIC BOOLEAN AlreadyInitialized = FALSE;
 
-	if (AlreadyPatched) {
+	if (InterlockedCompareExchange8((VOLATILE CHAR *) &AlreadyInitialized, TRUE, FALSE) != FALSE) {
 		return STATUS_ALREADY_INITIALIZED;
 	}
 
@@ -121,30 +118,7 @@ KEXAPI NTSTATUS NTAPI KexPatchCpiwSubsystemVersionCheck(
 	}
 
 	//
-	// Get the address of CreateProcessInternalW within kernel32.dll.
-	//
-
-	RtlInitConstantAnsiString(&CreateProcessInternalWName, "CreateProcessInternalW");
-
-	Status = LdrGetProcedureAddress(
-		Kernel32,
-		&CreateProcessInternalWName,
-		0,
-		&CreateProcessInternalW);
-
-	ASSERT (NT_SUCCESS(Status));
-	ASSERT (CreateProcessInternalW != NULL);
-
-	if (!NT_SUCCESS(Status)) {
-		KexLogErrorEvent(L"Could not find the address of CreateProcessInternalW.");
-		return Status;
-	}
-
-	//
-	// Find which section contains CreateProcessInternalW. We will assume that
-	// this section also contains the code which checks the subsystem version (which
-	// is a true assumption, considering there is only ever one executable section
-	// inside kernel32.dll).
+	// Find the .text section, which contains executable code.
 	//
 
 	Status = RtlImageNtHeaderEx(
@@ -161,9 +135,11 @@ KEXAPI NTSTATUS NTAPI KexPatchCpiwSubsystemVersionCheck(
 		return Status;
 	}
 
-	TextSectionHeader = KexRtlSectionTableFromRva(
+	RtlInitConstantAnsiString(&SectionName, ".text");
+
+	TextSectionHeader = KexRtlSectionTableFromName(
 		NtHeaders,
-		(ULONG) VA_TO_RVA(Kernel32, CreateProcessInternalW));
+		&SectionName);
 
 	ASSERT (TextSectionHeader != NULL);
 
@@ -269,8 +245,6 @@ KEXAPI NTSTATUS NTAPI KexPatchCpiwSubsystemVersionCheck(
 		KexLogErrorEvent(L"Could not find the address of one of the patch locations.");
 		return STATUS_NOT_FOUND;
 	}
-
-	AlreadyPatched = TRUE;
 
 	KexLogInformationEvent(L"Successfully bypassed subsystem version check in CreateProcessInternalW.");
 	return STATUS_SUCCESS;

@@ -69,6 +69,13 @@ DisableUserModeCallbackFilter
 StackTraceDatabaseSizeInMb
 DebugProcessHeapOnly
 
+== ntdll!LdrpRunInitializeRoutines ==
+
+BreakOnDllLoad
+  This value is special because this IFEO value is queried for a *DLL*, not for
+  an executable. It is queried for each DLL loaded, and if nonzero, will cause
+  a breakpoint.
+
 == ntdll!LdrpInitializeApplicationVerifierPackage ==
 
 PageHeapFlags(*)

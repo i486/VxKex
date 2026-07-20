@@ -16,6 +16,11 @@
 //
 //     vxiiduu               11-Oct-2022  Initial creation.
 //     vxiiduu               06-Nov-2022  Refactor and create KexLdr* section
+//     vxiiduu               30-Apr-2026  Change logging to disabled by default
+//     vxiiduu               23-May-2026  Unify IFEO parameter definitions into
+//                                        KexIfeo.h.
+//     vxiiduu               23-Jun-2026  Add KexRtlSectionTableFromName.
+//     vxiiduu               30-Jun-2026  Fix WoA function name typos.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -24,15 +29,10 @@
 #include <KexSmp.h>
 
 #ifndef KEXAPI
-// Define NO_KEXDLL_LIB if your application must not import from KexDll.
-// For example, KexSetup can't import from KexDll.
-#  ifndef NO_KEXDLL_LIB
-#    pragma comment(lib, "KexDll.lib")
-#    define KEXAPI DECLSPEC_IMPORT
-#  else
-#    define KEXAPI
-#  endif
+#  define KEXAPI DECLSPEC_IMPORT
 #endif
+
+#include <KexMls.h>
 
 #ifndef KEX_COMPONENT
 #  error You must define a Unicode component name as the KEX_COMPONENT macro.
@@ -83,14 +83,18 @@
 #define QUERY_KEY_MULTIPLE_VALUE_VALID_MASK \
 	(QUERY_KEY_MULTIPLE_VALUE_FAIL_FAST)
 
-#define KEXDATA_FLAG_PROPAGATED				1	// Indicates that this process was spawned from a VxKex-enabled parent
-#define KEXDATA_FLAG_IFEO_OPTIONS_PRESENT	2	// Indicates that this process has VxKex options set in IFEO
-#define KEXDATA_FLAG_MSIEXEC				4	// Indicates that this process is %SystemRoot%\system32\msiexec.exe
-#define KEXDATA_FLAG_ENABLED_FOR_MSI		8	// Indicates that this MSI has VxKex enabled.
-#define KEXDATA_FLAG_DISABLE_LOGGING		16	// Log files are not to be created.
-#define KEXDATA_FLAG_CHROMIUM				32	// This is a Chromium-based application (Chrome, Edge, Electron, QtWebEngine, etc.)
-#define KEXDATA_FLAG_KB2533623_PRESENT		64	// Indicates the DllDirectory APIs are available
-#define KEXDATA_FLAG_QT6					128 // Indicates a Qt6 application.
+#define KEXDATA_FLAG_PROPAGATED				1		// Indicates that this process was spawned from a VxKex-enabled parent
+#define KEXDATA_FLAG_IFEO_OPTIONS_PRESENT	2		// Indicates that this process has VxKex options set in IFEO
+#define KEXDATA_FLAG_MSIEXEC				4		// Indicates that this process is %SystemRoot%\system32\msiexec.exe
+#define KEXDATA_FLAG_ENABLED_FOR_MSI		8		// Indicates that this MSI has VxKex enabled.
+#define KEXDATA_FLAG_ENABLE_LOGGING			16		// Log files are to be created.
+#define KEXDATA_FLAG_CHROMIUM				32		// This is a Chromium-based application (Chrome, Edge, Electron, QtWebEngine, etc.)
+#define KEXDATA_FLAG_KB2533623_PRESENT		64		// Indicates the DllDirectory APIs are available
+#define KEXDATA_FLAG_QT6					128		// Indicates a Qt6 application.
+#define KEXDATA_FLAG_DOTNET					256		// Indicates a .NET application.
+#define KEXDATA_FLAG_EXPLORER				512		// Indicates that this process is %SystemRoot%\explorer.exe
+#define KEXDATA_FLAG_MSI_SERVICE			1024	// Indicates MSIEXEC /V (Windows Installer service)
+#define KEXDATA_FLAG_CONDRV_EMULATION		2048	// ConDrv emulation is enabled (see ntcondrv.c)
 
 #define KEX_STRONGSPOOF_SHAREDUSERDATA	1
 #define KEX_STRONGSPOOF_REGISTRY		2
@@ -233,20 +237,32 @@ typedef enum _KEX_WIN_VER_SPOOF {
 // varies by processor architecture, because it may be copied verbatim between
 // processes during propagation. (See propagte.c.)
 //
+// Increment KXCFG_PRESERVED_CONFIGURATION_VERSION whenever breaking changes
+// are made to the KEX_IFEO_PARAMETERS structure.
+//
 
+typedef WCHAR IFEO_PATH_BUFFER[MAX_PATH];
+
+#define IFEO_PARAMETER(DATA_TYPE, MEMBER, REGISTRY_DATA_TYPE) DATA_TYPE MEMBER;
 typedef struct _KEX_IFEO_PARAMETERS {
-	ULONG						DisableForChild;
-	ULONG						DisableAppSpecific;
-	KEX_WIN_VER_SPOOF			WinVerSpoof;
-	ULONG						StrongVersionSpoof;				// KEX_STRONGSPOOF_*
+	#include <KexIfeo.h>
 } TYPEDEF_TYPE_NAME(KEX_IFEO_PARAMETERS);
+#undef IFEO_PARAMETER
+
+// For use with the KexIfeo.h macros
+typedef struct {
+	PCWSTR	RegistryValueName;
+	ULONG	RegistryDataType;
+	PVOID	TargetBuffer;
+	ULONG	TargetBufferCb;
+} TYPEDEF_TYPE_NAME(KEX_IFEO_PARAMETER_DEFINITION);
 
 //
 // A KEX_PROCESS_DATA structure for the current process can be obtained
 // outside of KexDll by calling the exported function KexDataInitialize.
 //
 
-typedef struct _KEX_PROCESS_DATA {
+typedef struct {
 	ULONG					Flags;						// KEXDATA_FLAG_*
 	KEX_IFEO_PARAMETERS		IfeoParameters;
 	UNICODE_STRING			WinDir;						// e.g. "C:\Windows"
@@ -262,7 +278,38 @@ typedef struct _KEX_PROCESS_DATA {
 	HANDLE					BaseNamedObjects;			// object directory handle
 	HANDLE					UntrustedNamedObjects;
 	HANDLE					KsecDD;						// handle to \Device\KsecDD
+	HANDLE					GlobalKeyedEvent;
 } TYPEDEF_TYPE_NAME(KEX_PROCESS_DATA);
+
+//
+// A KEX_TEB_EXTENSION structure is located directly after the TEB, in free memory.
+// The structure size is quite limited. On 32-bit, the structure is limited to a
+// size of only 28 bytes. On 64-bit we have a lot more space (2024 bytes).
+// The structure is always zero-initialized by the kernel upon thread start.
+//
+// Use the inline function KexCurrentTebExtension() to obtain a pointer to the
+// KEX_TEB_EXTENSION of the current thread.
+//
+
+typedef struct _KEX_TEB_EXTENSION *PKEX_TEB_EXTENSION;
+
+typedef struct _KEX_TEB_EXTENSION {
+	// This member is used for supporting NtWaitForAlertByThreadId and
+	// NtAlertThreadByThreadId (ntalrtid.c).
+	VOLATILE LONG				AlertByThreadIdState;
+
+	union {
+		struct {
+			BOOLEAN				KexLdrShouldRewriteDll:1;
+		};
+
+		UCHAR					BitField;
+	};
+} TYPEDEF_TYPE_NAME(KEX_TEB_EXTENSION);
+
+// Make sure no overflow of the TEB pages occurs.
+C_ASSERT(sizeof(TEB) + sizeof(KEX_TEB_EXTENSION) <= 
+		 ((sizeof(TEB) + (PAGE_SIZE - 1)) & ~((SIZE_T) (PAGE_SIZE - 1))));
 
 #pragma endregion
 
@@ -313,7 +360,7 @@ KEXAPI BOOLEAN NTAPI KexRtlUnicodeStringEndsWith(
 	IN	PCUNICODE_STRING	EndsWith,
 	IN	BOOLEAN				CaseInsensitive);
 
-KEXAPI PWCHAR NTAPI KexRtlFindUnicodeSubstring(
+KEXAPI PWCHAR NTAPI RtlFindUnicodeSubstring(
 	PCUNICODE_STRING	Haystack,
 	PCUNICODE_STRING	Needle,
 	BOOLEAN				CaseInsensitive);
@@ -357,34 +404,42 @@ KEXAPI PIMAGE_SECTION_HEADER NTAPI KexRtlSectionTableFromRva(
 	IN	PIMAGE_NT_HEADERS	NtHeaders,
 	IN	ULONG				ImageRva);
 
+KEXAPI PIMAGE_SECTION_HEADER NTAPI KexRtlSectionTableFromName(
+	IN	PIMAGE_NT_HEADERS	NtHeaders,
+	IN	PCANSI_STRING		SectionName);
+
 KEXAPI NTSTATUS NTAPI KexRtlNullTerminateUnicodeString(
 	IN OUT	PUNICODE_STRING	String);
 
 KEXAPI BOOLEAN NTAPI KexRtlUnicodeStringContainsEmbeddedNull(
 	IN	PUNICODE_STRING	String);
 
-KEXAPI NTSTATUS NTAPI KexRtlWaitOnAddress(
+KEXAPI NTSTATUS NTAPI RtlWaitOnAddress(
 	IN	volatile VOID	*Address,
 	IN	PVOID			CompareAddress,
 	IN	SIZE_T			AddressSize,
 	IN	PLARGE_INTEGER	Timeout OPTIONAL);
 
-KEXAPI VOID NTAPI KexRtlWakeByAddressSingle(
+KEXAPI VOID NTAPI RtlWakeAddressSingle(
 	IN	PVOID			Address);
 
-KEXAPI VOID NTAPI KexRtlWakeByAddressAll(
+KEXAPI VOID NTAPI RtlWakeAddressAll(
 	IN	PVOID			Address);
 
-KEXAPI NTSTATUS NTAPI KexRtlWow64GetProcessMachines(
+KEXAPI NTSTATUS NTAPI RtlWow64GetProcessMachines(
 	IN	HANDLE	ProcessHandle,
 	OUT	PUSHORT	ProcessMachine,
 	OUT	PUSHORT	NativeMachine OPTIONAL);
 
-KEXAPI VOID NTAPI KexRtlSetBit(
+KEXAPI NTSTATUS NTAPI RtlWow64IsWowGuestMachineSupported(
+	IN	USHORT		WowGuestMachine,
+	OUT	PBOOLEAN	MachineIsSupported);
+
+KEXAPI VOID NTAPI RtlSetBit(
 	IN	PRTL_BITMAP	BitmapHeader,
 	IN	ULONG		BitNumber);
 
-KEXAPI VOID NTAPI KexRtlClearBit(
+KEXAPI VOID NTAPI RtlClearBit(
 	IN	PRTL_BITMAP	BitmapHeader,
 	IN	ULONG		BitNumber);
 
@@ -396,6 +451,19 @@ KEXAPI NTSTATUS NTAPI KexRtlCreateUntrustedDirectoryObject(
 KEXAPI NTSTATUS NTAPI KexRtlGenerateRandomData(
 	OUT	PVOID	RandomBuffer,
 	IN	ULONG	NumberOfBytesToGenerate);
+
+KEXAPI NTSTATUS NTAPI KexRtlDecryptMemory(
+	IN OUT	PVOID	Memory,
+	IN		ULONG	MemoryCb,
+	IN		ULONG	Flags);
+
+KEXAPI NTSTATUS NTAPI KexRtlEncryptMemory(
+	IN OUT	PVOID	Memory,
+	IN		ULONG	MemoryCb,
+	IN		ULONG	Flags);
+
+KEXAPI LONGLONG NTAPI RtlGetSystemTimePrecise(
+	VOID);
 
 #ifdef KEX_ARCH_X64
 #  define KexRtlCurrentProcessBitness() (64)
@@ -418,6 +486,8 @@ KEXAPI NTSTATUS NTAPI KexRtlGenerateRandomData(
 #define KexRtlEndOfUnicodeString(UnicodeString) ((UnicodeString)->Buffer + KexRtlUnicodeStringCch(UnicodeString))
 #define KexRtlEndOfUnicodeStringBuffer(UnicodeString) ((UnicodeString)->Buffer + KexRtlUnicodeStringBufferCch(UnicodeString))
 #define KexRtlCopyMemory(Destination, Source, Cb) __movsb((PUCHAR) (Destination), (PUCHAR) (Source), (Cb))
+#define KexRtlFillMemory(Destination, Length, Fill) __stosb((PUCHAR) (Destination), (Fill), (Length))
+#define KexRtlZeroMemory(Destination, Length) KexRtlFillMemory((Destination), (Length), 0)
 
 #define ForEachArrayItem(Array, Index) for (Index = 0; Index < ARRAYSIZE(Array); ++Index)
 
@@ -448,13 +518,21 @@ NTSTATUS NTAPI KexLdrGetDllFullName(
 	OUT	PUNICODE_STRING	DllFullPath);
 
 KEXAPI NTSTATUS NTAPI KexLdrGetDllFullNameFromAddress(
-	IN	PVOID			Address,
+	IN	PCVOID			Address,
 	OUT	PUNICODE_STRING	DllFullPath);
 
 KEXAPI NTSTATUS NTAPI KexLdrGetImageImportSection(
 	IN	PVOID	ImageBase,
 	OUT	PPVOID	ImportSectionBase,
 	OUT	PSIZE_T	ImportSectionSize);
+
+KEXAPI PVOID NTAPI KexLdrResolveDelayLoadedAPI(
+	IN	PVOID								ParentModuleBase,
+	IN	PCIMAGE_DELAYLOAD_DESCRIPTOR		DelayloadDescriptor,
+	IN	PDELAYLOAD_FAILURE_DLL_CALLBACK		FailureDllHook OPTIONAL,
+	IN	PDELAYLOAD_FAILURE_SYSTEM_ROUTINE	FailureSystemHook OPTIONAL,
+	OUT	PIMAGE_THUNK_DATA					ThunkAddress,
+	IN	ULONG								Flags);
 
 #pragma endregion
 
@@ -489,11 +567,14 @@ KEXAPI BOOLEAN NTAPI AshExeBaseNameIs(
 	IN	PCWSTR	ExeName);
 
 KEXAPI BOOLEAN NTAPI AshModuleBaseNameIs(
-	IN	PVOID	AddressInsideModule,
+	IN	PCVOID	AddressInsideModule,
 	IN	PCWSTR	ModuleName);
 
 KEXAPI BOOLEAN NTAPI AshModuleIsWindowsModule(
-	IN	PVOID	AddressInsideModule);
+	IN	PCVOID	AddressInsideModule);
+
+KEXAPI BOOLEAN NTAPI AshModuleIsDynamicRewriteExemptedModule(
+	IN	PCVOID	AddressInsideModule);
 
 #pragma endregion
 
@@ -545,6 +626,7 @@ KEXAPI NTSTATUS NTAPI VxlQueryInformationLog(
 #define KexLogWarningEvent(...)		KexLogEvent(LogSeverityWarning, __VA_ARGS__)
 #define KexLogInformationEvent(...)	KexLogEvent(LogSeverityInformation, __VA_ARGS__)
 #define KexLogDetailEvent(...)		KexLogEvent(LogSeverityDetail, __VA_ARGS__)
+#define KexLogUnimplementedFunctionEvent() KexLogWarningEvent(L"Unimplemented function called")
 
 #if defined(_DEBUG) || defined(RELEASE_DEBUGLOGS_ENABLED)
 #  define KexLogDebugEvent(...)		KexLogEvent(LogSeverityDebug, __VA_ARGS__)
@@ -591,7 +673,23 @@ KEXAPI PCWSTR NTAPI VxlSeverityToText(
 
 KEXAPI NTSTATUS NTAPI KexRewriteDllPath(
 	IN	PCUNICODE_STRING	DllPath,
-	OUT	PUNICODE_STRING		RewrittenDllName);
+	OUT	PUNICODE_STRING		RewrittenDllNameOut);
+
+KEXAPI BOOLEAN NTAPI KexIsWindowsDll(
+	IN	PCUNICODE_STRING	FullDllName,
+	IN	PCUNICODE_STRING	BaseDllName);
+
+KEXAPI BOOLEAN NTAPI KexIsVxKexExtendedDll(
+	IN	PCUNICODE_STRING	FullDllName,
+	IN	PCUNICODE_STRING	BaseDllName);
+
+KEXAPI BOOLEAN NTAPI KexIsRewriteExemptedDll(
+	IN	PCUNICODE_STRING	FullDllName,
+	IN	PCUNICODE_STRING	BaseDllName);
+
+KEXAPI BOOLEAN NTAPI KexShouldRewriteDynamicImportsOfDll(
+	IN	PCUNICODE_STRING	FullDllName,
+	IN	PCUNICODE_STRING	BaseDllName);
 
 //
 // kexhe.c
@@ -769,7 +867,7 @@ KEXAPI NTSTATUS NTAPI KexNtWriteFile(
 	OUT		PIO_STATUS_BLOCK	IoStatusBlock,
 	IN		PVOID				Buffer,
 	IN		ULONG				Length,
-	IN		PLONGLONG			ByteOffset OPTIONAL,
+	IN		PLARGE_INTEGER		ByteOffset OPTIONAL,
 	IN		PULONG				Key OPTIONAL);
 
 KEXAPI NTSTATUS NTAPI KexNtRaiseHardError(
@@ -838,5 +936,65 @@ KEXAPI NTSTATUS NTAPI KexNtQueryInformationProcess(
 KEXAPI NTSTATUS NTAPI KexNtAssignProcessToJobObject(
 	IN	HANDLE				JobHandle,
 	IN	HANDLE				ProcessHandle);
+
+//
+// This function was added to the RTL in Win10.
+// Added here as an inline function for use by KxCfgHlp, and it is also
+// exported from KexDll and KxNt.
+// The KexRtl* variant is the inline function, and the Rtl* variant would
+// be imported from KexDll.
+// Based on Win10 NTDLL decompilation.
+//
+
+INLINE BOOLEAN KexRtlIsZeroMemory(
+	IN	PCVOID	Buffer,
+	IN	SIZE_T	BufferCb)
+{
+	// Align the input buffer to a multiple of the pointer size.
+	while (BufferCb > 0 && ((ULONG_PTR) Buffer & (sizeof(PVOID) - 1)) != 0) {
+		if (*(PBYTE) Buffer != 0) {
+			return FALSE;
+		}
+
+		Buffer = (PBYTE) Buffer + 1;
+		--BufferCb;
+	}
+
+	// Process the buffer in pointer-sized pieces
+	while (BufferCb >= sizeof(PVOID)) {
+		if (*(PULONG_PTR) Buffer != 0) {
+			return FALSE;
+		}
+
+		Buffer = (PULONG_PTR) Buffer + 1;
+		BufferCb -= sizeof(PVOID);
+	}
+
+	if (BufferCb == 0) {
+		return TRUE;
+	}
+
+	// Handle remaining bytes at the end.
+	do {
+		if (*(PBYTE) Buffer != 0) {
+			return FALSE;
+		}
+
+		Buffer = (PBYTE) Buffer + 1;
+		--BufferCb;
+	} while (BufferCb > 0);
+
+	return TRUE;
+}
+
+KEXAPI BOOLEAN NTAPI RtlIsZeroMemory(
+	IN	PCVOID	Buffer,
+	IN	SIZE_T	BufferCb);
+
+FORCEINLINE PKEX_TEB_EXTENSION KexCurrentTebExtension(
+	VOID)
+{
+	return (PKEX_TEB_EXTENSION) (&NtCurrentTeb()[1]);
+}
 
 #pragma endregion

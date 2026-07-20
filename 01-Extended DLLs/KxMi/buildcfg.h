@@ -38,6 +38,7 @@
 
 #define KXMIAPI
 
+#pragma comment(lib, "KexDll.lib")
 #pragma comment(lib, "version.lib")
 #pragma comment(lib, "powrprof.lib")
 #pragma comment(lib, "imm32.lib")

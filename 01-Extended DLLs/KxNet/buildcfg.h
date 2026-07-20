@@ -36,6 +36,7 @@
 #define NOSOUND
 #define _UXTHEME_H_
 
+#pragma comment(lib, "KexDll.lib")
 #pragma comment(lib, "dnsapi.lib")
 #pragma comment(lib, "ws2_32.lib")
 

@@ -35,6 +35,9 @@
     <ClCompile Include="reggval.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="regqval.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="kxadvapi.rc">

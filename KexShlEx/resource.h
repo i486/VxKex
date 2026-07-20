@@ -9,41 +9,6 @@
 #define IDSTRONGSPOOF			114
 #define IDDISABLEFORCHILD		115
 #define IDDISABLEAPPSPECIFIC	116
+#define IDDISABLECONENHANCE		117
 
-#define IDREPORTBUG				130
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#define IDOPENREGEDIT			130

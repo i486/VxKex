@@ -112,6 +112,16 @@ KEXGDECLSPEC extern PCWSTR KexgApplicationFriendlyName;
 KEXGDECLSPEC extern HWND KexgApplicationMainWindow;
 
 //
+// mls.c
+//
+
+KEXGDECLSPEC BOOLEAN KEXGAPI MlsgTranslateWindow(
+	IN	HWND	Window);
+
+KEXGDECLSPEC BOOLEAN KEXGAPI MlsgTranslateWindowNoRecursion(
+	IN	HWND	Window);
+
+//
 // msgbox.c
 //
 
@@ -183,6 +193,18 @@ KEXGDECLSPEC EXTERN_C VOID KEXGAPI SummonWindow(
 	IN	HWND	Window);
 
 //
+// wndpos.c
+//
+
+KEXGDECLSPEC VOID KEXGAPI SaveWindowPlacement(
+	IN	HWND	Window,
+	IN	PCWSTR	RegKeyName);
+
+KEXGDECLSPEC VOID KEXGAPI RestoreWindowPlacement(
+	IN	HWND	Window,
+	IN	PCWSTR	RegKeyName);
+
+//
 // wndx.c
 //
 KEXGDECLSPEC EXTERN_C ULONG KEXGAPI ContextMenu(
@@ -199,7 +221,7 @@ KEXGDECLSPEC EXTERN_C ULONG KEXGAPI ContextMenuEx(
 KEXGDECLSPEC EXTERN_C HWND KEXGAPI ToolTip(
 	IN	HWND	DialogWindow,
 	IN	INT		ToolId,
-	IN	PWSTR	Format,
+	IN	PCWSTR	Format,
 	IN	...);
 
 //

@@ -79,3 +79,28 @@ NTSTATUS NTAPI Stub_Ext_NtQueryInformationProcess(
 		ProcessInformationLength,
 		ReturnLength);
 }
+
+NTSTATUS NTAPI Stub_LdrUnloadDll(
+	IN	PVOID				DllHandle)
+{
+	//
+	// 32-bit WinDbg uses some kind of Unicows or whatever library which has
+	// its own bootleg GetProcAddress (nicknamed "GetProcAddressInternal" in
+	// the symbols) sdktools\unicows\delay\resolve.c, which is used for delay-
+	// loaded APIs.
+	//
+	// Of course as is typical these bootleg GetProcAddress functions do not handle
+	// export forwarders and this causes Windbg to fail to show the file open dialog
+	// because GetOpenFileName and GetSaveFileName (among a few other shell-related
+	// functions) are delay loaded.
+	//
+	// Long story short, none of these delay loaded functions will work unless the
+	// function being delay-loaded isn't export-forwarded AND LdrUnloadDll isn't
+	// export-forwarded. LdrUnloadDll isn't even called, it looks like they are just
+	// trying to load it to test for its presence. Probably some legacy code that
+	// tries to determine if it's running on Win9x, which is funny because new
+	// versions of WinDbg no longer run on anything less than Windows 11.
+	//
+
+	return LdrUnloadDll(DllHandle);
+}

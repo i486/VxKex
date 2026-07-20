@@ -13,8 +13,12 @@ STATIC VOID DisplayHelpMessage(
 		L"/ENABLE:<boolean> - Specifies whether VxKex will be enabled or disabled\r\n"
 		L"/DISABLEFORCHILD:<boolean> - Configures whether VxKex will be enabled or disabled for child processes\r\n"
 		L"/DISABLEAPPSPECIFIC:<boolean> - Configures whether app-specific hacks will be used\r\n"
+		L"/DISABLECONENHANCE:<boolean> - Configures whether console enhancements (ANSI) are enabled\r\n"
 		L"/WINVERSPOOF:<decimal or string> - Configures the spoofed Windows version\r\n"
 		L"/STRONGSPOOF:<hexadecimal flags> - Configures options for strong version spoofing\r\n"
+		L"/TLSFORCEENABLE:<hexadecimal flags> - SP_PROT_* flags for TLS protocols to forcibly enable (KxSChanl only)\r\n"
+		L"/TLSFORCEDISABLE:<hexadecimal flags> - SP_PROT_* flags for TLS protocols to forcibly disable (KxSChanl only)\r\n"
+		L"\r\n"
 		L"\r\n"
 		L"The <EXE path> argument must be a full absolute path to a file with a .exe extension.\r\n"
 		L"Boolean parameters TRUE, YES, 1, FALSE, NO, or 0 are recognized.\r\n"
@@ -52,7 +56,7 @@ VOID KexCfgHandleCommandLine(
 	if (StringSearchI(CommandLine, L"/SCHTASK $(Arg0)")) {
 		KexCfgMessageBox(
 			NULL,
-			L"This scheduled task is not designed to be invoked by the user.",
+			_(L"This scheduled task is not designed to be invoked by the user."),
 			FRIENDLYAPPNAME,
 			MB_ICONINFORMATION | MB_OK);
 
@@ -149,7 +153,7 @@ VOID KexCfgHandleCommandLine(
 			WCHAR WinDir[MAX_PATH];
 			WCHAR KexDir[MAX_PATH];
 
-			GetWindowsDirectory(WinDir, ARRAYSIZE(WinDir));
+			GetSystemWindowsDirectory(WinDir, ARRAYSIZE(WinDir));
 			KxCfgGetKexDir(KexDir, ARRAYSIZE(KexDir));
 
 			if (PathIsPrefix(WinDir, ExeFullPath) || PathIsPrefix(KexDir, ExeFullPath)) {
@@ -207,12 +211,12 @@ VOID KexCfgHandleCommandLine(
 		&Configuration);
 
 	if (!Success) {
-		ZeroMemory(&Configuration, sizeof(Configuration));
+		KexRtlZeroMemory(&Configuration, sizeof(Configuration));
 	}
 
 	//
-	// Handle the /ENABLE, /DISABLEFORCHILD and /DISABLEAPPSPECIFIC
-	// boolean parameters.
+	// Handle the /ENABLE, /DISABLEFORCHILD, /DISABLEAPPSPECIFIC, and
+	// /DISABLECONENHANCE boolean parameters.
 	//
 
 	Parameter = StringFindI(CommandLine, L"/ENABLE:");
@@ -224,13 +228,25 @@ VOID KexCfgHandleCommandLine(
 	Parameter = StringFindI(CommandLine, L"/DISABLEFORCHILD:");
 	if (Parameter) {
 		Parameter += StringLiteralLength(L"/DISABLEFORCHILD:");
-		Configuration.DisableForChild = KexCfgParseBooleanParameter(Parameter);
+
+		Configuration.IfeoParameters.DisableForChild =
+			KexCfgParseBooleanParameter(Parameter);
 	}
 
 	Parameter = StringFindI(CommandLine, L"/DISABLEAPPSPECIFIC:");
 	if (Parameter) {
 		Parameter += StringLiteralLength(L"/DISABLEAPPSPECIFIC:");
-		Configuration.DisableAppSpecificHacks = KexCfgParseBooleanParameter(Parameter);
+
+		Configuration.IfeoParameters.DisableAppSpecific =
+			KexCfgParseBooleanParameter(Parameter);
+	}
+
+	Parameter = StringFindI(CommandLine, L"/DISABLECONENHANCE:");
+	if (Parameter) {
+		Parameter += StringLiteralLength(L"/DISABLECONENHANCE:");
+
+		Configuration.IfeoParameters.DisableConsoleEnhancements =
+			KexCfgParseBooleanParameter(Parameter);
 	}
 
 	//
@@ -242,17 +258,17 @@ VOID KexCfgHandleCommandLine(
 		Parameter += StringLiteralLength(L"/WINVERSPOOF:");
 
 		if (StringBeginsWithI(Parameter, L"NONE")) {
-			Configuration.WinVerSpoof = WinVerSpoofNone;
+			Configuration.IfeoParameters.WinVerSpoof = WinVerSpoofNone;
 		} else if (StringBeginsWithI(Parameter, L"WIN7SP1")) {
-			Configuration.WinVerSpoof = WinVerSpoofWin7;
+			Configuration.IfeoParameters.WinVerSpoof = WinVerSpoofWin7;
 		} else if (StringBeginsWithI(Parameter, L"WIN81")) {
-			Configuration.WinVerSpoof = WinVerSpoofWin8Point1;
+			Configuration.IfeoParameters.WinVerSpoof = WinVerSpoofWin8Point1;
 		} else if (StringBeginsWithI(Parameter, L"WIN8")) {
-			Configuration.WinVerSpoof = WinVerSpoofWin8;
+			Configuration.IfeoParameters.WinVerSpoof = WinVerSpoofWin8;
 		} else if (StringBeginsWithI(Parameter, L"WIN10")) {
-			Configuration.WinVerSpoof = WinVerSpoofWin10;
+			Configuration.IfeoParameters.WinVerSpoof = WinVerSpoofWin10;
 		} else if (StringBeginsWithI(Parameter, L"WIN11")) {
-			Configuration.WinVerSpoof = WinVerSpoofWin11;
+			Configuration.IfeoParameters.WinVerSpoof = WinVerSpoofWin11;
 		} else {
 			ULONG Value;
 
@@ -276,7 +292,7 @@ VOID KexCfgHandleCommandLine(
 				ExitProcess(STATUS_INVALID_PARAMETER);
 			}
 
-			Configuration.WinVerSpoof = (KEX_WIN_VER_SPOOF) Value;
+			Configuration.IfeoParameters.WinVerSpoof = (KEX_WIN_VER_SPOOF) Value;
 		}
 	}
 
@@ -290,19 +306,7 @@ VOID KexCfgHandleCommandLine(
 
 		Parameter += StringLiteralLength(L"/STRONGSPOOF:");
 
-		if (StringBeginsWithI(Parameter, L"0x")) {
-			Parameter += ARRAYSIZE(L"0x");
-		}
-
-		if (swscanf_s(Parameter, L"%lx", &Value) != 1) {
-			KexCfgMessageBox(
-				NULL,
-				L"The argument to /STRONGSPOOF could not be parsed.",
-				FRIENDLYAPPNAME,
-				MB_ICONERROR | MB_OK);
-
-			ExitProcess(STATUS_INVALID_PARAMETER);
-		}
+		Value = KexCfgParseHexadecimalParameter(Parameter);
 
 		if (Value & (~KEX_STRONGSPOOF_VALID_MASK)) {
 			KexCfgMessageBox(
@@ -314,7 +318,27 @@ VOID KexCfgHandleCommandLine(
 			ExitProcess(STATUS_INVALID_PARAMETER);
 		}
 
-		Configuration.StrongSpoofOptions = Value;
+		Configuration.IfeoParameters.StrongVersionSpoof = Value;
+	}
+
+	//
+	// Handle /TLSFORCEENABLE and /TLSFORCEDISABLE
+	//
+
+	Parameter = StringFindI(CommandLine, L"/TLSFORCEENABLE:");
+	if (Parameter) {
+		Parameter += StringLiteralLength(L"/TLSFORCEENABLE:");
+
+		Configuration.IfeoParameters.TlsForceEnabledProtocols =
+			KexCfgParseHexadecimalParameter(Parameter);
+	}
+
+	Parameter = StringFindI(CommandLine, L"/TLSFORCEDISABLE:");
+	if (Parameter) {
+		Parameter += StringLiteralLength(L"/TLSFORCEDISABLE:");
+
+		Configuration.IfeoParameters.TlsForceDisabledProtocols =
+			KexCfgParseHexadecimalParameter(Parameter);
 	}
 
 	//
@@ -340,7 +364,7 @@ VOID KexCfgHandleCommandLine(
 			StringCchPrintf(
 				ErrorMessage,
 				ARRAYSIZE(ErrorMessage),
-				L"The transaction for this operation could not be committed. %s",
+				_(L"The transaction for this operation could not be committed. %s"),
 				NtStatusAsString(Status));
 
 			KexCfgMessageBox(
@@ -362,7 +386,7 @@ VOID KexCfgHandleCommandLine(
 		StringCchPrintf(
 			ErrorMessage,
 			ARRAYSIZE(ErrorMessage),
-			L"The VxKex configuration for \"%s\" could not be applied due to the following error: %s",
+			_(L"The VxKex configuration for \"%s\" could not be applied due to the following error: %s"),
 			ExeFullPath,
 			GetLastErrorAsString());
 

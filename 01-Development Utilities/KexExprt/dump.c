@@ -15,6 +15,10 @@
 // Revision History:
 //
 //     vxiiduu               29-Oct-2022  Initial creation.
+//     vxiiduu               02-Jul-2026  Fix bug where a large number of
+//                                        unnamed ordinal exports may be output
+//                                        if there is a gap in ordinals of the
+//                                        input DLL.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -89,6 +93,7 @@ VOID DumpExports(
 	PIMAGE_EXPORT_DIRECTORY ExportDirectory;
 	ULONG ImportDescriptorSize;
 	PDWORD NameRvas;
+	PDWORD FunctionRvas;
 	PUSHORT NameOrdinals;
 	PBOOLEAN OrdinalHasName;
 	ULONG Index;
@@ -166,6 +171,7 @@ VOID DumpExports(
 
 	KexRtlPathFindFileName(&FilePath, &DllBaseName);
 	NameRvas = (PDWORD) RVA_TO_VA(DllBase, ExportDirectory->AddressOfNames);
+	FunctionRvas = (PDWORD) RVA_TO_VA(DllBase, ExportDirectory->AddressOfFunctions);
 	NameOrdinals = (PUSHORT) RVA_TO_VA(DllBase, ExportDirectory->AddressOfNameOrdinals);
 	OrdinalHasName = StackAlloc(BOOLEAN, ExportDirectory->NumberOfFunctions);
 	RtlZeroMemory(OrdinalHasName, ExportDirectory->NumberOfFunctions * sizeof(BOOLEAN));
@@ -233,7 +239,7 @@ VOID DumpExports(
 
 		Ordinal = Index + ExportDirectory->Base;
 
-		if (!OrdinalHasName[Index]) {
+		if (!OrdinalHasName[Index] && FunctionRvas[Index] != 0) {
 			switch (Style) {
 			case GenerateStyleDef:
 				AppendToOutput(L"\t__OrdinalFunction%lu = %wZ.#%lu @%lu NONAME\r\n", Ordinal, &DllBaseName, Ordinal, Ordinal);

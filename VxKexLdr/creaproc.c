@@ -187,7 +187,10 @@ NoExtendedStartupInfo:
 				// Fall through to the ShellExecute code.
 				NOTHING;
 			} else {
-				ErrorBoxF(L"CreateProcess failed: %s", Win32ErrorAsString(ErrorCode));
+				ErrorBoxF(
+					_(L"CreateProcess failed: %s"),
+					Win32ErrorAsString(ErrorCode));
+
 				return FALSE;
 			}
 		}
@@ -215,7 +218,7 @@ NoExtendedStartupInfo:
 		switch ((ULONG) ShellExecuteError) {
 		case 0:
 		case SE_ERR_OOM:
-			ErrorMessage = L"Insufficient resources.";
+			ErrorMessage = _(L"There was not enough memory to complete the operation.");
 			break;
 		case ERROR_FILE_NOT_FOUND:
 		case ERROR_PATH_NOT_FOUND:
@@ -223,13 +226,13 @@ NoExtendedStartupInfo:
 			ErrorMessage = Win32ErrorAsString((ULONG) ShellExecuteError);
 			break;
 		case SE_ERR_ACCESSDENIED:
-			ErrorMessage = L"Access was denied.";
+			ErrorMessage = _(L"Access was denied or the executable file format is invalid.");
 			break;
 		case SE_ERR_DLLNOTFOUND:
-			ErrorMessage = L"A DLL was not found.";
+			ErrorMessage = _(L"A DLL was not found.");
 			break;
 		case SE_ERR_SHARE:
-			ErrorMessage = L"A sharing violation occurred.";
+			ErrorMessage = (L"A sharing violation occurred.");
 			break;
 		case SE_ERR_ASSOCINCOMPLETE:
 			ErrorMessage = L"SE_ERR_ASSOCINCOMPLETE.";
@@ -248,7 +251,7 @@ NoExtendedStartupInfo:
 			break;
 		default:
 			ASSERT (FALSE);
-			ErrorMessage = L"Unknown error.";
+			ErrorMessage = _(L"An unknown error has occurred.");
 			break;
 		}
 

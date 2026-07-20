@@ -56,6 +56,12 @@
     <ClCompile Include="misc.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="winmsg.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="msgbox.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="kxuser.def">

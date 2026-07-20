@@ -289,8 +289,12 @@ Exit:
 }
 
 // These macros are generic and can operate on both ANSI and Unicode.
-#define ToUpper(c) (((c) >= 'a' && (c) <= 'z') ? ((c) - 32) : (c))
-#define ToLower(c) (((c) >= 'A' && (c) <= 'Z') ? ((c) + 32) : (c))
+#define IsSpace(c) ((c) == ' ' || (c) == '\r' || (c) == '\n' || (c) == '\t')
+#define IsUpper(c) ((c) >= 'A' && (c) <= 'Z')
+#define IsLower(c) ((c) >= 'a' && (c) <= 'z')
+#define ToUpper(c) (IsLower(c) ? ((c) - 32) : (c))
+#define ToLower(c) (IsUpper(c) ? ((c) + 32) : (c))
+#define IsDigit(c) ((c) >= '0' && (c) <= '9')
 
 // The StringEqual family of functions returns 0 if the strings are
 // different and 1 if the strings are equal.

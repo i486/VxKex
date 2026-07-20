@@ -1,10 +1,15 @@
 LIBRARY KxAdvapi
 EXPORTS
-	RegGetValueA				= Ext_RegGetValueA
-	RegGetValueW				= Ext_RegGetValueW
+	;; reggval.c
+	RegGetValueA								= Ext_RegGetValueA
+	RegGetValueW								= Ext_RegGetValueW
+
+	;; regqval.c
+	RegQueryValueExW							= Ext_RegQueryValueExW
 
 	;; Forwarders to KexDll
-	EventSetInformation			= KexDll.KexEtwEventSetInformation
+	EventSetInformation							= KexDll.EtwEventSetInformation
 
 	;; Forwarders to KxBase
-	CreateWellKnownSid			= KxBase.CreateWellKnownSid
+	;; Note: there are a few more forwarders in forwards.c
+	CreateWellKnownSid							= KxBase.CreateWellKnownSid

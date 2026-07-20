@@ -38,6 +38,12 @@ EXPORTS
 	IsWindowArranged
 
 	;;
+	;; msgbox.c
+	;;
+
+	MessageBoxA = Ext_MessageBoxA
+
+	;;
 	;; pointer.c
 	;;
 
@@ -45,6 +51,7 @@ EXPORTS
 	GetPointerType
 	GetPointerInfo
 	GetPointerTouchInfo
+	GetPointerTouchInfoHistory
 	GetPointerFrameTouchInfo
 	GetPointerFrameTouchInfoHistory
 	GetPointerPenInfo
@@ -84,9 +91,12 @@ EXPORTS
 	AdjustWindowRectExForDpi
 	GetAwarenessFromDpiAwarenessContext
 	GetWindowDpiAwarenessContext
-	EnableNonClientDpiScaling
 	AreDpiAwarenessContextsEqual
 	IsValidDpiAwarenessContext
+	LogicalToPhysicalPointForPerMonitorDPI
+	PhysicalToLogicalPointForPerMonitorDPI
+	EnableNonClientDpiScaling
+	GetDpiForShellUIComponent
 
 	;;
 	;; sysmetrc.c
@@ -100,3 +110,14 @@ EXPORTS
 	;;
 
 	SetCoalescableTimer
+
+	;;
+	;; winmsg.c
+	;;
+
+	GetMessageA			= Ext_GetMessageA
+	GetMessageW			= Ext_GetMessageW
+	PeekMessageA		= Ext_PeekMessageA
+	PeekMessageW		= Ext_PeekMessageW
+	DefWindowProcA		= Ext_DefWindowProcA
+	DefWindowProcW		= Ext_DefWindowProcW

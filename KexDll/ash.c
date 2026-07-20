@@ -23,6 +23,11 @@
 //                                       as Windows files.
 //     vxiiduu              22-Feb-2026  Remove qt6 kerning hack, as it seems to
 //                                       no longer be needed for qbittorrent.
+//     vxiiduu              27-Apr-2026  Add Python environment variable hack
+//     vxiiduu              30-Apr-2026  Move ASH initialization out of this file
+//                                       to ashinit.c
+//     vxiiduu              02-May-2026  Add AshModuleIsNonDllRewriteModule.
+//     vxiiduu              19-May-2026  Move Qt6 stuff to ashdetec.c
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -50,6 +55,51 @@ KEXAPI BOOLEAN NTAPI AshExeBaseNameIs(
 	return RtlEqualUnicodeString(&KexData->ImageBaseName, &ExeNameUS, TRUE);
 }
 
+STATIC NTSTATUS AshpGetFullAndBaseNameFromAddress(
+	IN	PCVOID			AddressInsideModule,
+	OUT	PUNICODE_STRING	FullDllName OPTIONAL,
+	OUT	PUNICODE_STRING	BaseDllName OPTIONAL)
+{
+	NTSTATUS Status;
+	UNICODE_STRING FullDllNameTemp;
+
+	RtlInitEmptyUnicodeStringFromTeb(&FullDllNameTemp);
+
+	if (!FullDllName && !BaseDllName) {
+		// nothing to do
+		return STATUS_SUCCESS;
+	}
+
+	//
+	// Get full name.
+	// This can fail if the address is outside any module, which is true for
+	// JIT-generated code or obfuscated VM-protected code, for example.
+	//
+
+	Status = KexLdrGetDllFullNameFromAddress(
+		AddressInsideModule,
+		&FullDllNameTemp);
+
+	if (!NT_SUCCESS(Status)) {
+		return Status;
+	}
+
+	if (FullDllName) {
+		*FullDllName = FullDllNameTemp;
+	}
+
+	//
+	// Get base name if necessary
+	//
+
+	if (BaseDllName) {
+		Status = KexRtlPathFindFileName(&FullDllNameTemp, BaseDllName);
+		ASSERT (NT_SUCCESS(Status));
+	}
+
+	return Status;
+}
+
 //
 // This function is intended to be used like this:
 //
@@ -58,36 +108,17 @@ KEXAPI BOOLEAN NTAPI AshExeBaseNameIs(
 // File extension (.dll, .exe etc.) is required.
 //
 KEXAPI BOOLEAN NTAPI AshModuleBaseNameIs(
-	IN	PVOID	AddressInsideModule,
+	IN	PCVOID	AddressInsideModule,
 	IN	PCWSTR	ModuleName)
 {
 	NTSTATUS Status;
-	UNICODE_STRING DllFullPath;
-	UNICODE_STRING DllBaseName;
+	UNICODE_STRING BaseDllName;
 	UNICODE_STRING ComparisonBaseName;
 
-	RtlInitEmptyUnicodeStringFromTeb(&DllFullPath);
-
-	//
-	// Get the name of the DLL in which the specified address resides.
-	//
-
-	Status = KexLdrGetDllFullNameFromAddress(
+	Status = AshpGetFullAndBaseNameFromAddress(
 		AddressInsideModule,
-		&DllFullPath);
-
-	ASSERT (NT_SUCCESS(Status));
-
-	if (!NT_SUCCESS(Status)) {
-		return FALSE;
-	}
-
-	//
-	// Convert full path into base name.
-	//
-
-	Status = KexRtlPathFindFileName(&DllFullPath, &DllBaseName);
-	ASSERT (NT_SUCCESS(Status));
+		NULL,
+		&BaseDllName);
 
 	if (!NT_SUCCESS(Status)) {
 		return FALSE;
@@ -100,7 +131,7 @@ KEXAPI BOOLEAN NTAPI AshModuleBaseNameIs(
 		return FALSE;
 	}
 
-	return RtlEqualUnicodeString(&DllBaseName, &ComparisonBaseName, TRUE);
+	return RtlEqualUnicodeString(&BaseDllName, &ComparisonBaseName, TRUE);
 }
 
 //
@@ -108,112 +139,44 @@ KEXAPI BOOLEAN NTAPI AshModuleBaseNameIs(
 // ReturnAddress() macro as the argument.
 //
 KEXAPI BOOLEAN NTAPI AshModuleIsWindowsModule(
-	IN	PVOID	AddressInsideModule)
+	IN	PCVOID	AddressInsideModule)
 {
 	NTSTATUS Status;
-	UNICODE_STRING DllFullPath;
+	UNICODE_STRING FullDllName;
+	UNICODE_STRING BaseDllName;
 
-	RtlInitEmptyUnicodeStringFromTeb(&DllFullPath);
-
-	//
-	// Get the name of the DLL in which the specified address resides.
-	//
-
-	Status = KexLdrGetDllFullNameFromAddress(
+	Status = AshpGetFullAndBaseNameFromAddress(
 		AddressInsideModule,
-		&DllFullPath);
-
-	ASSERT (NT_SUCCESS(Status));
+		&FullDllName,
+		&BaseDllName);
 
 	if (!NT_SUCCESS(Status)) {
 		return FALSE;
 	}
 
-	//
-	// See if it starts with %SystemRoot%.
-	//
-
-	if (RtlPrefixUnicodeString(&KexData->WinDir, &DllFullPath, TRUE)) {
-		UNICODE_STRING SlashTemp;
-
-		//
-		// See if it starts with %SystemRoot%\Temp. In this case, we won't consider
-		// it a Windows module.
-		//
-		// Some installers, such as the newest versions of the Microsoft C++ v14
-		// Redistributable, copy themselves to %SystemRoot%\Temp and then run from
-		// there and check the Windows version.
-		//
-		// We don't want such installers to be considered Windows executables.
-		//
-
-		KexRtlAdvanceUnicodeString(&DllFullPath, KexData->WinDir.Length);
-		RtlInitConstantUnicodeString(&SlashTemp, L"\\Temp");
-
-		if (RtlPrefixUnicodeString(&SlashTemp, &DllFullPath, TRUE)) {
-			return FALSE;
-		}
-
-		//
-		// It's a Windows executable (located in %SystemRoot% and not in the Temp
-		// folder).
-		//
-
-		return TRUE;
-	} else {
-		return FALSE;
-	}
+	return KexIsWindowsDll(&FullDllName, &BaseDllName);
 }
 
-VOID AshApplyNodeJSEnvironmentVariableHacks(
-	VOID)
-{
-	UNICODE_STRING VariableName;
-	UNICODE_STRING VariableValue;
-
-	ASSERT (AshExeBaseNameIs(L"node.exe"));
-
-	//
-	// APPSPECIFICHACK: Node.js requires this environment variable, otherwise it
-	// will refuse to run, stating Windows 10 is required. Spoofing Windows version
-	// to Windows 10 causes the application to crash; therefore, this environment
-	// variable spoof is the best way to make it work.
-	//
-
-	KexLogInformationEvent(L"App-Specific Hack applied for Node.js");
-	RtlInitConstantUnicodeString(&VariableName, L"NODE_SKIP_PLATFORM_CHECK");
-	RtlInitConstantUnicodeString(&VariableValue, L"1");
-	RtlSetEnvironmentVariable(NULL, &VariableName, &VariableValue);
-}
-
-NTSTATUS AshPerformQt6DetectionFromLoadedDll(
-	IN	PCLDR_DLL_NOTIFICATION_DATA	NotificationData)
+//
+// Similar to AshModuleIsWindowsModule but also returns TRUE for any DLL
+// which is banned from having its imports rewritten, which is related to but
+// not exactly the same set of DLLs as "Windows modules".
+//
+KEXAPI BOOLEAN NTAPI AshModuleIsDynamicRewriteExemptedModule(
+	IN	PCVOID	AddressInsideModule)
 {
 	NTSTATUS Status;
-	UNICODE_STRING Qt6;
-	UNICODE_STRING BaseName;
+	UNICODE_STRING FullDllName;
+	UNICODE_STRING BaseDllName;
 
-	ASSUME (!(KexData->Flags & KEXDATA_FLAG_QT6));
-
-	Status = KexRtlPathFindFileName(NotificationData->FullDllName, &BaseName);
-	ASSERT (NT_SUCCESS(Status));
+	Status = AshpGetFullAndBaseNameFromAddress(
+		AddressInsideModule,
+		&FullDllName,
+		&BaseDllName);
 
 	if (!NT_SUCCESS(Status)) {
-		return Status;
+		return FALSE;
 	}
 
-	RtlInitConstantUnicodeString(&Qt6, L"Qt6");
-
-	if (RtlPrefixUnicodeString(&Qt6, &BaseName, TRUE)) {
-		//
-		// Newer versions of Qt6 require the Windows 10 DWrite, otherwise text will be
-		// displayed as a bunch of boxes.
-		//
-		Status = AshSelectDWriteImplementation(DWriteWindows10Implementation);
-		ASSERT (NT_SUCCESS(Status));
-
-		KexData->Flags |= KEXDATA_FLAG_QT6;
-	}
-
-	return Status;
+	return !KexShouldRewriteDynamicImportsOfDll(&FullDllName, &BaseDllName);
 }

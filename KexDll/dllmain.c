@@ -29,6 +29,19 @@
 //     vxiiduu              29-Nov-2025  Add NodeJS environment variable hack
 //     vxiiduu              22-Feb-2026  Remove QBittorrent scaling/kerning hack
 //                                       and add QBittorrent Win10 DWrite hack.
+//     vxiiduu              30-Apr-2026  Move app-specific initialization to
+//                                       AshInitialize in ashinit.c
+//     vxiiduu              23-Jun-2026  Add MLS to KexDll message boxes.
+//     vxiiduu              24-Jun-2026  Add support for new Explorer CPIWBYPA.
+//     vxiiduu              27-Jun-2026  Add MacType APC hack.
+//     vxiiduu              28-Jun-2026  Support KEX_DllRewriteEntries.
+//     vxiiduu              06-Jul-2026  Added support for the alert thread by
+//                                       thread ID syscalls (requires an init
+//                                       function called per thread).
+//     vxiiduu              09-Jul-2026  Failure to initialize DLL rewrite will
+//                                       now be a fatal error (for non-propagated
+//                                       processes) or cause an initialization
+//                                       abort (for propagated processes).
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -72,12 +85,16 @@ STATIC RTL_VERIFIER_PROVIDER_DESCRIPTOR AVrfProviderDescriptor = {
 //     application verifier machinery inside NTDLL.
 //
 BOOL WINAPI DllMain(
-	IN	PVOID								DllBase,
-	IN	ULONG								Reason,
-	IN	PRTL_VERIFIER_PROVIDER_DESCRIPTOR	*Descriptor)
+	IN		PVOID								DllBase,
+	IN		ULONG								Reason,
+	IN OUT	PRTL_VERIFIER_PROVIDER_DESCRIPTOR	*Descriptor)
 {
 	NTSTATUS Status;
-	PVOID DllNotificationCookie;
+	PTEB Teb;
+	PPEB Peb;
+
+	Teb = NtCurrentTeb();
+	Peb = Teb->ProcessEnvironmentBlock;
 
 	if (Reason == DLL_PROCESS_VERIFIER) {
 		//
@@ -101,10 +118,12 @@ BOOL WINAPI DllMain(
 
 	if ((KexData->Flags & KEXDATA_FLAG_MSIEXEC) &&
 		!(KexData->Flags & KEXDATA_FLAG_ENABLED_FOR_MSI) &&
+		!(KexData->Flags & KEXDATA_FLAG_MSI_SERVICE) &&
 		NtCurrentPeb()->SubSystemData == NULL) {
 
 		//
-		// This is MSIEXEC, but the MSI it is processing does not have VxKex enabled,
+		// This is MSIEXEC, but the MSI it is processing does not have VxKex,
+		// enabled, we aren't running as the Windows Installer service, and
 		// and we weren't simply propagated from another application.
 		// Do nothing.
 		//
@@ -113,23 +132,51 @@ BOOL WINAPI DllMain(
 	}
 
 	if (Reason == DLL_PROCESS_VERIFIER) {
-		PPEB Peb;
+		PVOID DllNotificationCookie;
 
 		ASSERT (KexData != NULL);
 
-		Peb = NtCurrentPeb();
+		//
+		// Try to get rid of as much Application verifier functionality as
+		// possible.
+		//
+
+		KexDisableAVrf();
+
+		//
+		// Queue an APC to patch the CreateProcessInternalW subsystem check and
+		// also to work around MacType being incompatible with Application Verifier.
+		//
+
+		Status = NtQueueApcThread(
+			NtCurrentThread(),
+			KexPostInitializationApcRoutine,
+			NULL,
+			NULL,
+			NULL);
+
+		ASSERT (NT_SUCCESS(Status));
+
+		//
+		// If we're running in Explorer, we don't need to do anything else.
+		//
+
+		if (KexData->Flags & KEXDATA_FLAG_EXPLORER) {
+			return TRUE;
+		}
 
 		//
 		// Open log file.
 		//
 
-		KexOpenVxlLogForCurrentApplication(&KexData->LogHandle);
+		Status = KexOpenVxlLogForCurrentApplication(&KexData->LogHandle);
 
 		//
 		// Hook hard errors so that we can log various kinds of loader failures.
 		//
 
-		KexHkInstallBasicHook(NtRaiseHardError, Ext_NtRaiseHardError, NULL);
+		Status = KexHkInstallBasicHook(NtRaiseHardError, Ext_NtRaiseHardError, NULL);
+		ASSERT (NT_SUCCESS(Status));
 
 		//
 		// Log some basic information such as command-line parameters to
@@ -149,20 +196,72 @@ BOOL WINAPI DllMain(
 			&Peb->ProcessParameters->CommandLine);
 
 		//
-		// Try to get rid of as much Application verifier functionality as
-		// possible.
-		//
-
-		KexDisableAVrf();
-
-		//
 		// Initialize Propagation subsystem.
 		//
 
-		KexInitializePropagation();
+		Status = KexInitializePropagation();
+		ASSERT (NT_SUCCESS(Status));
 
 		//
-		// After the propagation system is initialized, the IfeoParameters are
+		// Initialize DLL rewrite subsystem.
+		//
+
+		Status = KexInitializeDllRewrite();
+		ASSERT (NT_SUCCESS(Status));
+
+		if (!NT_SUCCESS(Status)) {
+			if (!(KexData->Flags & KEXDATA_FLAG_PROPAGATED)) {
+				//
+				// Failed to initialize DLL rewrite on a non-propagated process. This
+				// is a fatal error because without DLL rewrite being enabled, nothing
+				// will really work.
+				//
+
+				KexHeErrorBox(
+					_(L"VxKex has encountered an error because the DLL rewrite system could "
+					  L"not initialize. A common cause for this error is a non-standard "
+					  L"PATH environment variable. In order to troubleshoot, make sure logging "
+					  L"is enabled in VxKex global settings."));
+
+				NOT_REACHED;
+			}
+
+			// Bail out. Continuing will crash the process due to kernel32's "kxnt"
+			// import rewrite.
+
+			return TRUE;
+		}
+
+		//
+		// Perform any app-specific hacks that need to be done before any further
+		// process initialization occurs.
+		// This must be done before rewriting the imports of the main EXE because
+		// we might change the DLL rewrite settings based on what we detect here.
+		//
+
+		AshInitialize();
+
+		//
+		// If the user has specified any modifications to the DLL rewrite map, apply
+		// them here, after ASH has made its changes but before rewriting the EXE
+		// imports.
+		//
+
+		if (KexData->IfeoParameters.DllRewriteEntries[0] != '\0') {
+			Status = KexApplyUserDllRewrite(KexData->IfeoParameters.DllRewriteEntries);
+			ASSERT (NT_SUCCESS(Status) || Status == STATUS_INVALID_PARAMETER);
+
+			if (Status == STATUS_INVALID_PARAMETER) {
+				KexMessageBox(
+					MB_ICONEXCLAMATION | MB_OK,
+					_(L"Application Error (VxKex)"),
+					_(L"The registry setting \"KEX_DllRewriteEntries\" has invalid syntax. "
+					  L"Some or all of the rewrite entries may not have been applied."));
+			}
+		}
+
+		//
+		// After app-specific hacks are initialized, the IfeoParameters are
 		// finalized, so print them out to the log.
 		//
 
@@ -184,13 +283,6 @@ BOOL WINAPI DllMain(
 		KexApplyVersionSpoof();
 
 		//
-		// Initialize DLL rewrite subsystem.
-		//
-
-		Status = KexInitializeDllRewrite();
-		ASSERT (NT_SUCCESS(Status));
-
-		//
 		// Register our DLL load/unload callback.
 		//
 
@@ -203,38 +295,13 @@ BOOL WINAPI DllMain(
 		ASSERT (NT_SUCCESS(Status));
 
 		//
-		// Perform any app-specific hacks that need to be done before any further
-		// process initialization occurs.
-		// This must be done before rewriting the imports of the main EXE because
-		// we might change the DLL rewrite settings based on what we detect here.
-		//
-
-		unless (KexData->IfeoParameters.DisableAppSpecific) {
-			if (AshExeBaseNameIs(L"qbittorrent.exe")) {
-				KexData->Flags |= KEXDATA_FLAG_QT6;
-
-				// APPSPECIFICHACK: Usually Qt6 applications get Win10 DWrite based on
-				// detection of loaded Qt6 DLLs. QBitTorrent has statically linked Qt6
-				// so we need to handle it specifically.
-				AshSelectDWriteImplementation(DWriteWindows10Implementation);
-			} else if (AshExeBaseNameIs(L"node.exe")) {
-				// APPSPECIFICHACK: Environment variable hack for NodeJS to fix a nag
-				// message about unsupported OS, which prevents the application from running.
-				AshApplyNodeJSEnvironmentVariableHacks();
-			}
-
-			// APPSPECIFICHACK: Detect Chromium based on EXE exports.
-			AshPerformChromiumDetectionFromModuleExports(Peb->ImageBaseAddress);
-		}
-
-		//
 		// Rewrite DLL Imports of our main application EXE.
 		//
 
 		Status = KexRewriteImageImportDirectory(
-			NtCurrentPeb()->ImageBaseAddress,
+			Peb->ImageBaseAddress,
 			&KexData->ImageBaseName,
-			&NtCurrentPeb()->ProcessParameters->ImagePathName);
+			&Peb->ProcessParameters->ImagePathName);
 
 		if (!NT_SUCCESS(Status) && Status != STATUS_IMAGE_NO_IMPORT_DIRECTORY) {
 			KexLogCriticalEvent(
@@ -242,20 +309,85 @@ BOOL WINAPI DllMain(
 				L"NTSTATUS error code: %s (0x%08lx)\r\n"
 				L"Image base address: 0x%p\r\n",
 				KexRtlNtStatusToString(Status), Status,
-				NtCurrentPeb()->ImageBaseAddress);
+				Peb->ImageBaseAddress);
 
-			KexHeErrorBox(
+			KexHeErrorBox(_(
 				L"VxKex could not start because the DLL imports of the main "
 				L"process image could not be rewritten. If the problem persists, "
-				L"please disable VxKex for this program.");
+				L"please disable VxKex for this program."));
 
 			NOT_REACHED;
 		}
-	} else if (Reason == DLL_PROCESS_ATTACH && Descriptor == NULL) {
-		Status = LdrDisableThreadCalloutsForDll(DllBase);
-		ASSERT (NT_SUCCESS(Status));
+	} else if (Reason == DLL_PROCESS_ATTACH) {
+		STATIC ULONG CallNumber = 0;
+
+		//
+		// For static imports, this is called once with Descriptor as a PCONTEXT.
+		// For dynamic imports, this is called once with Descriptor == NULL.
+		//
+		// For verifier loads, this is called once with Descriptor as a
+		// PPRTL_VERIFIER_PROVIDER_DESCRIPTOR, and then once *again* with Descriptor
+		// == NULL.
+		//
+
+		++CallNumber;
+
+		if (CallNumber == 1) {
+			//
+			// Disable DLL_THREAD_ATTACH calls if we're not running as a verifier
+			// provider.
+			//
+
+			if (AVrfProviderDescriptor.VerifierImage == NULL) {
+				Status = LdrDisableThreadCalloutsForDll(DllBase);
+				ASSERT (NT_SUCCESS(Status));
+			} else {
+				// Call the ABTI component on the loader initialization thread.
+				KexAlertByThreadIdThreadAttach();
+			}
+		}
+	} else if (Reason == DLL_THREAD_ATTACH) {
+		ASSERT (AVrfProviderDescriptor.VerifierImage != NULL);
+
+		if (Teb->InitialThread) {
+			//
+			// Queue an APC in order to work around MacType being incompatible with
+			// Application Verifier.
+			//
+			// We'll ignore failure in release builds, since this is only mandatory
+			// for when MacType is enabled (which is a minority of systems).
+			//
+
+			Status = NtQueueApcThread(
+				NtCurrentThread(),
+				KexPostInitializationApcRoutine,
+				NULL,
+				NULL,
+				NULL);
+
+			ASSERT (NT_SUCCESS(Status));
+		}
+
+		// Call back to the NtAlertThreadByThreadId/NtWaitForAlertByThreadId
+		// component since a small piece of initialization code needs to run
+		// per-thread.
+		KexAlertByThreadIdThreadAttach();
 	} else if (Reason == DLL_PROCESS_DETACH) {
+		// Close log, if it's open, so that all log entries are properly flushed.
 		VxlCloseLog(&KexData->LogHandle);
+
+		if (Descriptor == NULL) {
+			// When Descriptor is NULL, we're being unloaded from the process and the
+			// process will continue running without us. So we have to free extra
+			// resources.
+
+			SafeClose(KexData->BaseNamedObjects);
+			SafeClose(KexData->UntrustedNamedObjects);
+			SafeClose(KexData->GlobalKeyedEvent);
+
+			// Safe to call even if never initialized.
+			MlsCleanup();
+		}
 	}
 
 	return TRUE;

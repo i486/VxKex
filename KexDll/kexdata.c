@@ -23,6 +23,12 @@
 //                                       (system32 -> syswow64). Also, enable
 //                                       VxKex and version spoofing for the
 //                                       Windows Installer service.
+//     vxiiduu              30-Apr-2026  Change logging to disabled by default
+//     vxiiduu              17-May-2026  Add TLS-related IFEO parameters
+//     vxiiduu              24-Jun-2026  Add support for new Explorer CPIWBYPA.
+//     vxiiduu              05-Jul-2026  Initialize global and local config
+//                                       even when running in Explorer because
+//                                       MLS needs KexDir to be valid
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -83,16 +89,16 @@ STATIC NTSTATUS KexpInitializeGlobalConfig(
 	HANDLE KeyHandle;
 	UNICODE_STRING KeyName;
 	OBJECT_ATTRIBUTES ObjectAttributes;
-	ULONG DisableLogging;
+	ULONG EnableLogging;
 
 	ULONG QueryTableNumberOfElements;
 	KEX_RTL_QUERY_KEY_MULTIPLE_VARIABLE_TABLE_ENTRY QueryTable[] = {
-		{RTL_CONSTANT_STRING(L"DisableLogging"), 0, 8, &DisableLogging, REG_RESTRICT_DWORD, 0},
+		{RTL_CONSTANT_STRING(L"EnableLogging"), 0, 8, &EnableLogging, REG_RESTRICT_DWORD, 0},
 		GENERATE_QKMV_TABLE_ENTRY_UNICODE_STRING	(KexDir),
 		GENERATE_QKMV_TABLE_ENTRY_UNICODE_STRING	(LogDir)
 	};
 
-	DisableLogging = 0;
+	EnableLogging = 0;
 
 	//
 	// Open the vxkex HKLM key.
@@ -121,8 +127,8 @@ STATIC NTSTATUS KexpInitializeGlobalConfig(
 		&QueryTableNumberOfElements,
 		0);
 
-	if (DisableLogging) {
-		_KexData.Flags |= KEXDATA_FLAG_DISABLE_LOGGING;
+	if (EnableLogging) {
+		_KexData.Flags |= KEXDATA_FLAG_ENABLE_LOGGING;
 	}
 
 	//
@@ -148,15 +154,15 @@ STATIC NTSTATUS KexpInitializeLocalConfig(
 	HANDLE KeyHandle;
 	UNICODE_STRING KeyName;
 	OBJECT_ATTRIBUTES ObjectAttributes;
-	ULONG DisableLogging;
+	ULONG EnableLogging;
 
 	ULONG QueryTableNumberOfElements;
 	KEX_RTL_QUERY_KEY_MULTIPLE_VARIABLE_TABLE_ENTRY QueryTable[] = {
-		{RTL_CONSTANT_STRING(L"DisableLogging"), 0, 8, &DisableLogging, REG_RESTRICT_DWORD, 0},
+		{RTL_CONSTANT_STRING(L"EnableLogging"), 0, 8, &EnableLogging, REG_RESTRICT_DWORD, 0},
 		GENERATE_QKMV_TABLE_ENTRY_UNICODE_STRING	(LogDir)
 	};
 
-	DisableLogging = _KexData.Flags & KEXDATA_FLAG_DISABLE_LOGGING;
+	EnableLogging = _KexData.Flags & KEXDATA_FLAG_ENABLE_LOGGING;
 
 	Status = RtlOpenCurrentUser(KEY_ENUMERATE_SUB_KEYS, &CurrentUserKeyHandle);
 	if (!NT_SUCCESS(Status)) {
@@ -190,10 +196,10 @@ STATIC NTSTATUS KexpInitializeLocalConfig(
 		&QueryTableNumberOfElements,
 		0);
 
-	if (DisableLogging) {
-		_KexData.Flags |= KEXDATA_FLAG_DISABLE_LOGGING;
+	if (EnableLogging) {
+		_KexData.Flags |= KEXDATA_FLAG_ENABLE_LOGGING;
 	} else {
-		_KexData.Flags &= ~KEXDATA_FLAG_DISABLE_LOGGING;
+		_KexData.Flags &= ~KEXDATA_FLAG_ENABLE_LOGGING;
 	}
 
 	KexRtlUpdateNullTerminatedUnicodeStringLength(&_KexData.LogDir);
@@ -253,8 +259,8 @@ STATIC NTSTATUS KexpInitializeIfeoParameters(
 		RtlInitConstantUnicodeString(&SlashV, L"/V");
 
 		if (KexRtlUnicodeStringEndsWith(&CommandLine, &SlashV, FALSE)) {
-			Data->Flags |= KEXDATA_FLAG_ENABLED_FOR_MSI;
-			IfeoParameters->WinVerSpoof = (KEX_WIN_VER_SPOOF) WinVerSpoofMax - 1;
+			Data->Flags |= KEXDATA_FLAG_MSI_SERVICE;
+			IfeoParameters->WinVerSpoof = (KEX_WIN_VER_SPOOF) (WinVerSpoofMax - 1);
 			goto Exit;
 		}
 
@@ -266,7 +272,7 @@ STATIC NTSTATUS KexpInitializeIfeoParameters(
 		
 		RtlInitConstantUnicodeString(&DotMsi, L".MSI\"");
 
-		DotMsiLocation = KexRtlFindUnicodeSubstring(&CommandLine, &DotMsi, TRUE);
+		DotMsiLocation = RtlFindUnicodeSubstring(&CommandLine, &DotMsi, TRUE);
 		
 		if (DotMsiLocation) {
 			MsiFullPath.Length = DotMsi.Length;
@@ -308,37 +314,38 @@ STATIC NTSTATUS KexpInitializeIfeoParameters(
 		goto Exit;
 	}
 
-	NoKexOptionsInRegistry &= LdrQueryImageFileKeyOption(
-		IfeoKeyHandle,
-		L"KEX_DisableForChild",
-		REG_DWORD,
-		&IfeoParameters->DisableForChild,
-		sizeof(IfeoParameters->DisableForChild),
-		NULL);
-	
-	NoKexOptionsInRegistry &= LdrQueryImageFileKeyOption(
-		IfeoKeyHandle,
-		L"KEX_DisableAppSpecific",
-		REG_DWORD,
-		&IfeoParameters->DisableAppSpecific,
-		sizeof(IfeoParameters->DisableAppSpecific),
-		NULL);
-	
-	NoKexOptionsInRegistry &= LdrQueryImageFileKeyOption(
-		IfeoKeyHandle,
-		L"KEX_WinVerSpoof",
-		REG_DWORD,
-		&IfeoParameters->WinVerSpoof,
-		sizeof(IfeoParameters->WinVerSpoof),
-		NULL);
+	//
+	// This might look like a whole lot of weird macro rubbish (and it kind of is),
+	// but it helps deduplicate IFEO option code across modules, so it's worth it.
+	//
 
-	NoKexOptionsInRegistry &= LdrQueryImageFileKeyOption(
-		IfeoKeyHandle,
-		L"KEX_StrongVersionSpoof",
-		REG_DWORD,
-		&IfeoParameters->StrongVersionSpoof,
-		sizeof(IfeoParameters->StrongVersionSpoof),
-		NULL);
+	{
+		ULONG Index;
+		KEX_IFEO_PARAMETER_DEFINITION IfeoParameterDefinitions[] = {
+			#define IFEO_PARAMETER_BASE_POINTER IfeoParameters
+			#include <KexIfeo.h>
+			#undef IFEO_PARAMETER_BASE_POINTER
+		};
+
+		//
+		// This loop is what actually reads in all the IFEO registry values.
+		//
+
+		for (Index = 0; Index < ARRAYSIZE(IfeoParameterDefinitions); ++Index) {
+			Status = LdrQueryImageFileKeyOption(
+				IfeoKeyHandle,
+				IfeoParameterDefinitions[Index].RegistryValueName,
+				IfeoParameterDefinitions[Index].RegistryDataType,
+				IfeoParameterDefinitions[Index].TargetBuffer,
+				IfeoParameterDefinitions[Index].TargetBufferCb,
+				NULL);
+
+			ASSERT (Status == STATUS_SUCCESS ||
+					Status == STATUS_OBJECT_NAME_NOT_FOUND);
+
+			NoKexOptionsInRegistry &= Status;
+		}
+	}
 
 	SafeClose(IfeoKeyHandle);
 
@@ -355,6 +362,7 @@ KEXAPI NTSTATUS NTAPI KexDataInitialize(
 	OUT	PPKEX_PROCESS_DATA	KexDataOut OPTIONAL)
 {
 	NTSTATUS Status;
+	UNICODE_STRING ExplorerPath;
 
 	if (KexData) {
 		if (KexDataOut) {
@@ -370,11 +378,34 @@ KEXAPI NTSTATUS NTAPI KexDataInitialize(
 	//
 
 	RtlInitUnicodeString(&_KexData.WinDir, SharedUserData->NtSystemRoot);
-
 	KexRtlGetProcessImageBaseName(&_KexData.ImageBaseName);
-	KexpInitializeIfeoParameters(&_KexData);
+
+	//
+	// Grab kexdir and logdir and other HKLM/HKCU vxkex settings.
+	//
+
 	KexpInitializeGlobalConfig();
 	KexpInitializeLocalConfig();
+
+	//
+	// Check if we're running in Windows Explorer.
+	// If so, we can skip everything else after setting KEXDATA_FLAG_EXPLORER.
+	//
+
+	RtlInitEmptyUnicodeStringFromTeb(&ExplorerPath);
+	RtlCopyUnicodeString(&ExplorerPath, &_KexData.WinDir);
+	RtlAppendUnicodeToString(&ExplorerPath, L"\\explorer.exe");
+
+	if (RtlEqualUnicodeString(&NtCurrentPeb()->ProcessParameters->ImagePathName, &ExplorerPath, TRUE)) {
+		_KexData.Flags |= KEXDATA_FLAG_EXPLORER;
+		goto Finished;
+	}
+
+	//
+	// Read IFEO parameters.
+	//
+
+	KexpInitializeIfeoParameters(&_KexData);
 
 	//
 	// Assemble Kex3264Dir
@@ -418,6 +449,8 @@ KEXAPI NTSTATUS NTAPI KexDataInitialize(
 	//
 	// All done
 	//
+
+Finished:
 
 	KexData = &_KexData;
 

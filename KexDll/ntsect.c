@@ -87,8 +87,6 @@ RetryCreateRandomName:
 		NewObjectAttributes.RootDirectory = KexData->BaseNamedObjects;
 		NewObjectAttributes.ObjectName = &NewObjectName;
 
-		KexLogDebugEvent(L"Generated a random section name: \"%wZ\"", &NewObjectName);
-
 		//
 		// TODO: set some kind of security which stops other people opening this
 		// named object.

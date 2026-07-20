@@ -25,6 +25,8 @@ program include:
 
   - registering the VxKex property sheet page shell extension
 
+  - registering the Disk Cleanup handler for .vxl files
+
   - associating .vxl file extension with VxlView
 
 Of course, the program can also uninstall VxKex and must reverse all the above

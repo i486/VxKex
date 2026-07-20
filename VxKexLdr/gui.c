@@ -15,7 +15,7 @@ STATIC INT_PTR CALLBACK MoreOptionsDlgProc(
 		HWND ComboBoxWindow;
 
 		ComboBoxWindow = GetDlgItem(Window, IDC_WINVER);
-		ComboBox_AddString(ComboBoxWindow, L"Windows 7 Service Pack 1");
+		ComboBox_AddString(ComboBoxWindow, _(L"Windows 7 Service Pack 1"));
 		ComboBox_AddString(ComboBoxWindow, L"Windows 8");
 		ComboBox_AddString(ComboBoxWindow, L"Windows 8.1");
 		ComboBox_AddString(ComboBoxWindow, L"Windows 10");
@@ -53,6 +53,8 @@ STATIC INT_PTR CALLBACK MoreOptionsDlgProc(
 			KexData->IfeoParameters.DisableAppSpecific = !!Button_GetCheck(ControlWindow);
 		} else if (ControlId == IDC_DISABLEASH) {
 			KexData->IfeoParameters.DisableAppSpecific = !!Button_GetCheck(ControlWindow);
+		} else if (ControlId == IDC_DISABLECONENHANCE) {
+			KexData->IfeoParameters.DisableConsoleEnhancements = !!Button_GetCheck(ControlWindow);
 		} else {
 			return FALSE;
 		}
@@ -106,6 +108,13 @@ INT_PTR CALLBACK VklDialogProc(
 		//
 
 		CreateDialog(NULL, MAKEINTRESOURCE(IDD_MOREOPTIONS), Window, MoreOptionsDlgProc);
+
+		//
+		// Now that the child dialog has been created, we will call MLS to translate
+		// all the static strings.
+		//
+
+		MlsgTranslateWindow(Window);
 	} else if (Message == WM_COMMAND) {
 		HWND ControlWindow;
 		ULONG ControlId;
@@ -142,7 +151,7 @@ INT_PTR CALLBACK VklDialogProc(
 			OpenFileInfo.lpstrFilter	= L"Programs (*.exe, *.msi)\0*.exe;*.msi\0All Files (*.*)\0*.*\0";
 			OpenFileInfo.lpstrFile		= FilePath;
 			OpenFileInfo.nMaxFile		= ARRAYSIZE(FilePath);
-			OpenFileInfo.lpstrTitle		= L"Select Program";
+			OpenFileInfo.lpstrTitle		= _(L"Select Program");
 			OpenFileInfo.Flags			= OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY;
 			OpenFileInfo.lpstrDefExt	= L"exe";
 
@@ -170,7 +179,7 @@ INT_PTR CALLBACK VklDialogProc(
 				GetWindowRect(Window, &WindowRect);
 				WindowWidth = WindowRect.right - WindowRect.left;
 				CollapsedWindowHeight = WindowRect.bottom - WindowRect.top;
-				ExpandedWindowHeight = CollapsedWindowHeight + DpiScaleY(95);
+				ExpandedWindowHeight = CollapsedWindowHeight + DpiScaleY(111);
 			}
 
 			//
@@ -191,7 +200,7 @@ INT_PTR CALLBACK VklDialogProc(
 					SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOREDRAW |
 					SWP_NOSENDCHANGING | SWP_NOZORDER);
 
-				SetDlgItemText(Window, IDC_MOREOPTIONS, L"▼ More &options");
+				SetDlgItemText(Window, IDC_MOREOPTIONS, _(L"▼ More &options"));
 			} else {
 				//
 				// The extra options are currently not displayed and we need
@@ -206,7 +215,7 @@ INT_PTR CALLBACK VklDialogProc(
 					SWP_NOACTIVATE | SWP_NOMOVE |
 					SWP_NOSENDCHANGING | SWP_NOZORDER);
 
-				SetDlgItemText(Window, IDC_MOREOPTIONS, L"▲ Hide &options");
+				SetDlgItemText(Window, IDC_MOREOPTIONS, _(L"▲ Hide &options"));
 			}
 
 			MoreOptionsDisplayed = !MoreOptionsDisplayed;

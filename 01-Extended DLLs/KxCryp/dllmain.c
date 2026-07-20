@@ -11,6 +11,8 @@ BOOL WINAPI DllMain(
 	if (Reason == DLL_PROCESS_ATTACH) {
 		LdrDisableThreadCalloutsForDll(DllHandle);
 		KexDataInitialize(&KexData);
+	} else if (Reason == DLL_PROCESS_DETACH) {
+		CleanupCachedPredefinedHandles();
 	}
 
 	return TRUE;

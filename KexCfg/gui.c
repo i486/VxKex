@@ -2,7 +2,7 @@
 //
 // Module Name:
 //
-//     util.c
+//     gui.c
 //
 // Abstract:
 //
@@ -19,6 +19,17 @@
 // Revision History:
 //
 //     vxiiduu              09-Feb-2024  Initial creation.
+//     vxiiduu              09-May-2026  Alt+double click on list view now opens
+//                                       item properties.
+//     vxiiduu              19-May-2026  Make KexCfg window resizable.
+//     vxiiduu              30-Jun-2026  Prevent Explorer or MSIEXEC from showing
+//                                       in the list of VxKex-enabled applications.
+//     vxiiduu              04-Jul-2026  Prevent infinite loop of re-launching
+//                                       if user is running as non-admin and UAC
+//                                       is disabled.
+//     vxiiduu              08-Jul-2026  Prevent error message or assertion dialog
+//                                       from appearing when the user double-clicks
+//                                       in an empty area of the list view.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -44,7 +55,7 @@ STATIC VOID KexCfgGuiPopulateGlobalConfiguration(
 	// Populate the Logging control group
 	//
 
-	KxCfgQueryLoggingSettings(&LoggingEnabled, LogDir, ARRAYSIZE(LogDir));
+	KxCfgQueryLoggingSettings(TRUE, &LoggingEnabled, LogDir, ARRAYSIZE(LogDir), NULL);
 	CheckDlgButton(MainWindow, IDC_ENABLELOGGING, LoggingEnabled);
 	SetDlgItemText(MainWindow, IDC_LOGDIR, LogDir);
 
@@ -95,7 +106,7 @@ STATIC VOID KexCfgGuiApplyGlobalConfiguration(
 
 	if (!TransactionHandle) {
 		ErrorBoxF(
-			L"A transaction for this operation could not be created. %s",
+			_(L"A transaction for this operation could not be created. %s"),
 			GetLastErrorAsString());
 
 		return;
@@ -106,6 +117,7 @@ STATIC VOID KexCfgGuiApplyGlobalConfiguration(
 	//
 
 	Success = KxCfgConfigureLoggingSettings(
+		TRUE,
 		EnableLogging,
 		LogDir,
 		TransactionHandle);
@@ -139,7 +151,7 @@ Fail:
 	NtRollbackTransaction(TransactionHandle, TRUE);
 	SafeClose(TransactionHandle);
 
-	ErrorBoxF(L"The settings could not be applied. %s", GetLastErrorAsString());
+	ErrorBoxF(_(L"The settings could not be applied. %s"), GetLastErrorAsString());
 }
 
 BOOLEAN CALLBACK ConfigurationCallback(
@@ -167,9 +179,11 @@ BOOLEAN CALLBACK ConfigurationCallback(
 	PathCchRemoveFileSpec(ExeContainingFolder, ARRAYSIZE(ExeContainingFolder));
 	ExeBaseName = PathFindFileName(ExeFullPathOrBaseName);
 
-	if (StringEqualI(ExeBaseName, L"msiexec.exe")) {
-		// Special case. This is represented by a checkbox in the system integration
-		// group, so we don't show it here.
+	if (PathIsPrefix(SharedUserData->NtSystemRoot, ExeFullPathOrBaseName)) {
+		// This exe is in the Windows folder.
+		// It could either be MSIEXEC, Explorer, or any other specially-allowed
+		// Windows EXE. These are represented by checkboxes in the system integration
+		// group, so we won't show them here.
 		return TRUE;
 	}
 
@@ -217,9 +231,15 @@ STATIC VOID KexCfgGuiPopulateApplicationList(
 	KxCfgEnumerateConfiguration(ConfigurationCallback, NULL);
 
 	if (ListView_GetItemCount(ListViewWindow) != 0) {
+		// enable Clean button
+		EnableWindow(GetDlgItem(MainWindow, IDC_CLEANAPPS), TRUE);
+
 		// reflow column widths
 		ListView_SetColumnWidth(ListViewWindow, 0, LVSCW_AUTOSIZE);
 		ListView_SetColumnWidth(ListViewWindow, 1, LVSCW_AUTOSIZE_USEHEADER);
+	} else {
+		// disable Clean button
+		EnableWindow(GetDlgItem(MainWindow, IDC_CLEANAPPS), FALSE);
 	}
 
 	SetWindowRedraw(ListViewWindow, TRUE);
@@ -248,7 +268,7 @@ STATIC VOID RemoveSelectedPrograms(
 
 	if (!TransactionHandle) {
 		ErrorBoxF(
-			L"A transaction for this operation could not be created. %s",
+			_(L"A transaction for this operation could not be created. %s"),
 			GetLastErrorAsString());
 
 		return;
@@ -265,7 +285,7 @@ STATIC VOID RemoveSelectedPrograms(
 		Success = KxCfgDeleteConfiguration(ExeFullPath, TransactionHandle);
 		if (!Success) {
 			ErrorBoxF(
-				L"There was an error applying settings for \"%s\". %s",
+				_(L"There was an error applying settings for \"%s\". %s"),
 				ExeFullPath, GetLastErrorAsString());
 
 			NtRollbackTransaction(TransactionHandle, TRUE);
@@ -308,7 +328,7 @@ STATIC VOID AddProgram(
 	OpenFileInfo.lpstrFilter		= L"Programs (*.exe, *.msi)\0*.exe;*.msi\0";
 	OpenFileInfo.lpstrFile			= FileNames;
 	OpenFileInfo.nMaxFile			= ARRAYSIZE(FileNames);
-	OpenFileInfo.lpstrTitle			= L"Select Program(s)";
+	OpenFileInfo.lpstrTitle			= _(L"Select Program(s)");
 	OpenFileInfo.Flags				= OFN_EXPLORER | OFN_ALLOWMULTISELECT |
 									  OFN_FILEMUSTEXIST | OFN_HIDEREADONLY;
 	OpenFileInfo.lpstrDefExt		= L"exe";
@@ -327,14 +347,14 @@ STATIC VOID AddProgram(
 
 	if (StringBeginsWithI(DirectoryName, SharedUserData->NtSystemRoot)) {
 		// program(s) are in the Windows directory - do not allow
-		ErrorBoxF(L"You cannot enable VxKex for programs in the Windows directory.");
+		ErrorBoxF(_(L"You cannot enable VxKex for programs in the Windows directory."));
 		return;
 	}
 
 	KxCfgGetKexDir(KexDir, ARRAYSIZE(KexDir));
 
 	if (StringBeginsWithI(DirectoryName, KexDir)) {
-		ErrorBoxF(L"You cannot enable VxKex for programs in the VxKex installation directory.");
+		ErrorBoxF(_(L"You cannot enable VxKex for programs in the VxKex installation directory."));
 		return;
 	}
 
@@ -355,7 +375,7 @@ STATIC VOID AddProgram(
 
 	ASSERT (FileName[0] != '\0');
 
-	RtlZeroMemory(&Configuration, sizeof(Configuration));
+	KexRtlZeroMemory(&Configuration, sizeof(Configuration));
 	Configuration.Enabled = 1;
 
 	//
@@ -366,7 +386,7 @@ STATIC VOID AddProgram(
 
 	if (!TransactionHandle) {
 		ErrorBoxF(
-			L"A transaction for this operation could not be created. %s",
+			_(L"A transaction for this operation could not be created. %s"),
 			GetLastErrorAsString());
 
 		return;
@@ -391,7 +411,7 @@ STATIC VOID AddProgram(
 
 		if (!Success) {
 			ErrorBoxF(
-				L"There was an error applying settings for \"%s\". %s",
+				_(L"There was an error applying settings for \"%s\". %s"),
 				FileFullPath, GetLastErrorAsString());
 
 			NtRollbackTransaction(TransactionHandle, TRUE);
@@ -417,9 +437,9 @@ STATIC VOID ProgramNotFoundUserPrompt(
 		TDCBF_YES_BUTTON | TDCBF_NO_BUTTON,
 		NULL,
 		FRIENDLYAPPNAME,
-		L"The selected program cannot be found",
-		L"The program \"%s\" was moved or deleted. "
-		L"Would you like to remove this entry from the list of VxKex-enabled applications?",
+		_(L"The selected program cannot be found"),
+		_(L"The program \"%s\" was moved or deleted. "
+		  L"Would you like to remove this entry from the list of VxKex-enabled applications?"),
 		ProgramFullPath);
 
 	if (UserResponse == IDYES) {
@@ -452,7 +472,7 @@ STATIC VOID OpenSelectedItemLocation(
 			ProgramNotFoundUserPrompt(ProgramFullPath);
 		} else {
 			// display generic error box
-			ErrorBoxF(L"Couldn't open file location. %s", Win32ErrorAsString(Result));
+			ErrorBoxF(_(L"Couldn't open file location. %s"), Win32ErrorAsString(Result));
 		}
 	}
 }
@@ -478,7 +498,7 @@ STATIC VOID OpenSelectedItemProperties(
 		if (ErrorCode == ERROR_FILE_NOT_FOUND) {
 			ProgramNotFoundUserPrompt(ProgramFullPath);
 		} else {
-			ErrorBoxF(L"Couldn't open file properties. %s", Win32ErrorAsString(ErrorCode));
+			ErrorBoxF(_(L"Couldn't open file properties. %s"), Win32ErrorAsString(ErrorCode));
 		}
 	}
 }
@@ -495,15 +515,11 @@ STATIC VOID RunSelectedProgram(
 	ProgramFullPath = GetProgramFullPathFromListViewIndex(ItemIndex);
 
 	//
-	// Check if CPIW bypass has been applied from a previous call to this function.
-	// If not, load cpiwbypa so that we have the ability to run programs with a
+	// Enable CPIW bypass so that we have the ability to run programs with a
 	// subsystem version higher than 6.1.
 	//
 
-	if (!(NtCurrentPeb()->SpareBits0 & 1)) {
-		LoadLibrary(L"cpiwbypa.dll");
-		ASSERT (NtCurrentPeb()->SpareBits0 & 1);
-	}
+	KexPatchCpiwSubsystemVersionCheck();
 
 	// why ShellExecute and not CreateProcess? because we can have .msi files too.
 	ErrorCode = (ULONG_PTR) ShellExecute(
@@ -523,13 +539,13 @@ STATIC VOID RunSelectedProgram(
 			ProgramNotFoundUserPrompt(ProgramFullPath);
 			break;
 		case SE_ERR_ACCESSDENIED:
-			ErrorMessage = L"Access was denied or the executable file format is invalid.";
+			ErrorMessage = _(L"Access was denied or the executable file format is invalid.");
 			break;
 		case SE_ERR_OOM:
-			ErrorMessage = L"There was not enough memory to complete the operation.";
+			ErrorMessage = _(L"There was not enough memory to complete the operation.");
 			break;
 		case SE_ERR_SHARE:
-			ErrorMessage = L"A sharing violation occurred.";
+			ErrorMessage = _(L"A sharing violation occurred.");
 			break;
 		case SE_ERR_ASSOCINCOMPLETE:
 			ErrorMessage = L"SE_ERR_ASSOCINCOMPLETE";
@@ -547,16 +563,95 @@ STATIC VOID RunSelectedProgram(
 			ErrorMessage = L"SE_ERR_NOASSOC";
 			break;
 		case SE_ERR_DLLNOTFOUND:
-			ErrorMessage = L"The specified DLL was not found.";
+			ErrorMessage = _(L"A DLL was not found.");
 			break;
 		default:
-			ErrorMessage = L"An unknown error has occurred.";
+			ErrorMessage = _(L"An unknown error has occurred.");
 			break;
 		}
 	}
 
 	if (ErrorMessage) {
 		ErrorBoxF(L"\"%s\": %s", ProgramFullPath, ErrorMessage);
+	}
+}
+
+STATIC BOOLEAN ShouldCleanProgramConfiguration(
+	IN	PCWSTR	ExeFullPath)
+{
+	WCHAR Root[MAX_PATH];
+	HRESULT Result;
+
+	if (FileExists(ExeFullPath)) {
+		return FALSE;
+	}
+
+	//
+	// The file doesn't currently exist. Determine what to do based
+	// on the path type and drive type.
+	//
+
+	if (PathIsNetworkPath(ExeFullPath)) {
+		// It's a network path. Don't remove the configuration because
+		// the network path might just be disconnected.
+		return FALSE;
+	}
+
+	StringCchCopy(Root, ARRAYSIZE(Root), ExeFullPath);
+	Result = PathCchStripToRoot(Root, ARRAYSIZE(Root));
+	ASSERT (SUCCEEDED(Result));
+
+	if (SUCCEEDED(Result) && GetDriveType(Root) == DRIVE_FIXED) {
+		// The drive is a fixed, connected drive (e.g. C:) but the file
+		// does not exist. Open and shut case sherlock, we need to delete
+		// the configuration for this nonexistent program.
+		return TRUE;
+	}
+
+	return FALSE;
+}
+
+STATIC VOID CleanPrograms(
+	VOID)
+{
+	ULONG ItemIndex;
+	ULONG NumberOfItemsDeleted;
+
+	NumberOfItemsDeleted = 0;
+	ItemIndex = ListView_GetNextItem(ListViewWindow, -1, LVNI_ALL);
+
+	while (ItemIndex != -1) {
+		PCWSTR ExeFullPath;
+
+		ExeFullPath = GetProgramFullPathFromListViewIndex(ItemIndex);
+
+		if (ShouldCleanProgramConfiguration(ExeFullPath)) {
+			BOOLEAN Success;
+
+			Success = KxCfgDeleteConfiguration(ExeFullPath, NULL);
+
+			if (Success) {
+				ListView_DeleteItem(ListViewWindow, ItemIndex);
+				++NumberOfItemsDeleted;
+				--ItemIndex;
+			}
+		}
+
+		ItemIndex = ListView_GetNextItem(ListViewWindow, ItemIndex, LVNI_ALL);
+	}
+
+	switch (NumberOfItemsDeleted) {
+	case 0:
+		InfoBoxF(_(L"No programs require cleaning from the list of VxKex-enabled applications."));
+		break;
+	case 1:
+		InfoBoxF(_(L"1 program was cleaned from the list of VxKex-enabled applications."));
+		break;
+	default:
+		InfoBoxF(
+			_(L"%lu programs were cleaned from the list of VxKex-enabled applications."),
+			NumberOfItemsDeleted);
+		break;
 	}
 }
 
@@ -623,6 +718,8 @@ STATIC VOID HandleListViewContextMenu(
 		RemoveSelectedPrograms();
 	} else if (MenuSelection == M_ADDPROGRAM) {
 		AddProgram();
+	} else if (MenuSelection == M_CLEANPROGRAMS) {
+		CleanPrograms();
 	}
 }
 
@@ -660,6 +757,204 @@ STATIC INT CALLBACK KexCfgGuiSortListViewItems(
 	return ComparisonResult;
 }
 
+STATIC VOID HandleWindowResize(
+	IN	HWND	Window,
+	IN	USHORT	NewWidth,
+	IN	USHORT	NewHeight)
+{
+	// Poor man's CSS!
+	CONST ULONG ColumnButtonRightPadding = 7;
+	CONST ULONG RowButtonBottomPadding = 11;
+	CONST ULONG RowButtonSpacing = 2;
+	CONST ULONG ListViewBottomPadding = RowButtonBottomPadding;
+	CONST ULONG ListViewRightPadding = 7;
+
+	HWND Control;
+	RECT Rect;
+	ULONG Index;
+	ULONG PreviousButtonLeft;
+	ULONG RightOfGroupBoxes;
+	ULONG LeftOfColumnButtons;
+	ULONG TopOfRowButtons;
+
+	STATIC CONST INT GroupBoxIds[] = {
+		IDC_GB_LOGGING,
+		IDC_GB_INTEGRATION,
+	};
+
+	STATIC CONST INT GroupBoxEditControlIds[] = {
+		IDC_LOGDIR,
+	};
+
+	STATIC CONST INT RowButtonIds[] = {
+		// The order must be preserved for row button IDs
+		IDC_APPLY,
+		IDC_CANCEL,
+		IDC_OK,
+	};
+
+	STATIC CONST INT ColumnButtonIds[] = {
+		IDC_BROWSELOGDIR,
+		IDC_NEWAPP,
+		IDC_REMOVEAPPS,
+		IDC_PROPERTIES,
+		IDC_CLEANAPPS,
+	};
+
+	//
+	// Resize group boxes.
+	//
+
+	for (Index = 0; Index < ARRAYSIZE(GroupBoxIds); ++Index) {
+		ULONG NewGroupBoxWidth;
+
+		Control = GetDlgItem(Window, GroupBoxIds[Index]);
+
+		GetWindowRect(Control, &Rect);
+		MapWindowRect(HWND_DESKTOP, Window, &Rect);
+
+		// same padding on left and right
+		NewGroupBoxWidth = NewWidth - (2 * Rect.left);
+
+		SetWindowPos(
+			Control,
+			NULL,
+			0,
+			0,
+			NewGroupBoxWidth,
+			Rect.bottom - Rect.top,
+			SWP_NOMOVE | SWP_NOZORDER | SWP_NOREDRAW);
+
+		RightOfGroupBoxes = Rect.left + NewGroupBoxWidth;
+
+		// Hack to prevent flickering of the checkboxes.
+		GetWindowRect(Control, &Rect);
+		MapWindowRect(HWND_DESKTOP, Window, &Rect);
+		Rect.left = DpiScaleX(450);
+		Rect.right = NewWidth;
+
+		if (Rect.left < Rect.right) {
+			InvalidateRect(Window, &Rect, FALSE);
+		}
+	}
+
+	//
+	// Move column buttons so that their right edge is at an offset
+	// from the right edge of the group boxes.
+	//
+
+	for (Index = 0; Index < ARRAYSIZE(ColumnButtonIds); ++Index) {
+		ULONG NewButtonLeft; 
+		ULONG NewButtonTop;
+
+		Control = GetDlgItem(Window, ColumnButtonIds[Index]);
+
+		GetWindowRect(Control, &Rect);
+		MapWindowRect(HWND_DESKTOP, Window, &Rect);
+
+		NewButtonLeft = RightOfGroupBoxes -
+						(Rect.right - Rect.left) -
+						DpiScaleX(ColumnButtonRightPadding);
+
+		NewButtonTop = Rect.top;
+
+		SetWindowPos(
+			Control,
+			NULL,
+			NewButtonLeft,
+			NewButtonTop,
+			0,
+			0,
+			SWP_NOZORDER | SWP_NOSIZE);
+
+		LeftOfColumnButtons = NewButtonLeft;
+	}
+
+	//
+	// Move row buttons.
+	//
+
+	PreviousButtonLeft = 0;
+
+	for (Index = 0; Index < ARRAYSIZE(RowButtonIds); ++Index) {
+		ULONG NewButtonLeft;
+		ULONG NewButtonTop;
+
+		Control = GetDlgItem(Window, RowButtonIds[Index]);
+
+		GetWindowRect(Control, &Rect);
+		MapWindowRect(HWND_DESKTOP, Window, &Rect);
+
+		if (PreviousButtonLeft == 0) {
+			NewButtonLeft = LeftOfColumnButtons;
+		} else {
+			NewButtonLeft = PreviousButtonLeft -
+							(Rect.right - Rect.left) -
+							DpiScaleX(RowButtonSpacing);
+		}
+
+		NewButtonTop = NewHeight -
+						(Rect.bottom - Rect.top) -
+						DpiScaleY(RowButtonBottomPadding);
+
+		SetWindowPos(
+			Control,
+			NULL,
+			NewButtonLeft,
+			NewButtonTop,
+			0,
+			0,
+			SWP_NOZORDER | SWP_NOSIZE);
+
+		// Because we move the buttons one after the other, they can
+		// overwrite each other if the window is resized rapidly and
+		// cause artifacts. In order to fix this we invalidate.
+		InvalidateRect(Control, NULL, FALSE);
+
+		PreviousButtonLeft = NewButtonLeft;
+		TopOfRowButtons = NewButtonTop;
+	}
+
+	//
+	// Resize edit controls.
+	//
+
+	for (Index = 0; Index < ARRAYSIZE(GroupBoxEditControlIds); ++Index) {
+		Control = GetDlgItem(Window, GroupBoxEditControlIds[Index]);
+
+		GetWindowRect(Control, &Rect);
+		MapWindowRect(HWND_DESKTOP, Window, &Rect);
+
+		SetWindowPos(
+			Control,
+			NULL,
+			0,
+			0,
+			LeftOfColumnButtons - Rect.left - DpiScaleX(ColumnButtonRightPadding),
+			Rect.bottom - Rect.top,
+			SWP_NOMOVE | SWP_NOZORDER);
+	}
+
+	//
+	// Resize the applications list view so that its right edge is at
+	// an offset from the left edge of the column buttons, and its
+	// bottom edge is at an offset from the row buttons.
+	//
+
+	GetWindowRect(ListViewWindow, &Rect);
+	MapWindowRect(HWND_DESKTOP, Window, &Rect);
+
+	SetWindowPos(
+		ListViewWindow,
+		NULL,
+		0, 0,
+		LeftOfColumnButtons - Rect.left - DpiScaleX(ListViewRightPadding),
+		TopOfRowButtons - Rect.top - DpiScaleY(ListViewBottomPadding),
+		SWP_NOZORDER | SWP_NOMOVE);
+}
+
+#define WNDPOS_REG_KEY L"SOFTWARE\\VXsoft\\KexCfg"
+
 STATIC INT_PTR CALLBACK DialogProc(
 	IN	HWND	Window,
 	IN	UINT	Message,
@@ -679,6 +974,12 @@ STATIC INT_PTR CALLBACK DialogProc(
 		SetWindowIcon(Window, IDI_APPICON);
 
 		//
+		// Translate static window text with MLS.
+		//
+
+		MlsgTranslateWindow(Window);
+
+		//
 		// Limit the max length of the log directory path to 200 characters.
 		// Make the path edit box autocomplete paths.
 		//
@@ -686,14 +987,14 @@ STATIC INT_PTR CALLBACK DialogProc(
 		LogDirWindow = GetDlgItem(Window, IDC_LOGDIR);
 		Edit_LimitText(LogDirWindow, 200);
 		SHAutoComplete(LogDirWindow, SHACF_FILESYS_DIRS | SHACF_USETAB);
-
+		
 		//
 		// Initialize the context menu selection combo box.
 		//
 
 		ComboBoxWindow = GetDlgItem(Window, IDC_WHICHCONTEXTMENU);
-		ComboBox_AddString(ComboBoxWindow, L"extended context menu");
-		ComboBox_AddString(ComboBoxWindow, L"normal context menu");
+		ComboBox_AddString(ComboBoxWindow, _(L"extended context menu"));
+		ComboBox_AddString(ComboBoxWindow, _(L"normal context menu"));
 		ComboBox_SetCurSel(ComboBoxWindow, 0);
 
 		//
@@ -720,11 +1021,11 @@ STATIC INT_PTR CALLBACK DialogProc(
 		RtlZeroMemory(&Column, sizeof(Column));
 		Column.mask = LVCF_TEXT | LVCF_WIDTH;
 		
-		Column.pszText = L"Application";
+		Column.pszText = (PWSTR) _(L"Application");
 		Column.cx = DpiScaleX(100);
 		ListView_InsertColumn(ListViewWindow, 0, &Column);
 
-		Column.pszText = L"Containing folder";
+		Column.pszText = (PWSTR) _(L"Containing folder");
 		ListView_InsertColumn(ListViewWindow, 1, &Column);
 		ListView_SetColumnWidth(ListViewWindow, 1, LVSCW_AUTOSIZE_USEHEADER);
 
@@ -732,22 +1033,25 @@ STATIC INT_PTR CALLBACK DialogProc(
 		// Add tool tips.
 		//
 
-		ToolTip(Window, IDC_ENABLELOGGING,
+		ToolTip(Window, IDC_ENABLELOGGING, _(
 			L"If you enable logging, VxKex will create log files in the specified "
-			L"folder every time you run an application which has VxKex enabled.");
-		ToolTip(Window, IDC_ENABLEFORMSI,
+			L"folder every time you run an application which has VxKex enabled."));
+		ToolTip(Window, IDC_ENABLEFORMSI, _(
 			L"This option allows VxKex to work with MSI installers.\r\n"
-			L"If you encounter unexpected problems with MSI installers, try disabling this option.");
-		ToolTip(Window, IDC_CPIWBYPA,
+			L"If you encounter unexpected problems with MSI installers, try disabling this option."));
+		ToolTip(Window, IDC_CPIWBYPA, _(
 			L"This option causes a DLL to be loaded into Windows Explorer at startup in order "
 			L"to remove the version check for certain programs.\r\n"
 			L"If you encounter unexpected problems with Windows Explorer, try disabling this "
-			L"option.");
-		ToolTip(Window, IDC_ADDTOMENU,
-			L"Add \"Run with VxKex\" options to the context menu for .exe and .msi files.");
-		ToolTip(Window, IDC_WHICHCONTEXTMENU,
+			L"option."));
+		ToolTip(Window, IDC_ADDTOMENU, _(
+			L"Add \"Run with VxKex\" options to the context menu for .exe and .msi files."));
+		ToolTip(Window, IDC_WHICHCONTEXTMENU, _(
 			L"Shift+Right Click on a .exe or .msi file opens the extended context menu.\r\n"
-			L"Right clicking without holding the Shift key opens the normal context menu.");
+			L"Right clicking without holding the Shift key opens the normal context menu."));
+		ToolTip(Window, IDC_CLEANAPPS, _(
+			L"Applications which no longer exist may remain enabled in VxKex. Click this button "
+			L"in order to remove deleted EXEs or MSIs from the list."));
 
 		//
 		// Populate the top section (global configuration) and the apps list.
@@ -764,6 +1068,12 @@ STATIC INT_PTR CALLBACK DialogProc(
 
 		DialogProc(Window, WM_COMMAND, IDC_ENABLELOGGING, 0);
 		DialogProc(Window, WM_COMMAND, IDC_ADDTOMENU, 0);
+
+		//
+		// Restore window placement from the registry.
+		//
+
+		RestoreWindowPlacement(Window, WNDPOS_REG_KEY);
 
 		UnsavedChanges = FALSE;
 		EnableWindow(GetDlgItem(Window, IDC_APPLY), FALSE);
@@ -787,22 +1097,22 @@ STATIC INT_PTR CALLBACK DialogProc(
 			}
 		}
 
-		if (ControlId == IDC_CANCEL) {
+		if (ControlId == IDC_CANCEL || ControlId == M_EXIT) {
 			if (UnsavedChanges) {
 				INT UserResponse;
 
 				UserResponse = MessageBoxF(
 					TDCBF_YES_BUTTON | TDCBF_NO_BUTTON,
 					0,
-					FRIENDLYAPPNAME,
-					L"Are you sure you want to exit?",
-					L"Changes that are not applied will be discarded.");
+					_(FRIENDLYAPPNAME),
+					_(L"Are you sure you want to exit?"),
+					_(L"Changes that are not applied will be discarded."));
 
 				if (UserResponse == IDYES) {
-					EndDialog(Window, 0);
+					PostQuitMessage(0);
 				}
 			} else {
-				EndDialog(Window, 0);
+				PostQuitMessage(0);
 			}
 		} else if (ControlId == IDC_OK) {
 			if (UnsavedChanges) {
@@ -810,7 +1120,7 @@ STATIC INT_PTR CALLBACK DialogProc(
 			}
 
 			unless (UnsavedChanges) {
-				EndDialog(Window, 0);
+				PostQuitMessage(0);
 			}
 		} else if (ControlId == IDC_APPLY) {
 			if (UnsavedChanges) {
@@ -853,6 +1163,22 @@ STATIC INT_PTR CALLBACK DialogProc(
 			ShowPropertiesDialog(
 				GetProgramFullPathFromListViewIndex(ItemIndex),
 				SW_SHOWDEFAULT);
+		} else if (ControlId == IDC_CLEANAPPS) {
+			CleanPrograms();
+		} else if (ControlId == M_SELECTALL) {
+			HWND FocusedWindow;
+			WCHAR ClassName[32];
+
+			FocusedWindow = GetFocus();
+			GetClassName(FocusedWindow, ClassName, ARRAYSIZE(ClassName));
+
+			if (StringEqual(ClassName, L"SysListView32")) {
+				ListView_SetItemState(FocusedWindow, -1, LVIS_SELECTED, LVIS_SELECTED);
+			}
+		} else if (ControlId == M_DELETE) {
+			if (GetFocus() == ListViewWindow) {
+				RemoveSelectedPrograms();
+			}
 		} else {
 			return FALSE;
 		}
@@ -885,14 +1211,21 @@ STATIC INT_PTR CALLBACK DialogProc(
 			} else if (Notification->code == LVN_DELETEITEM) {
 				// after items are deleted, no items will be selected anymore
 				EnableWindow(GetDlgItem(Window, IDC_REMOVEAPPS), FALSE);
-				EnableWindow(GetDlgItem(Window, IDC_PROPERTIES), FALSE);
-			} else if (Notification->code == NM_DBLCLK) {
+				EnableWindow(GetDlgItem(Window, IDC_PROPERTIES), FALSE); 
+			} else if (Notification->code == NM_DBLCLK &&
+					   ListView_GetSelectedCount(ListViewWindow) == 1) {
 				//
 				// User double clicked on a list-view item.
-				// We will open the location of that file.
+				// If Alt is held down, we will open the properties of the file,
+				// just like in Windows Explorer.
+				// Otherwise, we will open the location of that file.
 				//
 
-				OpenSelectedItemLocation();
+				if (GetKeyState(VK_MENU) & 0x8000) {
+					OpenSelectedItemProperties();
+				} else {
+					OpenSelectedItemLocation();
+				}
 			} else if (Notification->code == LVN_COLUMNCLICK) {
 				ULONG ColumnIndex;
 
@@ -923,6 +1256,18 @@ STATIC INT_PTR CALLBACK DialogProc(
 			ClickPoint.y = GET_Y_LPARAM(LParam);
 			HandleListViewContextMenu(&ClickPoint);
 		}
+	} else if (Message == WM_GETMINMAXINFO) {
+		PMINMAXINFO MinMaxInfo;
+
+		// Set a minimum size limit for the window
+		MinMaxInfo = (PMINMAXINFO) LParam;
+		MinMaxInfo->ptMinTrackSize.x = DpiScaleX(496);
+		MinMaxInfo->ptMinTrackSize.y = DpiScaleY(483);
+	} else if (Message == WM_SIZE && (WParam == SIZENORMAL || WParam == SIZEFULLSCREEN)) {
+		HandleWindowResize(
+			Window,
+			GET_X_LPARAM(LParam),
+			GET_Y_LPARAM(LParam));
 	} else if (Message == WM_CLOSE) {
 		DialogProc(Window, WM_COMMAND, IDC_CANCEL, 0);
 	} else {
@@ -935,25 +1280,38 @@ STATIC INT_PTR CALLBACK DialogProc(
 VOID KexCfgOpenGUI(
 	VOID)
 {
+	HACCEL Accelerators;
+	MSG Message;
+	INITCOMMONCONTROLSEX InitComctl;
+
+	KexgApplicationFriendlyName = _(FRIENDLYAPPNAME);
+
 	if (!IsUserAnAdmin()) {
-		//
-		// Elevate the application.
-		// Many of the settings that can be changed here are located under the HKLM
-		// registry key so we'll require admin to run this program.
-		//
+		CriticalErrorBoxF(
+			_(L"This program needs to be run as administrator. Log in as an "
+			  L"administrator and try again."));
 
-		ShellExecute(
-			NULL,
-			L"runas",
-			NtCurrentPeb()->ProcessParameters->ImagePathName.Buffer,
-			NULL,
-			NULL,
-			SW_SHOWDEFAULT);
-
-		return;
+		NOT_REACHED;
 	}
 
-	CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
-	KexgApplicationFriendlyName = FRIENDLYAPPNAME;
-	DialogBox(NULL, MAKEINTRESOURCE(IDD_DIALOG1), NULL, DialogProc);
+	InitComctl.dwSize = sizeof(InitComctl);
+	InitComctl.dwICC = ICC_BAR_CLASSES | ICC_LISTVIEW_CLASSES;
+	InitCommonControlsEx(&InitComctl);
+
+	Accelerators = LoadAccelerators(NULL, MAKEINTRESOURCE(IDA_ACCELERATORS));
+	CreateDialog(NULL, MAKEINTRESOURCE(IDD_DIALOG1), NULL, DialogProc);
+
+	while (GetMessage(&Message, NULL, 0, 0)) {
+		if (TranslateAccelerator(MainWindow, Accelerators, &Message)) {
+			continue;
+		}
+
+		if (!IsDialogMessage(MainWindow, &Message)) {
+			TranslateMessage(&Message);
+			DispatchMessage(&Message);
+		}
+	}
+
+	ASSERT (IsWindow(MainWindow));
+	SaveWindowPlacement(MainWindow, WNDPOS_REG_KEY);
 }

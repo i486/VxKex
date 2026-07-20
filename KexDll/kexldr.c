@@ -28,6 +28,13 @@
 //                                       location to standard images.
 //     vxiiduu              15-Dec-2025  Replace KexLdrProtectImageImportSection
 //                                       with KexLdrGetImageImportSection.
+//     vxiiduu              02-May-2026  Change handling of the KexLdrShouldRewriteDll
+//                                       flag in order to prevent erroneous rewriting
+//                                       of dynamic loads from Windows DLLs in their
+//                                       DllMain routines.
+//     vxiiduu              01-Jul-2026  Update KexLdrFindImageEntryPoint to be
+//                                       robust against 32-bit images in 64-bit
+//                                       processes.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -81,7 +88,7 @@ NTSTATUS NTAPI KexLdrGetDllFullName(
 // DLL a function call comes from.
 //
 NTSTATUS NTAPI KexLdrGetDllFullNameFromAddress(
-	IN	PVOID			Address,
+	IN	PCVOID			Address,
 	OUT	PUNICODE_STRING	DllFullPath)
 {
 	NTSTATUS Status;
@@ -129,7 +136,15 @@ NTSTATUS NTAPI KexLdrFindImageEntryPoint(
 		return STATUS_INVALID_IMAGE_FORMAT;
 	}
 
+	if (KexRtlCurrentProcessBitness() == 64 &&
+		NtHeaders->OptionalHeader.Magic != IMAGE_NT_OPTIONAL_HDR64_MAGIC) {
+
+		// some .NET DLL or resource-only DLL
+		return STATUS_ENTRYPOINT_NOT_FOUND;
+	}
+
 	if (NtHeaders->OptionalHeader.AddressOfEntryPoint == 0) {
+		// dll has no entry point
 		return STATUS_ENTRYPOINT_NOT_FOUND;
 	}
 
@@ -507,6 +522,20 @@ KEXAPI NTSTATUS NTAPI KexLdrGetImageImportSection(
 		return Status;
 	}
 
+	if (BasicInformation.Type != MEM_IMAGE) {
+		//
+		// Software (such as MacType versions 2025.01 and earlier) which modifies the
+		// import table (just like we do) may break VxKex-enabled applications. As a
+		// symptom of this, BasicInformation.Type will be equal to MEM_PRIVATE. In this
+		// case, we will consider that we have failed to find the import section.
+		//
+		// Failing here will allow us to show the user an error message rather than just
+		// crashing with an access violation later.
+		//
+
+		return STATUS_IMPORT_TABLE_TAMPERING_DETECTED;
+	}
+
 	ASSERT (BasicInformation.State == MEM_COMMIT);
 	ASSERT (BasicInformation.Type == MEM_IMAGE);
 
@@ -537,6 +566,7 @@ KEXAPI NTSTATUS NTAPI KexLdrLoadDll(
 	PCWSTR OriginalDllPath;
 	ULONG DllCharacteristics;
 	UNICODE_STRING RewrittenDll;
+	BOOLEAN ShouldRewrite;
 
 	ASSERT (VALID_UNICODE_STRING(DllName));
 	ASSERT (DllHandle != NULL);
@@ -562,8 +592,19 @@ KEXAPI NTSTATUS NTAPI KexLdrLoadDll(
 		DllPath = *DllPathIndirect;
 	}
 
-	if (!NtCurrentTeb()->KexLdrShouldRewriteDll) {
-		// KxBase has not asked us to rewrite DLL names, so we won't.
+	if (KexCurrentTebExtension()->KexLdrShouldRewriteDll) {
+		// KxBase has asked us to rewrite DLL names.
+		ShouldRewrite = TRUE;
+
+		// Clear KexLdrShouldRewriteDll flag so that dynamic DLL loads done
+		// from inside DllMains of Windows DLLs (user32 is one of those that
+		// does that, and it has caused crashes) do not get rewrite enabled
+		KexCurrentTebExtension()->KexLdrShouldRewriteDll = FALSE;
+	} else {
+		ShouldRewrite = FALSE;
+	}
+
+	if (DllName->Length == 0) {
 		goto BailOut;
 	}
 
@@ -573,7 +614,13 @@ KEXAPI NTSTATUS NTAPI KexLdrLoadDll(
 		goto BailOut;
 	}
 
-	if (DllName->Length == 0) {
+	if (!ShouldRewrite && !AshModuleIsDynamicRewriteExemptedModule(ReturnAddress())) {
+		// An app (e.g. Thunderbird) has called LdrLoadDll directly.
+		ShouldRewrite = TRUE;
+	}
+
+	if (!ShouldRewrite) {
+		// Skip past DLL rewriting.
 		goto BailOut;
 	}
 
@@ -641,7 +688,7 @@ BailOut:
 		//
 
 		KexLogEvent(
-			NtCurrentTeb()->KexLdrShouldRewriteDll ? LogSeverityWarning : LogSeverityDetail,
+			ShouldRewrite ? LogSeverityWarning : LogSeverityDetail,
 			L"Failed to dynamically load %wZ.\r\n\r\n"
 			L"DllPath:            \"%s\"\r\n"
 			L"DllCharacteristics: 0x%08lx\r\n"
@@ -664,14 +711,28 @@ KEXAPI NTSTATUS NTAPI KexLdrGetDllHandleEx(
 {
 	NTSTATUS Status;
 	UNICODE_STRING RewrittenDll;
+	BOOLEAN ShouldRewrite;
 
 	ASSERT (VALID_UNICODE_STRING(DllName));
 
-	if (!NtCurrentTeb()->KexLdrShouldRewriteDll) {
-		goto BailOut;
+	if (KexCurrentTebExtension()->KexLdrShouldRewriteDll) {
+		// KxBase has asked us to rewrite the DLL
+		ShouldRewrite = TRUE;
+		KexCurrentTebExtension()->KexLdrShouldRewriteDll = FALSE;
+	} else {
+		ShouldRewrite = FALSE;
 	}
 
 	if (DllName->Length == 0) {
+		goto BailOut;
+	}
+
+	if (!ShouldRewrite && !AshModuleIsDynamicRewriteExemptedModule(ReturnAddress())) {
+		// An app called LdrGetDllHandle(Ex) directly
+		ShouldRewrite = TRUE;
+	}
+
+	if (!ShouldRewrite) {
 		goto BailOut;
 	}
 
@@ -730,32 +791,7 @@ KEXAPI NTSTATUS NTAPI KexLdrGetProcedureAddressEx(
 	IN	ULONG				Flags)
 {
 	NTSTATUS Status;
-
-	unless (KexData->IfeoParameters.DisableAppSpecific) {
-		if (KexData->Flags & KEXDATA_FLAG_CHROMIUM) {
-			//
-			// APPSPECIFICHACK: Hide VirtualAlloc2 from Chromium-based processes
-			// in order to force Chromium into using compatibility code for pre-win10
-			// systems.
-			//
-			// Pitfall: this workaround applies to all code in the process, not just
-			// Chromium. If any applications include Chromium AND require VirtualAlloc2
-			// for something else, then we will have to figure out another solution.
-			//
-
-			if (ProcedureName != NULL) {
-				ANSI_STRING VirtualAlloc2ProcName;
-
-				RtlInitConstantAnsiString(&VirtualAlloc2ProcName, "VirtualAlloc2");
-
-				if (RtlEqualString(ProcedureName, &VirtualAlloc2ProcName, FALSE)) {
-					KexLogDebugEvent(L"VirtualAlloc2 hidden from Chromium process");
-					return STATUS_PROCEDURE_NOT_FOUND;
-				}
-			}
-		}
-	}
-
+	
 	Status = LdrGetProcedureAddressEx(
 		DllHandle,
 		ProcedureName,

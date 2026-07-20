@@ -19,30 +19,18 @@
 // Revision History:
 //
 //     vxiiduu               02-Feb-2024  Initial creation.
+//     vxiiduu               30-Apr-2026  Change KexSetupApplyAclToFile to stop
+//                                        using Get/SetNamedSecurityInfo, which
+//                                        do not support transactions
+//     vxiiduu               04-Jul-2026  Change KexSetupApplyAclToFile to be
+//                                        recursive.
+//     vxiiduu               05-Jul-2026  Remove obsolete IsWow64 function.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
+#include "buildcfg.h"
 #include "kexsetup.h"
 #include <AclAPI.h>
-
-BOOLEAN IsWow64(
-	VOID)
-{
-	if (KexRtlCurrentProcessBitness() == 64) {
-		return FALSE;
-	} else {
-		BOOLEAN Success;
-		BOOL CurrentProcessIsWow64Process;
-
-		Success = IsWow64Process(GetCurrentProcess(), &CurrentProcessIsWow64Process);
-
-		if (Success) {
-			return CurrentProcessIsWow64Process;
-		} else {
-			return FALSE;
-		}
-	}
-}
 
 // InstallationPath must be a pointer to a buffer of size MAX_PATH characters.
 VOID GetDefaultInstallationLocation(
@@ -51,9 +39,9 @@ VOID GetDefaultInstallationLocation(
 	PCWSTR FailsafeDefault = L"C:\\Program Files\\VxKex";
 	DWORD EnvironmentStringLength;
 
-	EnvironmentStringLength = ExpandEnvironmentStrings(L"%ProgramW6432%", InstallationPath, MAX_PATH);
+	EnvironmentStringLength = GetEnvironmentVariable(L"ProgramW6432", InstallationPath, MAX_PATH);
 	if (EnvironmentStringLength == 0) {
-		EnvironmentStringLength = ExpandEnvironmentStrings(L"%ProgramFiles%", InstallationPath, MAX_PATH);
+		EnvironmentStringLength = GetEnvironmentVariable(L"ProgramFiles", InstallationPath, MAX_PATH);
 
 		if (EnvironmentStringLength == 0) {
 			goto FailSafe;
@@ -117,7 +105,7 @@ VOID KexSetupCreateKey(
 		}
 
 		ErrorBoxF(
-			L"Failed to create or open registry key \"%s\\%s\". %s",
+			_(L"Failed to create or open registry key \"%s\\%s\". %s"),
 			BaseKeyName,
 			SubKey,
 			Win32ErrorAsString(ErrorCode));
@@ -152,14 +140,21 @@ VOID KexSetupDeleteKey(
 	}
 
 	if (ErrorCode != ERROR_SUCCESS) {
-		ErrorBoxF(L"Failed to open registry key for deletion. %s", Win32ErrorAsString(ErrorCode));
+		ErrorBoxF(
+			_(L"Failed to open registry key for deletion. %s"),
+			Win32ErrorAsString(ErrorCode));
+
 		RtlRaiseStatus(STATUS_KEXSETUP_FAILURE);
 	}
 
 	ErrorCode = RegDeleteTree(NewKeyHandle, NULL);
 	if (ErrorCode != ERROR_SUCCESS) {
 		RegCloseKey(NewKeyHandle);
-		ErrorBoxF(L"Failed to delete keys and subkeys. %s", Win32ErrorAsString(ErrorCode));
+
+		ErrorBoxF(
+			_(L"Failed to delete keys and subkeys. %s"),
+			Win32ErrorAsString(ErrorCode));
+
 		RtlRaiseStatus(STATUS_KEXSETUP_FAILURE);
 	}
 
@@ -169,7 +164,7 @@ VOID KexSetupDeleteKey(
 	SafeClose(NewKeyHandle);
 
 	if (ErrorCode != ERROR_SUCCESS) {
-		ErrorBoxF(L"Failed to delete key. %s", Win32ErrorAsString(ErrorCode));
+		ErrorBoxF(_(L"Failed to delete key. %s"), Win32ErrorAsString(ErrorCode));
 		RtlRaiseStatus(STATUS_KEXSETUP_FAILURE);
 	}
 }
@@ -185,7 +180,7 @@ VOID KexSetupRegWriteI32(
 
 	if (ErrorCode != ERROR_SUCCESS) {
 		ErrorBoxF(
-			L"Setup was unable to write to the registry value %s. %s",
+			_(L"Setup was unable to write to the registry value %s. %s"),
 			ValueName, Win32ErrorAsString(ErrorCode));
 
 		RtlRaiseStatus(STATUS_KEXSETUP_FAILURE);
@@ -203,7 +198,7 @@ VOID KexSetupRegWriteString(
 
 	if (ErrorCode != ERROR_SUCCESS) {
 		ErrorBoxF(
-			L"Setup was unable to write to the registry value %s. %s",
+			_(L"Setup was unable to write to the registry value %s. %s"),
 			ValueName, Win32ErrorAsString(ErrorCode));
 
 		RtlRaiseStatus(STATUS_KEXSETUP_FAILURE);
@@ -222,52 +217,508 @@ VOID KexSetupRegReadString(
 
 	if (ErrorCode != ERROR_SUCCESS) {
 		ErrorBoxF(
-			L"Setup was unable to read the registry value %s. %s",
+			_(L"Setup was unable to read the registry value %s. %s"),
 			ValueName, Win32ErrorAsString(ErrorCode));
 
 		RtlRaiseStatus(STATUS_KEXSETUP_FAILURE);
 	}
 }
 
-// This function applies the ACL from KexDir to the specified file.
+// This function applies the ACL from KexDir to the specified file or folder
+// recursively.
 VOID KexSetupApplyAclToFile(
 	IN	PCWSTR	FilePath)
 {
+	BOOL Success;
 	ULONG ErrorCode;
-	STATIC BOOLEAN AlreadyInitialized = FALSE;
-	STATIC PSECURITY_DESCRIPTOR KexDirSecurity = NULL;
-	STATIC PACL KexDirDacl = NULL;
+	HANDLE FileHandle;
+	STATIC PACL Dacl = NULL;
+	WIN32_FILE_ATTRIBUTE_DATA FileAttributes;
 
-	if (!AlreadyInitialized) {
-		ErrorCode = GetNamedSecurityInfo(
-			KexDir,
+	if (!Dacl) {
+		PSECURITY_DESCRIPTOR SecurityDescriptor = NULL;
+		WCHAR KexDirParentDir[MAX_PATH];
+
+		StringCchCopy(KexDirParentDir, ARRAYSIZE(KexDirParentDir), KexDir);
+		PathCchRemoveFileSpec(KexDirParentDir, ARRAYSIZE(KexDirParentDir));
+
+		FileHandle = CreateFileTransacted(
+			KexDirParentDir,
+			READ_CONTROL,
+			FILE_SHARE_READ | FILE_SHARE_WRITE,
+			NULL,
+			OPEN_EXISTING,
+			FILE_FLAG_BACKUP_SEMANTICS,
+			NULL,
+			KexSetupTransactionHandle,
+			NULL,
+			NULL);
+
+		ASSERT (VALID_HANDLE(FileHandle));
+
+		if (FileHandle == INVALID_HANDLE_VALUE) {
+			return;
+		}
+
+		ErrorCode = GetSecurityInfo(
+			FileHandle,
 			SE_FILE_OBJECT,
 			DACL_SECURITY_INFORMATION,
 			NULL,
 			NULL,
-			&KexDirDacl,
+			&Dacl,
 			NULL,
-			&KexDirSecurity);
+			&SecurityDescriptor);
+
+		// We deliberately do not free the security descriptor, because
+		// the DACL is inside that allocation.
 
 		ASSERT (ErrorCode == ERROR_SUCCESS);
+		SafeClose(FileHandle);
 
-		if (ErrorCode == ERROR_SUCCESS) {
-			AlreadyInitialized = TRUE;
-		} else {
+		if (ErrorCode != ERROR_SUCCESS) {
 			return;
 		}
 	}
 
-	ErrorCode = SetNamedSecurityInfo(
-		(PWSTR) FilePath,
+	FileHandle = CreateFileTransacted(
+		FilePath,
+		READ_CONTROL | WRITE_DAC,
+		FILE_SHARE_READ | FILE_SHARE_WRITE,
+		NULL,
+		OPEN_EXISTING,
+		FILE_FLAG_BACKUP_SEMANTICS,
+		NULL,
+		KexSetupTransactionHandle,
+		NULL,
+		NULL);
+
+	ASSERT (VALID_HANDLE(FileHandle));
+
+	if (FileHandle == INVALID_HANDLE_VALUE) {
+		return;
+	}
+
+	ASSERT (Dacl != NULL);
+
+	ErrorCode = SetSecurityInfo(
+		FileHandle,
 		SE_FILE_OBJECT,
 		DACL_SECURITY_INFORMATION,
 		NULL,
 		NULL,
-		KexDirDacl,
+		Dacl,
 		NULL);
 
 	ASSERT (ErrorCode == ERROR_SUCCESS);
+	SafeClose(FileHandle);
+
+	//
+	// If the file is a directory, recurse into it.
+	//
+
+	Success = GetFileAttributesTransacted(
+		FilePath,
+		GetFileExInfoStandard,
+		&FileAttributes,
+		KexSetupTransactionHandle);
+
+	ASSERT (Success);
+
+	if (Success && (FileAttributes.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
+		HRESULT Result;
+		WCHAR FindPath[MAX_PATH];
+		HANDLE FindHandle;
+		WIN32_FIND_DATA FindData;
+
+		Result = StringCchCopy(FindPath, ARRAYSIZE(FindPath), FilePath);
+		ASSERT (SUCCEEDED(Result));
+
+		if (FAILED(Result)) {
+			return;
+		}
+
+		Result = PathCchAppend(FindPath, ARRAYSIZE(FindPath), L"*");
+		ASSERT (SUCCEEDED(Result));
+
+		if (FAILED(Result)) {
+			return;
+		}
+
+		FindHandle = FindFirstFileTransacted(
+			FindPath,
+			FindExInfoBasic,
+			&FindData,
+			FindExSearchNameMatch,
+			NULL,
+			0,
+			KexSetupTransactionHandle);
+
+		ASSERT (FindHandle != INVALID_HANDLE_VALUE);
+
+		if (FindHandle == INVALID_HANDLE_VALUE) {
+			return;
+		}
+
+		do {
+			WCHAR FullPath[MAX_PATH];
+
+			if ((FindData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) &&
+				(StringEqual(FindData.cFileName, L".") || StringEqual(FindData.cFileName, L".."))) {
+				continue;
+			}
+
+			Result = StringCchCopy(FullPath, ARRAYSIZE(FullPath), FilePath);
+			ASSERT (SUCCEEDED(Result));
+
+			if (FAILED(Result)) {
+				continue;
+			}
+
+			Result = PathCchAppend(FullPath, ARRAYSIZE(FullPath), FindData.cFileName);
+			ASSERT (SUCCEEDED(Result));
+
+			if (FAILED(Result)) {
+				continue;
+			}
+
+			KexSetupApplyAclToFile(FullPath);
+		} until (!FindNextFile(FindHandle, &FindData));
+
+		SafeFindClose(FindHandle);
+	}
+}
+
+BOOLEAN KexSetupFilesAreIdentical(
+	IN	PCWSTR	File1,
+	IN	PCWSTR	File2)
+{
+	BOOLEAN Identical;
+	BOOLEAN Success;
+	HANDLE FileHandle1;
+	HANDLE FileHandle2;
+	HANDLE SectionHandle1;
+	HANDLE SectionHandle2;
+	PVOID Data1;
+	PVOID Data2;
+	LARGE_INTEGER FileSize1;
+	LARGE_INTEGER FileSize2;
+
+	Identical = FALSE;
+	FileHandle1 = NULL;
+	FileHandle2 = NULL;
+	SectionHandle1 = NULL;
+	SectionHandle2 = NULL;
+	Data1 = NULL;
+	Data2 = NULL;
+
+	//
+	// Open the files.
+	//
+
+	FileHandle1 = CreateFileTransacted(
+		File1,
+		GENERIC_READ,
+		FILE_SHARE_READ,
+		NULL,
+		OPEN_EXISTING,
+		FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN,
+		NULL,
+		KexSetupTransactionHandle,
+		NULL,
+		NULL);
+
+	ASSERT (FileHandle1 != INVALID_HANDLE_VALUE);
+
+	if (FileHandle1 == INVALID_HANDLE_VALUE) {
+		goto Exit;
+	}
+
+	FileHandle2 = CreateFileTransacted(
+		File2,
+		GENERIC_READ,
+		FILE_SHARE_READ,
+		NULL,
+		OPEN_EXISTING,
+		FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN,
+		NULL,
+		KexSetupTransactionHandle,
+		NULL,
+		NULL);
+
+	ASSERT (FileHandle2 != INVALID_HANDLE_VALUE);
+
+	if (FileHandle2 == INVALID_HANDLE_VALUE) {
+		goto Exit;
+	}
+
+	//
+	// Check file size is identical.
+	//
+
+	Success = GetFileSizeEx(FileHandle1, &FileSize1);
+	ASSERT (Success);
+
+	if (!Success) {
+		goto Exit;
+	}
+
+	Success = GetFileSizeEx(FileHandle2, &FileSize2);
+	ASSERT (Success);
+
+	if (!Success) {
+		goto Exit;
+	}
+
+	if (FileSize1.QuadPart != FileSize2.QuadPart) {
+		// Files can't be the same if size is different
+		goto Exit;
+	}
+
+	if (FileSize1.QuadPart == 0) {
+		// Zero-length files are always identical
+		Identical = TRUE;
+		goto Exit;
+	}
+
+	//
+	// Create section objects.
+	//
+
+	SectionHandle1 = CreateFileMapping(
+		FileHandle1,
+		NULL,
+		PAGE_READONLY,
+		0,
+		0,
+		NULL);
+
+	ASSERT (SectionHandle1 != NULL);
+
+	if (SectionHandle1 == NULL) {
+		goto Exit;
+	}
+
+	SectionHandle2 = CreateFileMapping(
+		FileHandle2,
+		NULL,
+		PAGE_READONLY,
+		0,
+		0,
+		NULL);
+
+	ASSERT (SectionHandle2 != NULL);
+
+	if (SectionHandle2 == NULL) {
+		goto Exit;
+	}
+
+	//
+	// Map section objects to memory.
+	//
+
+	Data1 = MapViewOfFile(
+		SectionHandle1,
+		FILE_MAP_READ,
+		0,
+		0,
+		0);
+
+	ASSERT (Data1 != NULL);
+
+	if (Data1 == NULL) {
+		goto Exit;
+	}
+
+	Data2 = MapViewOfFile(
+		SectionHandle2,
+		FILE_MAP_READ,
+		0,
+		0,
+		0);
+
+	ASSERT (Data2 != NULL);
+
+	if (Data2 == NULL) {
+		goto Exit;
+	}
+
+	//
+	// Check if the file contents are equal.
+	//
+
+	ASSERT (FileSize1.QuadPart == FileSize2.QuadPart);
+	ASSERT (FileSize1.QuadPart > 0);
+	Identical = RtlEqualMemory(Data1, Data2, (SIZE_T) FileSize1.QuadPart);
+
+Exit:
+	if (Data1) {
+		Success = UnmapViewOfFile(Data1);
+		ASSERT (Success);
+	}
+
+	if (Data2) {
+		Success = UnmapViewOfFile(Data2);
+		ASSERT (Success);
+	}
+
+	SafeClose(SectionHandle1);
+	SafeClose(SectionHandle2);
+	SafeClose(FileHandle1);
+	SafeClose(FileHandle2);
+
+	return Identical;
+}
+
+// NOTE: This function will return TRUE if Directory2 contains additional files that
+// are not in Directory1. Be careful.
+BOOLEAN KexSetupDirectoriesAreIdentical(
+	IN	PCWSTR	Directory1,
+	IN	PCWSTR	Directory2)
+{
+	BOOLEAN Identical;
+	WCHAR FindPath[MAX_PATH];
+	HANDLE FindHandle;
+	WIN32_FIND_DATA FindData;
+	ULONG NumberOfItemsInDirectory1;
+	ULONG NumberOfItemsInDirectory2;
+
+	Identical = FALSE;
+	FindHandle = NULL;
+	NumberOfItemsInDirectory1 = 0;
+	NumberOfItemsInDirectory2 = 0;
+
+	//
+	// Use FindFirstFile & co. to loop through the contents of the first
+	// directory.
+	//
+
+	StringCchCopy(FindPath, ARRAYSIZE(FindPath), Directory1);
+	PathCchAppend(FindPath, ARRAYSIZE(FindPath), L"*");
+
+	FindHandle = FindFirstFileTransacted(
+		FindPath,
+		FindExInfoBasic,
+		&FindData,
+		FindExSearchNameMatch,
+		NULL,
+		0,
+		KexSetupTransactionHandle);
+
+	ASSERT (FindHandle != INVALID_HANDLE_VALUE);
+
+	if (FindHandle == INVALID_HANDLE_VALUE) {
+		goto Exit;
+	}
+
+	do {
+		WCHAR ThisFile[MAX_PATH];	// file from Directory1
+		WCHAR OtherFile[MAX_PATH];	// file from Directory2
+
+		if ((FindData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) &&
+			(StringEqual(FindData.cFileName, L".") || StringEqual(FindData.cFileName, L".."))) {
+			continue;
+		}
+
+		++NumberOfItemsInDirectory1;
+
+		StringCchCopy(ThisFile, ARRAYSIZE(ThisFile), Directory1);
+		PathCchAppend(ThisFile, ARRAYSIZE(ThisFile), FindData.cFileName);
+		StringCchCopy(OtherFile, ARRAYSIZE(OtherFile), Directory2);
+		PathCchAppend(OtherFile, ARRAYSIZE(OtherFile), FindData.cFileName);
+
+		Identical = KexSetupFilesOrDirectoriesAreIdentical(ThisFile, OtherFile);
+
+		if (!Identical) {
+			goto Exit;
+		}
+
+		SetLastError(ERROR_SUCCESS);
+	} until (!FindNextFile(FindHandle, &FindData));
+
+	ASSERT (GetLastError() == ERROR_NO_MORE_FILES);
+
+	Identical = TRUE;
+
+Exit:
+	SafeFindClose(FindHandle);
+
+	return Identical;
+}
+
+// NOTE: This function will return TRUE if File2 is a directory which contains
+// additional files that are not in File1. Be careful.
+BOOLEAN KexSetupFilesOrDirectoriesAreIdentical(
+	IN	PCWSTR	File1,
+	IN	PCWSTR	File2)
+{
+	BOOLEAN Success;
+	BOOLEAN Identical;
+	WIN32_FILE_ATTRIBUTE_DATA AttributeData1;
+	WIN32_FILE_ATTRIBUTE_DATA AttributeData2;
+	BOOLEAN IsDirectory1;
+	BOOLEAN IsDirectory2;
+
+	Identical = FALSE;
+
+	//
+	// Figure out whether File1 and File2 are directories.
+	// Note: If either File1 or File2 does not exist, then
+	// GetFileAttributesTransacted will fail, and we'll correctly
+	// return FALSE.
+	//
+
+	Success = GetFileAttributesTransacted(
+		File1,
+		GetFileExInfoStandard,
+		&AttributeData1,
+		KexSetupTransactionHandle);
+
+	if (!Success) {
+		goto Exit;
+	}
+
+	Success = GetFileAttributesTransacted(
+		File2,
+		GetFileExInfoStandard,
+		&AttributeData2,
+		KexSetupTransactionHandle);
+
+	if (!Success) {
+		goto Exit;
+	}
+
+	IsDirectory1 = !!(AttributeData1.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
+	IsDirectory2 = !!(AttributeData2.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
+
+	//
+	// If both are files, we'll just call KexSetupFilesAreIdentical.
+	// If one is a file and one is a directory, we'll return FALSE.
+	// If both are directories, then we'll need to start recursing.
+	//
+
+	if (!IsDirectory1 && !IsDirectory2) {
+		if ((AttributeData1.nFileSizeLow != AttributeData2.nFileSizeLow) ||
+			(AttributeData1.nFileSizeHigh != AttributeData2.nFileSizeHigh)) {
+
+			// file sizes different, no need to call comparison function
+			goto Exit;
+		}
+
+		Identical = KexSetupFilesAreIdentical(File1, File2);
+		goto Exit;
+	}
+
+	if (IsDirectory1 != IsDirectory2) {
+		goto Exit;
+	}
+
+	ASSERT (IsDirectory1 && IsDirectory2);
+
+	Identical = KexSetupDirectoriesAreIdentical(File1, File2);
+
+Exit:
+	return Identical;
 }
 
 VOID KexSetupSupersedeFile(
@@ -276,16 +727,45 @@ VOID KexSetupSupersedeFile(
 {
 	BOOLEAN Success;
 
-	Success = SupersedeFile(SourceFile, TargetFile, KexSetupTransactionHandle);
+	Success = MoveFileTransacted(
+		SourceFile,
+		TargetFile,
+		NULL,
+		NULL,
+		MOVEFILE_REPLACE_EXISTING | MOVEFILE_COPY_ALLOWED,
+		KexSetupTransactionHandle);
 
 	if (!Success) {
-		ErrorBoxF(
-			L"Failed to move \"%s\" to \"%s\". %s",
-			SourceFile,
-			TargetFile,
-			GetLastErrorAsString());
+		if (KexSetupFilesOrDirectoriesAreIdentical(SourceFile, TargetFile)) {
+			// We couldn't move the files but it turns out that they're the same anyway.
+			
+			//
+			// Fix the ACLs in the files even though we don't have to change the file
+			// contents.
+			// Some beta builds were distributed which failed to set ACLs on dictionary
+			// files and ICU data files, etc. which means that applications would fail
+			// if they tried to use these files while running as non-admin.
+			//
 
-		RtlRaiseStatus(STATUS_KEXSETUP_FAILURE);
+			KexSetupApplyAclToFile(TargetFile);
+
+			return;
+		}
+
+		// The target file is likely in use.
+		// Call SupersedeFile, which renames the existing file and then
+		// uses MOVEFILE_DELAY_UNTIL_REBOOT to schedule deletion later.
+		Success = SupersedeFile(SourceFile, TargetFile, KexSetupTransactionHandle);
+
+		if (!Success) {
+			ErrorBoxF(
+				_(L"Failed to move \"%s\" to \"%s\". %s"),
+				SourceFile,
+				TargetFile,
+				GetLastErrorAsString());
+
+			RtlRaiseStatus(STATUS_KEXSETUP_FAILURE);
+		}
 	}
 
 	//
@@ -315,9 +795,9 @@ VOID KexSetupFormatPath(
 	va_end(ArgList);
 
 	if (FAILED(Result)) {
-		ErrorBoxF(
+		ErrorBoxF(_(
 			L"A path is too long. Ensure the folder you have chosen to install VxKex into "
-			L"is not nested too deeply.");
+			L"is not nested too deeply."));
 
 		RtlRaiseStatus(STATUS_KEXSETUP_FAILURE);
 	}
@@ -339,44 +819,41 @@ VOID KexSetupMoveFileSpecToDirectory(
 	StringCchCopy(SourceDirectoryPath, ARRAYSIZE(SourceDirectoryPath), FileSpec);
 	PathCchRemoveFileSpec(SourceDirectoryPath, ARRAYSIZE(SourceDirectoryPath));
 
-	FindHandle = FindFirstFileEx(
+	FindHandle = FindFirstFileTransacted(
 		FileSpec,
 		FindExInfoBasic,
 		&FindData,
 		FindExSearchNameMatch,
 		NULL,
-		0);
+		0,
+		KexSetupTransactionHandle);
 
 	if (FindHandle == INVALID_HANDLE_VALUE) {
-		ErrorBoxF(L"VxKex setup files could not be found. %s", GetLastErrorAsString());
+		ErrorBoxF(
+			_(L"VxKex setup files could not be found. %s"),
+			GetLastErrorAsString());
+
 		RtlRaiseStatus(STATUS_KEXSETUP_FAILURE);
 	}
 
-	SetLastError(ERROR_SUCCESS);
-
 	do {
-		// Check if the FindNextFile at the end of the loop reported some kind of error.
-		if (GetLastError() != ERROR_SUCCESS) {
-			ErrorBoxF(L"Failed to move VxKex files. %s", GetLastErrorAsString());
-			RtlRaiseStatus(STATUS_KEXSETUP_FAILURE);
-		}
-
-		if (FindData.cFileName[0] == '.') {
-			if (FindData.cFileName[1] == '\0') {
-				continue;
-			} else if (FindData.cFileName[1] == '.') {
-				if (FindData.cFileName[2] == '\0') {
-					continue;
-				}
-			}
+		if (StringEqual(FindData.cFileName, L".") || StringEqual(FindData.cFileName, L"..")) {
+			continue;
 		}
 
 		KexSetupFormatPath(SourcePath, L"%s\\%s", SourceDirectoryPath, FindData.cFileName);
 		KexSetupFormatPath(TargetPath, L"%s\\%s", TargetDirectoryPath, FindData.cFileName);
 		KexSetupSupersedeFile(SourcePath, TargetPath);
-		
-		SetLastError(ERROR_SUCCESS);
-	} until (!FindNextFile(FindHandle, &FindData) && GetLastError() == ERROR_NO_MORE_FILES);
+	} until (!FindNextFile(FindHandle, &FindData));
+
+	ASSERT (GetLastError() == ERROR_NO_MORE_FILES);
+
+	if (GetLastError() != ERROR_NO_MORE_FILES) {
+		ErrorBoxF(_(L"Failed to move VxKex files. %s"), GetLastErrorAsString());
+		RtlRaiseStatus(STATUS_KEXSETUP_FAILURE);
+	}
+
+	SafeFindClose(FindHandle);
 }
 
 VOID KexSetupCreateDirectory(
@@ -386,13 +863,22 @@ VOID KexSetupCreateDirectory(
 
 	ASSERT (DirectoryPath != NULL);
 
-	Success = CreateDirectory(DirectoryPath, NULL);
+	Success = CreateDirectoryTransacted(
+		NULL,
+		DirectoryPath,
+		NULL,
+		KexSetupTransactionHandle);
+
 	if (!Success) {
 		if (GetLastError() == ERROR_ALREADY_EXISTS) {
 			return;
 		}
 
-		ErrorBoxF(L"Failed to create directory: \"%s\". %s", DirectoryPath, GetLastErrorAsString());
+		ErrorBoxF(
+			_(L"Failed to create directory: \"%s\". %s"),
+			DirectoryPath,
+			GetLastErrorAsString());
+
 		RtlRaiseStatus(STATUS_KEXSETUP_FAILURE);
 	}
 }
@@ -402,14 +888,25 @@ BOOLEAN KexSetupDeleteFile(
 {
 	BOOLEAN Success;
 
-	Success = DeleteFile(FilePath);
-	
+	Success = DeleteFileTransacted(FilePath, KexSetupTransactionHandle);
+
 	if (!Success) {
 		ULONG RandomIdentifier;
 		WCHAR NewFileName[MAX_PATH];
 
 		//
 		// Failed to delete the file.
+		// See if we've already tried to delete this file before (has .old_* extension).
+		// If so, then we won't try to rename+delete it again, because that
+		// can cause the .old_XXXX extensions to accumulate and slows down the
+		// installer if you re-install many times in a row (e.g. for development).
+		//
+
+		if (StringSearchI(FilePath, L".old_")) {
+			return FALSE;
+		}
+
+		//
 		// Try to rename the file to something else and then schedule its deletion.
 		//
 
@@ -420,12 +917,17 @@ BOOLEAN KexSetupDeleteFile(
 			ARRAYSIZE(NewFileName),
 			L"%s.old_%04u", FilePath, RandomIdentifier);
 
-		Success = MoveFile(FilePath, NewFileName);
+		Success = MoveFileTransacted(
+			FilePath,
+			NewFileName,
+			NULL,
+			NULL,
+			0,
+			KexSetupTransactionHandle);
+
 		if (Success) {
 			FilePath = NewFileName;
 		}
-
-		RtlSetCurrentTransaction(NULL);
 
 		Success = MoveFileTransacted(
 			FilePath,
@@ -434,8 +936,6 @@ BOOLEAN KexSetupDeleteFile(
 			NULL,
 			MOVEFILE_DELAY_UNTIL_REBOOT,
 			KexSetupTransactionHandle);
-
-		RtlSetCurrentTransaction(KexSetupTransactionHandle);
 
 		if (!Success) {
 			return FALSE;
@@ -461,13 +961,14 @@ BOOLEAN KexSetupRemoveDirectoryRecursive(
 	StringCchCopy(DirectoryPathSpec, DirectoryPathSpecCch, DirectoryPath);
 	PathCchAppend(DirectoryPathSpec, DirectoryPathSpecCch, L"*");
 
-	FindHandle = FindFirstFileEx(
+	FindHandle = FindFirstFileTransacted(
 		DirectoryPathSpec,
 		FindExInfoBasic,
 		&FindData,
 		FindExSearchNameMatch,
 		NULL,
-		FIND_FIRST_EX_LARGE_FETCH);
+		0,
+		KexSetupTransactionHandle);
 
 	if (FindHandle == INVALID_HANDLE_VALUE) {
 		return FALSE;
@@ -476,18 +977,11 @@ BOOLEAN KexSetupRemoveDirectoryRecursive(
 	do {
 		WCHAR FileFullPath[MAX_PATH];
 
-		// skip . and .. directories
-		if (FindData.cFileName[0] == '.') {
-			if (FindData.cFileName[1] == '.') {
-				if (FindData.cFileName[2] == '\0') {
-					continue;
-				}
-			} else if (FindData.cFileName[1] == '\0') {
-				continue;
-			}
+		if (StringEqual(FindData.cFileName, L".") || StringEqual(FindData.cFileName, L"..")) {
+			continue;
 		}
 
-		if (FindData.dwFileAttributes == FILE_ATTRIBUTE_SYSTEM) {
+		if (FindData.dwFileAttributes & FILE_ATTRIBUTE_SYSTEM) {
 			// Better not delete this.
 			continue;
 		}
@@ -495,18 +989,21 @@ BOOLEAN KexSetupRemoveDirectoryRecursive(
 		StringCchCopy(FileFullPath, ARRAYSIZE(FileFullPath), DirectoryPath);
 		PathCchAppend(FileFullPath, ARRAYSIZE(FileFullPath), FindData.cFileName);
 
-		if (FindData.dwFileAttributes == FILE_ATTRIBUTE_DIRECTORY) {
+		if (FindData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
 			// Recurse into directory.
 			KexSetupRemoveDirectoryRecursive(FileFullPath);
-			continue;
+		} else {
+			// Normal file - delete it
+			KexSetupDeleteFile(FileFullPath);
 		}
+	} until (!FindNextFile(FindHandle, &FindData));
 
-		// Normal file - delete it
-		KexSetupDeleteFile(FileFullPath);
-	} until (!FindNextFile(FindHandle, &FindData) && GetLastError() == ERROR_NO_MORE_FILES);
+	ASSERT (GetLastError() == ERROR_NO_MORE_FILES);
+
+	SafeFindClose(FindHandle);
 
 	// Remove the directory itself, which should now hopefully be empty.
-	return RemoveDirectory(DirectoryPath);
+	return RemoveDirectoryTransacted(DirectoryPath, KexSetupTransactionHandle);
 }
 
 BOOLEAN KexSetupDeleteFilesBySpec(
@@ -516,13 +1013,14 @@ BOOLEAN KexSetupDeleteFilesBySpec(
 	WIN32_FIND_DATA FindData;
 	BOOLEAN Success;
 
-	FindHandle = FindFirstFileEx(
+	FindHandle = FindFirstFileTransacted(
 		FileSpec,
 		FindExInfoBasic,
 		&FindData,
 		FindExSearchNameMatch,
 		NULL,
-		FIND_FIRST_EX_LARGE_FETCH);
+		0,
+		KexSetupTransactionHandle);
 
 	if (FindHandle == INVALID_HANDLE_VALUE) {
 		return FALSE;
@@ -533,20 +1031,13 @@ BOOLEAN KexSetupDeleteFilesBySpec(
 	do {
 		WCHAR FileFullPath[MAX_PATH];
 
-		// skip . and .. directories
-		if (FindData.cFileName[0] == '.') {
-			if (FindData.cFileName[1] == '.') {
-				if (FindData.cFileName[2] == '\0') {
-					continue;
-				}
-			} else if (FindData.cFileName[1] == '\0') {
-				continue;
-			}
-		}
-
-		if (FindData.dwFileAttributes == FILE_ATTRIBUTE_SYSTEM) {
+		if (FindData.dwFileAttributes & FILE_ATTRIBUTE_SYSTEM) {
 			// Better not delete this.
 			Success = FALSE;
+			continue;
+		}
+
+		if (FindData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
 			continue;
 		}
 
@@ -554,13 +1045,40 @@ BOOLEAN KexSetupDeleteFilesBySpec(
 		PathCchRemoveFileSpec(FileFullPath, ARRAYSIZE(FileFullPath));
 		PathCchAppend(FileFullPath, ARRAYSIZE(FileFullPath), FindData.cFileName);
 
-		if (FindData.dwFileAttributes == FILE_ATTRIBUTE_DIRECTORY) {
-			continue;
-		}
-
 		// Normal file - delete it
 		Success &= KexSetupDeleteFile(FileFullPath);
-	} until (!FindNextFile(FindHandle, &FindData) && GetLastError() == ERROR_NO_MORE_FILES);
+	} until (!FindNextFile(FindHandle, &FindData));
 
+	ASSERT (GetLastError() == ERROR_NO_MORE_FILES);
+
+	SafeFindClose(FindHandle);
 	return Success;
+}
+
+//
+// In version 1.1.6.x we changed logging to be disabled by default in new
+// installations. As part of this change we changed the DisableLogging registry
+// value to EnableLogging. This registry value exists in the VxKex system and
+// user configuration keys
+//
+// We will read the DisableLogging value, invert it, and set EnableLogging as
+// appropriate.
+//
+// If there's no DisableLogging value, we won't do anything. This means that
+// users who never changed the logging setting will receive the new default,
+// but users who have gone into KexCfg to change logging settings will keep
+// their existing settings as expected.
+//
+VOID KexSetupChangeDisableLoggingToEnableLogging(
+	IN	HKEY	KeyHandle)
+{
+	ULONG Win32Error;
+	ULONG DisableLogging;
+
+	Win32Error = RegReadI32(KeyHandle, NULL, L"DisableLogging", &DisableLogging);
+
+	if (Win32Error == ERROR_SUCCESS) {
+		RegDeleteValue(KeyHandle, L"DisableLogging");
+		KexSetupRegWriteI32(KeyHandle, L"EnableLogging", !DisableLogging);
+	}
 }

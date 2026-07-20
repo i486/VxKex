@@ -15,6 +15,7 @@
 // Revision History:
 //
 //     vxiiduu              07-Nov-2022  Initial creation.
+//     vxiiduu              04-May-2026  Add BaseIsConsoleAnsiSupportEnabled
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -26,6 +27,16 @@
 
 EXTERN PKEX_PROCESS_DATA KexData;
 EXTERN HANDLE KsecDD;
+
+GEN_STD_TYPEDEFS(DYNAMIC_TIME_ZONE_INFORMATION);
+
+typedef struct _REG_TZI_FORMAT {
+	LONG		Bias;
+	LONG		StandardBias;
+	LONG		DaylightBias;
+	SYSTEMTIME	StandardDate;
+	SYSTEMTIME	DaylightDate;
+} TYPEDEF_TYPE_NAME(REG_TZI_FORMAT);
 
 //
 // module.c
@@ -99,6 +110,77 @@ HANDLE WINAPI BaseGetUntrustedNamedObjectDirectory(
 
 PVOID BaseGetBaseDllHandle(
 	VOID);
+
+//
+// conansi.c
+//
+
+BOOLEAN BaseIsConsoleAnsiSupportEnabled(
+	IN	HANDLE	ConsoleHandle);
+
+BOOLEAN BaseEnableConsoleAnsiSupport(
+	IN	HANDLE	ConsoleHandle);
+
+BOOLEAN BaseDisableConsoleAnsiSupport(
+	IN	HANDLE	ConsoleHandle);
+
+BOOL WriteConsoleWithEscapeSequencesAorW(
+	IN	HANDLE	ConsoleHandle,
+	IN	PCVOID	Buffer,
+	IN	ULONG	CchToWrite,
+	OUT	PULONG	CchWrittenOut OPTIONAL,
+	IN	PVOID	Reserved OPTIONAL,
+	IN	BOOLEAN	Unicode);
+
+//
+// consup.c
+//
+
+BOOLEAN VTGetCursorPosition(
+	IN	HANDLE	ConsoleHandle,
+	OUT	PCOORD	Position);
+
+BOOLEAN VTSetCursorPosition(
+	IN	HANDLE	ConsoleHandle,
+	IN	COORD	AbsolutePosition);
+
+BOOLEAN VTSetCursorHorizontalPosition(
+	IN	HANDLE	ConsoleHandle,
+	IN	SHORT	HorizontalPosition);
+
+BOOLEAN VTSetCursorVerticalPosition(
+	IN	HANDLE	ConsoleHandle,
+	IN	SHORT	VerticalPosition);
+
+BOOLEAN VTMoveCursorRelative(
+	IN	HANDLE	ConsoleHandle,
+	IN	COORD	RelativeMovement);
+
+BOOLEAN VTMoveCursorVerticalRelativeWithHorizontalReset(
+	IN	HANDLE	ConsoleHandle,
+	IN	SHORT	RelativeMovement);
+
+BOOLEAN GetConsoleTextAttribute(
+	IN	HANDLE	ConsoleHandle,
+	OUT	PWORD	Attribute);
+
+BOOLEAN InjectStringToConsoleInput(
+	IN	HANDLE	ConsoleHandle,
+	IN	PCWSTR	String);
+
+BOOL WriteConsoleAorW(
+	IN	HANDLE	ConsoleHandle,
+	IN	PCVOID	Buffer,
+	IN	ULONG	CchToWrite,
+	OUT	PULONG	CchWritten OPTIONAL,
+	IN	PVOID	Reserved OPTIONAL,
+	IN	BOOLEAN	Unicode);
+
+BOOLEAN IsConsoleOutputHandle(
+	IN	HANDLE	Handle);
+
+BOOLEAN IsConsoleInputHandle(
+	IN	HANDLE	Handle);
 
 //
 // dllpath.c

@@ -51,6 +51,12 @@
     <ClCompile Include="dskclnup.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="kxschanl.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="preserve.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\00-Common Headers\KxCfgHlp.h">

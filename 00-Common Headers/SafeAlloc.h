@@ -33,6 +33,8 @@
 //     vxiiduu               12-Nov-2022  Add *Seh variants
 //     vxiiduu               20-Nov-2022  Add SafeClose
 //     vxiiduu               19-Feb-2024  Add SafeRelease
+//     vxiiduu               21-Jun-2026  Make StackAlloc fill new allocations
+//                                        with a byte pattern in debug builds
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -71,18 +73,29 @@
 // _alloca() is a compiler intrinsic.
 //
 
-#ifndef __cplusplus
 PVOID CDECL _alloca(
 	IN	SIZE_T NumberOfBytes);
-#endif
 
-#define StackAlloc(Type, NumberOfElements) ((Type *) _alloca(sizeof(Type) * (NumberOfElements)))
+FORCEINLINE PVOID StackAllocDebugHelper(
+	OUT	PVOID	StackAllocation,
+	IN	SIZE_T	Size)
+{
+	// 0x5A = SA = StackAlloc fill pattern for debugging uninitialized memory.
+	__stosb((PUCHAR) StackAllocation, 0x5A, Size);
+	return StackAllocation;
+}
+
+#ifdef _DEBUG
+#  define StackAlloc(Type, NumberOfElements) ((Type *) StackAllocDebugHelper(_alloca(sizeof(Type) * (NumberOfElements)), sizeof(Type) * (NumberOfElements)))
+#else
+#  define StackAlloc(Type, NumberOfElements) ((Type *) _alloca(sizeof(Type) * (NumberOfElements)))
+#endif
 
 //
 // SafeClose is for handles.
 //
 
-#define SafeClose(Handle) do { if (Handle) { NTSTATUS SafeCloseStatus = NtClose(Handle); ASSERT (NT_SUCCESS(SafeCloseStatus)); (Handle) = NULL; } } while(0)
+#define SafeClose(Handle) do { if ((Handle) != NULL && (Handle) != INVALID_HANDLE_VALUE) { NTSTATUS SafeCloseStatus = NtClose(Handle); ASSERT (NT_SUCCESS(SafeCloseStatus)); (Handle) = NULL; } } while(0)
 
 //
 // SafeRelease is for COM interfaces.

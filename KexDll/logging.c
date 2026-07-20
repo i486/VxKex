@@ -19,6 +19,7 @@
 // Revision History:
 //
 //     vxiiduu              23-Feb-2024  Initial creation.
+//     vxiiduu              30-Apr-2026  Change logging to disabled by default
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -41,7 +42,7 @@ NTSTATUS KexOpenVxlLogForCurrentApplication(
 	ASSERT (KexData != NULL);
 	ASSERT (KexData->LogHandle == NULL);
 
-	if (KexData->Flags & KEXDATA_FLAG_DISABLE_LOGGING) {
+	if (!(KexData->Flags & KEXDATA_FLAG_ENABLE_LOGGING)) {
 		// Don't open a log file.
 		*LogHandle = NULL;
 		return STATUS_USER_DISABLED;

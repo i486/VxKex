@@ -18,7 +18,10 @@
 #define IDC_NEWAPP					121
 #define IDC_REMOVEAPPS				122
 #define IDC_PROPERTIES				123
+#define IDC_CLEANAPPS				124
 
+#define IDC_GB_LOGGING				130
+#define IDC_GB_INTEGRATION			131
 
 #define IDM_LISTVIEWITEMMENU		200
 #define M_OPENFILELOCATION			201
@@ -28,9 +31,14 @@
 
 #define IDM_LISTVIEWBLANKSPACEMENU	210
 #define M_ADDPROGRAM				211
+#define M_CLEANPROGRAMS				212
 
 #define IDM_LISTVIEWMULTIITEMMENU	220
 
+#define IDA_ACCELERATORS			300
+#define M_SELECTALL					301
+#define M_EXIT						302
+#define M_DELETE					303
 
 #define IDC_APPLY					190
 #define IDC_OK						191

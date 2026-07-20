@@ -10,7 +10,9 @@
 //
 //     A string mapper is a data structure that lets you map one string to
 //     another. In VxKex it is used as part of the mechanism that rewrites
-//     the import directory of an image file.
+//     the import directory of an image file, and also as part of the MLS
+//     (multi-language support) component to translate strings from English to
+//     other languages.
 //
 // Author:
 //
@@ -26,6 +28,7 @@
 //     vxiiduu              21-Oct-2022  Initial creation.
 //     vxiiduu              16-Mar-2024  Remove erroneous OPTIONAL qualifier on
 //                                       the 2nd argument to InsertEntry.
+//     vxiiduu              07-Jul-2026  Fix heap corruption in SmpDeleteStringMapper.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -102,14 +105,30 @@ SMPAPI NTSTATUS NTAPI SmpDeleteStringMapper(
 
 	//
 	// Enumerate entries in the hash table and free all the memory.
+	// Note that we can't just free the entry directly; we first have to
+	// remove it from the hash table or otherwise heap corruption will occur.
 	//
 
 	RtlInitEnumerationHashTable(&Mapper->HashTable, &Enumerator);
 
-	do {
+	while (TRUE) {
+		BOOLEAN Success;
+
 		Entry = RtlEnumerateEntryHashTable(&Mapper->HashTable, &Enumerator);
-		RtlFreeHeap(RtlProcessHeap(), 0, Entry);
-	} until (Entry == NULL);
+
+		if (!Entry) {
+			break;
+		}
+		
+		Success = RtlRemoveEntryHashTable(&Mapper->HashTable, Entry, NULL);
+		ASSERT (Success);
+
+		if (!Success) {
+			continue;
+		}
+
+		SafeFree(Entry);
+	}
 
 	RtlEndEnumerationHashTable(&Mapper->HashTable, &Enumerator);
 

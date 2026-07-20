@@ -28,6 +28,7 @@
 //     vxiiduu              06-Nov-2022  KEXDLL init failure message now works
 //                                       even if KexSrv is not running.
 //     vxiiduu              05-Jan-2023  Convert to user friendly NTSTATUS.
+//     vxiiduu              23-Jun-2026  Add MLS to KexDll message boxes.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -192,6 +193,6 @@ VOID KexMessageBoxF(
 NORETURN VOID KexHeErrorBox(
 	IN	PCWSTR	ErrorMessage)
 {
-	KexMessageBox(MB_ICONERROR, L"Application Error (VxKex)", ErrorMessage);
+	KexMessageBox(MB_ICONERROR, _(L"Application Error (VxKex)"), ErrorMessage);
 	NtTerminateProcess(NtCurrentProcess(), STATUS_KEXDLL_INITIALIZATION_FAILURE);
 }

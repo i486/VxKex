@@ -15,13 +15,14 @@
 // Revision History:
 //
 //     vxiiduu               07-Nov-2022  Initial creation.
+//     vxiiduu               05-Jul-2026  Remove AlertByThreadId functions
 //
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "buildcfg.h"
 #include "kexdllp.h"
 
-NTSTATUS NTAPI Ext_NtQueryInformationThread(
+KEXAPI NTSTATUS NTAPI Ext_NtQueryInformationThread(
 	IN	HANDLE				ThreadHandle,
 	IN	THREADINFOCLASS		ThreadInformationClass,
 	OUT	PVOID				ThreadInformation,
@@ -79,7 +80,7 @@ NTSTATUS NTAPI Ext_NtQueryInformationThread(
 		ReturnLength);
 } PROTECTED_FUNCTION_END
 
-NTSTATUS NTAPI Ext_NtSetInformationThread(
+KEXAPI NTSTATUS NTAPI Ext_NtSetInformationThread(
 	IN	HANDLE				ThreadHandle,
 	IN	THREADINFOCLASS		ThreadInformationClass,
 	IN	PVOID				ThreadInformation,
@@ -94,19 +95,4 @@ NTSTATUS NTAPI Ext_NtSetInformationThread(
 		ThreadInformationClass,
 		ThreadInformation,
 		ThreadInformationLength);
-} PROTECTED_FUNCTION_END
-
-NTSTATUS NTAPI NtAlertThreadByThreadId(
-	IN	HANDLE	UniqueThread) PROTECTED_FUNCTION
-{
-	// TODO
-	return STATUS_NOT_IMPLEMENTED;
-} PROTECTED_FUNCTION_END
-
-NTSTATUS NTAPI NtWaitForAlertByThreadId(
-	IN	PVOID		Hint,
-	IN	PLONGLONG	Timeout) PROTECTED_FUNCTION
-{
-	// TODO
-	return STATUS_NOT_IMPLEMENTED;
 } PROTECTED_FUNCTION_END

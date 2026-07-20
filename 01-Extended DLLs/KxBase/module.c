@@ -27,6 +27,11 @@
 //     vxiiduu              13-Mar-2024    Move most of the code here to kexldr.
 //     vxiiduu              13-May-2025    Make Chromium compat code respect the
 //                                         IfeoParameters->DisableAppSpecific value.
+//     vxiiduu              02-May-2026    The KexLdrShouldRewriteDll flag is now
+//                                         cleared inside KexLdrLoadDll. Remove code
+//                                         from KxBase which clears the flag.
+//     vxiiduu              02-May-2026    Move Ext_GetProcAddress to here.
+//                                         Hide VirtualAlloc2 from apps by default.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -36,54 +41,23 @@
 #include <Shlwapi.h>
 
 //
-// These two utility functions make use of an unused field in the TEB.
-// Their purpose is to set KexLdrShouldRewriteDll to 1 whenever
-// Ext_GetModuleHandle(Ex)(A/W) or Ext_LoadLibrary(Ex)(A/W) is present in
-// the call stack.
+// The TebExtension->KexLdrShouldRewriteDll flag tells KexDll that an Ext_* module
+// function was called. It causes KexDll to rewrite the DLL names which the Ext_*
+// module functions have received.
 //
-// When this happens, it means that an EXE or DLL outside of WinDir and KexDir
-// has called GetModuleHandle or LoadLibrary. It signals to Ext_LdrLoadDll
-// and Ext_LdrGetDllHandle so that they can avoid rewriting imports when it
-// isn't desired.
+// KexDll functions are responsible for clearing the flag.
 //
-
-STATIC INLINE VOID InterceptedKernelBaseLoaderCallEntry(
-	OUT	PBOOLEAN	ReEntrant)
-{
-	PTEB Teb;
-
-	Teb = NtCurrentTeb();
-	*ReEntrant = Teb->KexLdrShouldRewriteDll;
-	Teb->KexLdrShouldRewriteDll = TRUE;
-}
-
-STATIC INLINE VOID InterceptedKernelBaseLoaderCallReturn(
-	IN	BOOLEAN		ReEntrant)
-{
-	if (!ReEntrant) {
-		NtCurrentTeb()->KexLdrShouldRewriteDll = FALSE;
-	}
-}
 
 KXBASEAPI HMODULE WINAPI Ext_GetModuleHandleA(
 	IN	PCSTR	ModuleName)
 {
-	HMODULE ModuleHandle;
-	BOOLEAN ReEntrant;
-	
-	InterceptedKernelBaseLoaderCallEntry(&ReEntrant);
-	ModuleHandle = GetModuleHandleA(ModuleName);
-	InterceptedKernelBaseLoaderCallReturn(ReEntrant);
-
-	return ModuleHandle;
+	KexCurrentTebExtension()->KexLdrShouldRewriteDll = TRUE;
+	return GetModuleHandleA(ModuleName);
 }
 
 KXBASEAPI HMODULE WINAPI Ext_GetModuleHandleW(
 	IN	PCWSTR	ModuleName)
 {
-	HMODULE ModuleHandle;
-	BOOLEAN ReEntrant;
-
 	//
 	// APPSPECIFICHACK: Chromium-based software uses a bootleg knockoff version of
 	// GetProcAddress that fails miserably and crashes the whole app when we rewrite
@@ -102,11 +76,8 @@ KXBASEAPI HMODULE WINAPI Ext_GetModuleHandleW(
 		}
 	}
 
-	InterceptedKernelBaseLoaderCallEntry(&ReEntrant);
-	ModuleHandle = GetModuleHandleW(ModuleName);
-	InterceptedKernelBaseLoaderCallReturn(ReEntrant);
-
-	return ModuleHandle;
+	KexCurrentTebExtension()->KexLdrShouldRewriteDll = TRUE;
+	return GetModuleHandleW(ModuleName);
 }
 
 KXBASEAPI BOOL WINAPI Ext_GetModuleHandleExA(
@@ -114,14 +85,8 @@ KXBASEAPI BOOL WINAPI Ext_GetModuleHandleExA(
 	IN	PCSTR	ModuleName,
 	OUT	HMODULE	*ModuleHandleOut)
 {
-	BOOL Success;
-	BOOLEAN ReEntrant;
-
-	InterceptedKernelBaseLoaderCallEntry(&ReEntrant);
-	Success = GetModuleHandleExA(Flags, ModuleName, ModuleHandleOut);
-	InterceptedKernelBaseLoaderCallReturn(ReEntrant);
-
-	return Success;
+	KexCurrentTebExtension()->KexLdrShouldRewriteDll = TRUE;
+	return GetModuleHandleExA(Flags, ModuleName, ModuleHandleOut);
 }
 
 KXBASEAPI BOOL WINAPI Ext_GetModuleHandleExW(
@@ -129,40 +94,22 @@ KXBASEAPI BOOL WINAPI Ext_GetModuleHandleExW(
 	IN	PCWSTR	ModuleName,
 	OUT	HMODULE	*ModuleHandleOut)
 {
-	BOOL Success;
-	BOOLEAN ReEntrant;
-
-	InterceptedKernelBaseLoaderCallEntry(&ReEntrant);
-	Success = GetModuleHandleExW(Flags, ModuleName, ModuleHandleOut);
-	InterceptedKernelBaseLoaderCallReturn(ReEntrant);
-
-	return Success;
+	KexCurrentTebExtension()->KexLdrShouldRewriteDll = TRUE;
+	return GetModuleHandleExW(Flags, ModuleName, ModuleHandleOut);
 }
 
 KXBASEAPI HMODULE WINAPI Ext_LoadLibraryA(
 	IN	PCSTR	FileName)
 {
-	HMODULE ModuleHandle;
-	BOOLEAN ReEntrant;
-
-	InterceptedKernelBaseLoaderCallEntry(&ReEntrant);
-	ModuleHandle = LoadLibraryA(FileName);
-	InterceptedKernelBaseLoaderCallReturn(ReEntrant);
-
-	return ModuleHandle;
+	KexCurrentTebExtension()->KexLdrShouldRewriteDll = TRUE;
+	return LoadLibraryA(FileName);
 }
 
 KXBASEAPI HMODULE WINAPI Ext_LoadLibraryW(
 	IN	PCWSTR	FileName)
 {
-	HMODULE ModuleHandle;
-	BOOLEAN ReEntrant;
-
-	InterceptedKernelBaseLoaderCallEntry(&ReEntrant);
-	ModuleHandle = LoadLibraryW(FileName);
-	InterceptedKernelBaseLoaderCallReturn(ReEntrant);
-
-	return ModuleHandle;
+	KexCurrentTebExtension()->KexLdrShouldRewriteDll = TRUE;
+	return LoadLibraryW(FileName);
 }
 
 KXBASEAPI HMODULE WINAPI Ext_LoadLibraryExA(
@@ -170,14 +117,8 @@ KXBASEAPI HMODULE WINAPI Ext_LoadLibraryExA(
 	IN	HANDLE	FileHandle,
 	IN	ULONG	Flags)
 {
-	HMODULE ModuleHandle;
-	BOOLEAN ReEntrant;
-
-	InterceptedKernelBaseLoaderCallEntry(&ReEntrant);
-	ModuleHandle = LoadLibraryExA(FileName, FileHandle, Flags);
-	InterceptedKernelBaseLoaderCallReturn(ReEntrant);
-
-	return ModuleHandle;
+	KexCurrentTebExtension()->KexLdrShouldRewriteDll = TRUE;
+	return LoadLibraryExA(FileName, FileHandle, Flags);
 }
 
 KXBASEAPI HMODULE WINAPI Ext_LoadLibraryExW(
@@ -185,14 +126,33 @@ KXBASEAPI HMODULE WINAPI Ext_LoadLibraryExW(
 	IN	HANDLE	FileHandle,
 	IN	ULONG	Flags)
 {
-	HMODULE ModuleHandle;
-	BOOLEAN ReEntrant;
+	KexCurrentTebExtension()->KexLdrShouldRewriteDll = TRUE;
+	return LoadLibraryExW(FileName, FileHandle, Flags);
+}
 
-	InterceptedKernelBaseLoaderCallEntry(&ReEntrant);
-	ModuleHandle = LoadLibraryExW(FileName, FileHandle, Flags);
-	InterceptedKernelBaseLoaderCallReturn(ReEntrant);
+// Note: A stubbed or extended GetProcAddress is required for Themida to function.
+// Do not remove this.
+KXBASEAPI FARPROC WINAPI Ext_GetProcAddress(
+	IN	HMODULE	ModuleHandle,
+	IN	PCSTR	ProcedureName)
+{
+	//
+	// Hide VirtualAlloc2 from code which uses dynamic linking.
+	// Most apps which want VirtualAlloc2 want to use the placeholder API
+	// and if they find both VirtualAlloc and MapViewOfFile3 then they will
+	// attempt to use placeholders which are not supported in VxKex.
+	//
+	// Examples of apps that do this: Chromium, .NET runtime.
+	//
 
-	return ModuleHandle;
+	if ((ULONG_PTR) ProcedureName > 0xFFFF &&
+		StringEqualIA(ProcedureName, "VirtualAlloc2")) {
+
+		KexLogInformationEvent(L"VirtualAlloc2 hidden from application");
+		return NULL;
+	}
+
+	return GetProcAddress(ModuleHandle, ProcedureName);
 }
 
 KXBASEAPI HMODULE WINAPI LoadPackagedLibrary(

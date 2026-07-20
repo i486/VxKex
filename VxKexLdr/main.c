@@ -51,9 +51,9 @@ VOID EntryPoint(
 	ASSERT (NT_SUCCESS(Status));
 
 	if (!NT_SUCCESS(Status)) {
-		CriticalErrorBoxF(
+		CriticalErrorBoxF(_(
 			L"Propagation could not be initialized.\r\n"
-			L"NTSTATUS error code: %s",
+			L"NTSTATUS error code: %s"),
 			KexRtlNtStatusToString(Status));
 
 		NOT_REACHED;
@@ -111,7 +111,7 @@ VOID EntryPoint(
 			if (*CommandLine != '"') {
 				// Expected matching quote, but reached end of string.
 				// Malformed command line without an end quote.
-				CriticalErrorBoxF(L"Malformed command line. A closing quote must be supplied.");
+				CriticalErrorBoxF(_(L"Malformed command line. A closing quote must be supplied."));
 				NOT_REACHED;
 			}
 		}

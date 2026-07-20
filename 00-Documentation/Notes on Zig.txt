@@ -1,0 +1,18 @@
+Zig requires NtWaitForAlertByThreadId and NtAlertThreadByThreadId to start.
+These are not a big deal to implement fully.
+
+However, it also assumes that NT syscalls are capable of receiving console
+handles. This is not true on Windows 7 (only on Windows 8 and above). We can
+assume that Zig calls NT syscalls with console handles all over the place:
+NtReadFile, NtWriteFile, and worst of all, NtClose. This results in Zig not
+producing any console output since the read and write calls are failing.
+
+I've judged the effort to support Zig is not worth the effort, mostly because
+it is not generally possible to disambiguate between a console handle and a
+valid file handle with both handle tag bits set to 1. Any solution which
+relies on detecting console handles by tag bits may therefore degrade
+correctness of the NtWriteFile/NtReadFile API, which isn't really acceptable
+because user data could theoretically be lost.
+
+As such, we will not export or implement NtWaitForAlertByThreadId and
+NtAlertThreadByThreadId until we find another app that needs them.

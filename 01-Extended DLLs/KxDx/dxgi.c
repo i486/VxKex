@@ -2,8 +2,8 @@
 #include "kxdxp.h"
 #include <dxgi.h>
 
-HRESULT (STDMETHODCALLTYPE *IDXGIFactory2_QueryInterface)(IDXGIFactory2 *, REFIID, PPVOID);
-HRESULT (STDMETHODCALLTYPE *IDXGIAdapter1_QueryInterface)(IDXGIAdapter1 *, REFIID, PPVOID);
+HRESULT (STDMETHODCALLTYPE *IDXGIFactory2_OriginalQueryInterface)(IDXGIFactory2 *, REFIID, PPVOID);
+HRESULT (STDMETHODCALLTYPE *IDXGIAdapter1_OriginalQueryInterface)(IDXGIAdapter1 *, REFIID, PPVOID);
 
 HRESULT STDMETHODCALLTYPE IDXGIAdapter4_QueryInterface(
 	IN	IDXGIAdapter4	*This,
@@ -25,7 +25,7 @@ HRESULT STDMETHODCALLTYPE IDXGIAdapter4_QueryInterface(
 		return S_OK;
 	}
 
-	Result = IDXGIAdapter1_QueryInterface(
+	Result = IDXGIAdapter1_OriginalQueryInterface(
 		(IDXGIAdapter1 *) This,
 		RefIID,
 		Object);
@@ -56,7 +56,7 @@ HRESULT STDMETHODCALLTYPE IDXGIAdapter3_RegisterHardwareContentProtectionTeardow
 	IN	HANDLE			Event,
 	OUT	PULONG			Cookie)
 {
-	KexLogWarningEvent(L"Unimplemented function RegisterHardwareContentProtectionTeardownStatusEvent called");
+	KexLogUnimplementedFunctionEvent();
 	return E_NOTIMPL;
 }
 
@@ -64,7 +64,7 @@ HRESULT STDMETHODCALLTYPE IDXGIAdapter3_UnregisterHardwareContentProtectionTeard
 	IN	IDXGIAdapter3	*This,
 	IN	ULONG			Cookie)
 {
-	KexLogWarningEvent(L"Unimplemented function UnregisterHardwareContentProtectionTeardownStatus called");
+	KexLogUnimplementedFunctionEvent();
 	return E_NOTIMPL;
 }
 
@@ -76,7 +76,7 @@ HRESULT STDMETHODCALLTYPE IDXGIAdapter3_QueryVideoMemoryInfo(
 {
 	ASSERT (VideoMemoryInfo != NULL);
 
-	KexLogWarningEvent(L"Unimplemented function QueryVideoMemoryInfo called");
+	KexLogUnimplementedFunctionEvent();
 	
 	RtlZeroMemory(VideoMemoryInfo, sizeof(*VideoMemoryInfo));
 	return E_NOTIMPL;
@@ -88,7 +88,7 @@ HRESULT STDMETHODCALLTYPE IDXGIAdapter3_SetVideoMemoryReservation(
 	IN	DXGI_MEMORY_SEGMENT_GROUP		MemorySegmentGroup,
 	IN	ULONGLONG						Reservation)
 {
-	KexLogWarningEvent(L"Unimplemented function SetVideoMemoryReservation called");
+	KexLogUnimplementedFunctionEvent();
 	return E_NOTIMPL;
 }
 
@@ -97,7 +97,7 @@ HRESULT STDMETHODCALLTYPE IDXGIAdapter3_RegisterVideoMemoryBudgetChangeNotificat
 	IN	HANDLE			Event,
 	OUT	PULONG			Cookie)
 {
-	KexLogWarningEvent(L"Unimplemented function RegisterVideoMemoryBudgetChangeNotificationEvent called");
+	KexLogUnimplementedFunctionEvent();
 	return E_NOTIMPL;
 }
 
@@ -105,7 +105,7 @@ HRESULT STDMETHODCALLTYPE IDXGIAdapter3_UnregisterVideoMemoryBudgetChangeNotific
 	IN	IDXGIAdapter3	*This,
 	IN	ULONG			Cookie)
 {
-	KexLogWarningEvent(L"Unimplemented function UnregisterVideoMemoryBudgetChangeNotification called");
+	KexLogUnimplementedFunctionEvent();
 	return E_NOTIMPL;
 }
 
@@ -130,7 +130,7 @@ VOID WrapDXGIAdapter(
 
 	Vtbl.Base.Base.Base = *Adapter->lpVtbl;
 
-	IDXGIAdapter1_QueryInterface = Vtbl.Base.Base.Base.QueryInterface;
+	IDXGIAdapter1_OriginalQueryInterface = Vtbl.Base.Base.Base.QueryInterface;
 	Vtbl.Base.Base.Base.QueryInterface = (HRESULT (STDMETHODCALLTYPE *)(IDXGIAdapter1 *, REFIID, PPVOID)) IDXGIAdapter4_QueryInterface;
 	Vtbl.Base.Base.GetDesc2 = IDXGIAdapter2_GetDesc2;
 	Vtbl.Base.RegisterHardwareContentProtectionTeardownStatusEvent = IDXGIAdapter3_RegisterHardwareContentProtectionTeardownStatusEvent;
@@ -164,7 +164,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory7_QueryInterface(
 		return CreateIDXGIFactoryMedia(Object);
 	}
 
-	Result = IDXGIFactory2_QueryInterface(
+	Result = IDXGIFactory2_OriginalQueryInterface(
 		(IDXGIFactory2 *) This,
 		RefIID,
 		Object);
@@ -192,7 +192,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory4_EnumAdapterByLuid(
 {
 	ASSERT (Adapter != NULL);
 
-	KexLogWarningEvent(L"Unimplemented function EnumAdapterByLuid called");
+	KexLogUnimplementedFunctionEvent();
 
 	*Adapter = NULL;
 	return E_NOTIMPL;
@@ -205,7 +205,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory4_EnumWarpAdapter(
 {
 	ASSERT (Adapter != NULL);
 
-	KexLogWarningEvent(L"Unimplemented function EnumWarpAdapter called");
+	KexLogUnimplementedFunctionEvent();
 
 	*Adapter = NULL;
 	return E_NOTIMPL;
@@ -262,7 +262,6 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory6_EnumAdapterByGpuPreference(
 				RefIID,
 				&DXGIAdapter);
 
-			// TODO: remove assert
 			ASSERT (SUCCEEDED(Result));
 
 			if (FAILED(Result)) {
@@ -282,7 +281,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory7_RegisterAdaptersChangedEvent(
 	IN	HANDLE			Event,
 	OUT	PULONG			Cookie)
 {
-	KexLogWarningEvent(L"Unimplemented function RegisterAdaptersChangedEvent called");
+	KexLogUnimplementedFunctionEvent();
 	return E_NOTIMPL;
 }
 
@@ -290,7 +289,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory7_UnregisterAdaptersChangedEvent(
 	IN	IDXGIFactory7	*This,
 	IN	ULONG			Cookie)
 {
-	KexLogWarningEvent(L"Unimplemented function UnregisterAdaptersChangedEvent called");
+	KexLogUnimplementedFunctionEvent();
 	return S_OK;
 }
 
@@ -302,7 +301,7 @@ VOID WrapDXGIFactory(
 	ASSERT (Factory != NULL);
 
 	Vtbl.Base.Base.Base.Base.Base = *Factory->lpVtbl;
-	IDXGIFactory2_QueryInterface = Vtbl.Base.Base.Base.Base.Base.QueryInterface;
+	IDXGIFactory2_OriginalQueryInterface = Vtbl.Base.Base.Base.Base.Base.QueryInterface;
 	Vtbl.Base.Base.Base.Base.Base.QueryInterface = (HRESULT (STDMETHODCALLTYPE *)(IDXGIFactory2 *, REFIID, PPVOID)) IDXGIFactory7_QueryInterface;
 	Vtbl.Base.Base.Base.Base.GetCreationFlags = IDXGIFactory3_GetCreationFlags;
 	Vtbl.Base.Base.Base.EnumAdapterByLuid = IDXGIFactory4_EnumAdapterByLuid;
@@ -313,4 +312,12 @@ VOID WrapDXGIFactory(
 	Vtbl.UnregisterAdaptersChangedEvent = IDXGIFactory7_UnregisterAdaptersChangedEvent;
 
 	Factory->lpVtbl = (IDXGIFactory2Vtbl *) &Vtbl;
+}
+
+KXDXAPI HRESULT WINAPI DXGIGetDebugInterface1(
+	IN	UINT	Flags,
+	IN	REFIID	RefIID,
+	OUT	PPVOID	Interface)
+{
+	return E_NOINTERFACE;
 }

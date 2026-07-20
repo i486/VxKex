@@ -9,15 +9,20 @@ EXPORTS
 	RoInitialize
 	RoUninitialize
 	RoGetActivationFactory
+	RoRegisterActivationFactories
+	RoRevokeActivationFactories
 	RoActivateInstance
 	RoOriginateError
 	RoOriginateErrorW
 	RoTransformError
 	RoTransformErrorW
 	RoGetAgileReference
+	RoGetParameterizedTypeInstanceIID
 	RoOriginateLanguageException
 	RoGetBufferMarshaler
 	RoFailFastWithErrorContext
+	RoSetErrorReportingFlags
+	RoGetErrorReportingFlags
 
 	GetRestrictedErrorInfo
 	SetRestrictedErrorInfo

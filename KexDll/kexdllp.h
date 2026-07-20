@@ -16,6 +16,9 @@
 //
 //     vxiiduu              18-Oct-2022  Initial creation.
 //     vxiiduu              22-Feb-2026  Remove qt6 kerning hack.
+//     vxiiduu              19-May-2026  Remove outdated comment about protected
+//                                       function macros.
+//                                       Move around ASH detection stuff.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -59,7 +62,7 @@ typedef struct _KEX_DLL_REWRITE_UNDO_LIST {
 } TYPEDEF_TYPE_NAME(KEX_DLL_REWRITE_UNDO_LIST);
 
 //
-// Protected Function Macros should be used on every function in KexDll.
+// Protected Function Macros.
 // Usage of PROTECTED_FUNCTION(_END(_NOLOG)) wraps each function with SEH.
 // It is particularly useful for creating syscall implementations or
 // wrappers, since "real" syscalls never crash (unless there's a bug in the
@@ -93,21 +96,31 @@ ULONG KexDllProtectedFunctionExceptionFilter(
 // ash.c
 //
 
-VOID AshApplyNodeJSEnvironmentVariableHacks(
+VOID AshInitialize(
 	VOID);
-
-NTSTATUS AshPerformQt6DetectionFromLoadedDll(
-	IN	PCLDR_DLL_NOTIFICATION_DATA	NotificationData);
 
 //
 // ashcrsup.c
 //
 
-NTSTATUS AshPerformChromiumDetectionFromLoadedDll(
-	IN	PCLDR_DLL_NOTIFICATION_DATA	NotificationData);
+NTSTATUS AshSetIsChromiumProcess(
+	VOID);
 
 NTSTATUS AshPerformChromiumDetectionFromModuleExports(
-	IN	PVOID	ModuleBase);
+	IN	PCVOID	ModuleBase);
+
+//
+// ashdetec.c
+//
+
+NTSTATUS AshSetIsQt6Process(
+	VOID);
+
+NTSTATUS AshSetIsDotnetProcess(
+	VOID);
+
+VOID AshDllLoadNotification(
+	IN	PCLDR_DLL_NOTIFICATION_DATA	NotificationData);
 
 //
 // ashselec.c
@@ -146,17 +159,17 @@ NTSTATUS KexpAddKex3264ToDllPath(
 NTSTATUS KexInitializeDllRewrite(
 	VOID);
 
-BOOLEAN KexShouldRewriteImportsOfDll(
-	IN	PCUNICODE_STRING	FullDllName);
+BOOLEAN KexDoesDllRewriteEntryExist(
+	IN	PCUNICODE_STRING		DllName);
+
+BOOLEAN KexShouldRewriteStaticImportsOfDll(
+	IN	PCUNICODE_STRING	FullDllName,
+	IN	PCUNICODE_STRING	BaseDllName);
 
 NTSTATUS KexRewriteImageImportDirectory(
 	IN		PVOID						ImageBase,
 	IN		PCUNICODE_STRING			BaseImageName,
 	IN		PCUNICODE_STRING			FullImageName);
-
-NTSTATUS KexRewriteDllPath(
-	IN	PCUNICODE_STRING	DllPath,
-	OUT	PUNICODE_STRING		RewrittenDllNameOut);
 
 NTSTATUS KexAddDllRewriteEntry(
 	IN	PCUNICODE_STRING	DllName,
@@ -165,24 +178,21 @@ NTSTATUS KexAddDllRewriteEntry(
 NTSTATUS KexRemoveDllRewriteEntry(
 	IN	PCUNICODE_STRING	DllName);
 
+NTSTATUS KexAddUpdateRemoveDllRewriteEntry(
+	IN	PCUNICODE_STRING	DllName,
+	IN	PCUNICODE_STRING	RewrittenDllName OPTIONAL);
+
+NTSTATUS KexApplyUserDllRewrite(
+	IN	PWSTR	RewriteSpec);
+
 //
-// dllundo.c
+// initapc.c
 //
 
-NTSTATUS KexInitializeUndoList(
-	OUT		PKEX_DLL_REWRITE_UNDO_LIST	UndoList);
-
-VOID KexFreeUndoList(
-	IN OUT	PKEX_DLL_REWRITE_UNDO_LIST	UndoList);
-
-NTSTATUS KexAddEntryUndoList(
-	IN		PKEX_DLL_REWRITE_UNDO_LIST	UndoList,
-	IN		PVOID						Location,
-	IN		ULONG						NumberOfBytes,
-	IN		PCVOID						UndoData);
-
-NTSTATUS KexPerformRollbackUndoList(
-	IN		PCKEX_DLL_REWRITE_UNDO_LIST	UndoList);
+VOID NTAPI KexPostInitializationApcRoutine(
+	IN	PVOID	NormalContext,
+	IN	PVOID	SystemArgument1,
+	IN	PVOID	SystemArgument2);
 
 //
 // kexdata.c
@@ -206,6 +216,13 @@ NORETURN VOID KexHeErrorBox(
 	IN	PCWSTR	ErrorMessage);
 
 //
+// kexrtlp.c
+//
+
+HANDLE KexRtlpGetGlobalKeyedEvent(
+	VOID);
+
+//
 // logging.c
 //
 
@@ -213,10 +230,17 @@ NTSTATUS KexOpenVxlLogForCurrentApplication(
 	OUT	PVXLHANDLE	LogHandle);
 
 //
+// ntalrtid.c
+//
+
+EXTERN FORCEINLINE VOID KexAlertByThreadIdThreadAttach(
+	VOID);
+
+//
 // rtlrng.c
 //
 
-NTSTATUS KexRtlInitializeRandomNumberGenerator(
+NTSTATUS KexRtlInitializeKsec(
 	VOID);
 
 //

@@ -2,11 +2,9 @@
 
 #define WIN32_LEAN_AND_MEAN
 #define NOGDICAPMASKS
-#define NOVIRTUALKEYCODES
 #define NOWINSTYLES
 #define NOMENUS
 #define NOICONS
-#define NOKEYSTATES
 #define NOSYSCOMMANDS
 #define NORASTEROPS
 #define NOSHOWWINDOW
@@ -16,13 +14,10 @@
 #define NODRAWTEXT
 #define NOKERNEL
 #define NONLS
-#define NOMB
 #define NOMEMMGR
 #define NOOPENFILE
-#define NOSCROLL
 #define NOTEXTMETRIC
 #define NOWH
-#define NOWINOFFSETS
 #define NOCOMM
 #define NOKANJI
 #define NOHELP
@@ -41,6 +36,8 @@
 #  pragma comment(lib, "user32_x86.lib")
 #endif
 
+#pragma comment(lib, "user32.lib")
+#pragma comment(lib, "KexDll.lib")
 #pragma comment(lib, "gdi32.lib")
 
 #define KXUSERAPI

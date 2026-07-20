@@ -43,21 +43,17 @@ NTSTATUS KexDisableAVrf(
 	Status = LdrGetDllHandleByName(&VerifierDllName, NULL, &VerifierDllBase);
 	ASSERT (NT_SUCCESS(Status));
 
-	if (!NT_SUCCESS(Status)) {
-		// This function was probably already called.
-		return STATUS_UNSUCCESSFUL;
-	}
+	if (NT_SUCCESS(Status)) {
+		Status = KexLdrFindImageEntryPoint(
+			VerifierDllBase,
+			(PPVOID) &VerifierDllMain);
 
-	Status = KexLdrFindImageEntryPoint(
-		VerifierDllBase,
-		(PPVOID) &VerifierDllMain);
+		ASSERT (NT_SUCCESS(Status));
 
-	ASSERT (NT_SUCCESS(Status));
-
-	if (NT_SUCCESS(Status) && VerifierDllMain != NULL) {
-		if (!VerifierDllMain(VerifierDllBase, DLL_PROCESS_DETACH, NULL)) {
-			KexLogWarningEvent(L"Verifier.dll failed to de-initialize.");
-			ASSERT (FALSE);
+		if (NT_SUCCESS(Status) && VerifierDllMain != NULL) {
+			if (!VerifierDllMain(VerifierDllBase, DLL_PROCESS_DETACH, NULL)) {
+				ASSERT (("Verifier.dll failed to de-initialize.", FALSE));
+			}
 		}
 	}
 
@@ -70,13 +66,6 @@ NTSTATUS KexDisableAVrf(
 		0);
 
 	ASSERT (NT_SUCCESS(Status));
-
-	if (!NT_SUCCESS(Status)) {
-		KexLogWarningEvent(
-			L"Failed to disable process handle tracing.\r\n\r\n"
-			L"NTSTATUS error code: %s",
-			KexRtlNtStatusToString(Status));
-	}
 
 	return STATUS_SUCCESS;
 }

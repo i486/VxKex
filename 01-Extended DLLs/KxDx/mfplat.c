@@ -187,7 +187,7 @@ KXDXAPI HRESULT WINAPI MFCreateDXGIDeviceManager(
 	OUT	PULONG					ResetToken,
 	OUT	IMFDXGIDeviceManager	**DeviceManager)
 {
-	KexLogWarningEvent(L"Unimplemented function MFCreateDXGIDeviceManager called");
+	KexLogUnimplementedFunctionEvent();
 	KexDebugCheckpoint();
 
 	*DeviceManager = NULL;
@@ -201,7 +201,7 @@ KXDXAPI HRESULT WINAPI MFCreateDXGISurfaceBuffer(
 	IN	BOOL			BottomUpWhenLinear,
 	OUT	IMFMediaBuffer	**SurfaceBuffer)
 {
-	KexLogWarningEvent(L"Unimplemented function MFCreateDXGISurfaceBuffer called");
+	KexLogUnimplementedFunctionEvent();
 	KexDebugCheckpoint();
 	
 	*SurfaceBuffer = NULL;

@@ -28,27 +28,23 @@
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>Windows7.1SDK</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>Windows7.1SDK</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>Windows7.1SDK</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>Windows7.1SDK</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -115,6 +111,7 @@
       <RandomizedBaseAddress>true</RandomizedBaseAddress>
       <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
       <IgnoreSpecificDefaultLibraries>delayimp.lib</IgnoreSpecificDefaultLibraries>
+      <OptimizeReferences>true</OptimizeReferences>
     </Link>
     <ResourceCompile>
       <AdditionalIncludeDirectories>$(SolutionDir)\00-Common Headers</AdditionalIncludeDirectories>
@@ -157,6 +154,7 @@
       <RandomizedBaseAddress>true</RandomizedBaseAddress>
       <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
       <IgnoreSpecificDefaultLibraries>delayimp.lib</IgnoreSpecificDefaultLibraries>
+      <OptimizeReferences>true</OptimizeReferences>
     </Link>
     <ResourceCompile>
       <AdditionalIncludeDirectories>$(SolutionDir)\00-Common Headers</AdditionalIncludeDirectories>
@@ -275,11 +273,12 @@
     <ClCompile Include="apiset.c" />
     <ClCompile Include="ash.c" />
     <ClCompile Include="ashcrsup.c" />
+    <ClCompile Include="ashdetec.c" />
+    <ClCompile Include="ashinit.c" />
     <ClCompile Include="ashselec.c" />
     <ClCompile Include="avrf.c" />
     <ClCompile Include="cpiwbypa.c" />
     <ClCompile Include="critsect.c" />
-    <ClCompile Include="dllundo.c" />
     <ClCompile Include="dload.c" />
     <ClCompile Include="dllmain.c" />
     <ClCompile Include="dllnotif.c" />
@@ -287,12 +286,17 @@
     <ClCompile Include="dllrewrt.c" />
     <ClCompile Include="etw.c" />
     <ClCompile Include="except.c" />
+    <ClCompile Include="initapc.c" />
     <ClCompile Include="kexdata.c" />
     <ClCompile Include="kexhe.c" />
     <ClCompile Include="kexhk.c" />
     <ClCompile Include="kexldr.c" />
     <ClCompile Include="kexrtl.c" />
+    <ClCompile Include="kexrtlp.c" />
     <ClCompile Include="logging.c" />
+    <ClCompile Include="ntalrtid.c" />
+    <ClCompile Include="ntcondrv.c" />
+    <ClCompile Include="ntfile.c" />
     <ClCompile Include="ntjob.c" />
     <ClCompile Include="ntobj.c" />
     <ClCompile Include="ntpriv.c" />
@@ -301,7 +305,8 @@
     <ClCompile Include="ntsect.c" />
     <ClCompile Include="ntthread.c" />
     <ClCompile Include="propagte.c" />
-    <ClCompile Include="rtlrng.c" />
+    <ClCompile Include="rtlmisc.c" />
+    <ClCompile Include="rtlsec.c" />
     <ClCompile Include="rtlwoa.c" />
     <ClCompile Include="rtlwow64.c" />
     <ClCompile Include="status.c" />
@@ -321,6 +326,7 @@
     <ResourceCompile Include="KexDll.rc" />
   </ItemGroup>
   <ItemGroup>
+    <MASM Include="initapc64.asm" />
     <MASM Include="syscal64.asm" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

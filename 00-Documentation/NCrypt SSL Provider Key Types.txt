@@ -1,0 +1,41 @@
+This list is not complete because I stopped researching as soon as I found
+out how to fix the problem I was having.
+
+ssl1 - Provider Handle
+	Created by:
+		SPSslOpenProvider
+	Used by:
+		Almost all other SSL provider functions
+
+ssl2 - Hash Handle
+	Created by:
+	Used by:
+
+ssl3 - ??? Key
+	Created by:
+		SPSslExportKey
+		SPSslImportKey
+		SPSslGenerateSessionKeys
+	Used by:
+		SPSslImportKey
+
+ssl4 - Key Pair Handle
+	Created by:
+	Used by:
+		SPSslGetKeyProperty
+
+ssl5 - Master Key Handle
+	Created by:
+	Used by:
+
+ssl6 - Ephemeral Handle
+	Created by:
+		SPSslCreateEphemeralKey
+		SPSslImportKey
+	Used by:
+		SPSslGetKeyProperty
+
+ssl7 - Pre Master Key Handle (NOT in Win7 SP1 - added in a win7 update)
+	Created by:
+		SPSslGeneratePreMasterKey
+	Used by:

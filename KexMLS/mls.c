@@ -14,6 +14,7 @@
 //       1. Inside KexSetup, when VxKex has not yet been installed.
 //       2. Inside KexDll, where the Win32 API is not yet available.
 //       3. Inside ordinary Win32 applications such as VxlView.
+//       4. Inside Windows Explorer, for KexShlEx.
 //
 //     Therefore, the MLS library must only depend on NTDLL.
 //
@@ -28,6 +29,10 @@
 // Revision History:
 //
 //     vxiiduu              17-May-2025  Initial creation.
+//     vxiiduu              27-Jun-2026  Use NtQueryDefaultLocale instead of
+//                                       NtQueryDefaultUILanguage in order to
+//                                       use the user language instead of system
+//                                       language.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -176,31 +181,18 @@ STATIC LANGID NTAPI MlspGetIdealLangId(
 		//
 
 		LangId = (LANGID) KeyValue;
-		goto Finished;
+		return LangId;
 	} finally {
 		SafeClose(CurrentUserKeyHandle);
 		SafeClose(VxKexUserKeyHandle);
 	}
 
 	//
-	// The registry didn't give us a LANGID. Try to get the user's default
-	// LANGID.
+	// The registry didn't give us a LANGID. Get the user's default LANGID.
 	//
 
-	Status = NtQueryDefaultUILanguage(&LangId);
-	ASSERT (NT_SUCCESS(Status));
+	LangId = LANGIDFROMLCID(NtCurrentTeb()->CurrentLocale);
 
-	if (NT_SUCCESS(Status)) {
-		goto Finished;
-	}
-
-	//
-	// We can't get the user's default LANGID. Just use English (default).
-	//
-	
-	LangId = LANG_ENGLISH;
-
-Finished:
 	//
 	// Strip the sublanguage out of the LangId in order to simplify
 	// downstream code.
@@ -233,66 +225,192 @@ STATIC PCWSTR NTAPI MlspGetLanguageName(
 	IN	LANGID	LangId)
 {
 	switch (LangId) {
-	case LANG_ARABIC:				return L"ar";
-	case LANG_BELARUSIAN:			return L"be";
-	case LANG_BULGARIAN:			return L"bg";
-	case LANG_CHINESE_SIMPLIFIED:	return L"zh-CN";
-	case LANG_CHINESE_TRADITIONAL:	return L"zh-TW";
-	case LANG_CZECH:				return L"cs";
-	case LANG_DANISH:				return L"da";
-	case LANG_DUTCH:				return L"nl";
-	case LANG_ESTONIAN:				return L"et";
-	case LANG_FINNISH:				return L"fi";
-	case LANG_FRENCH:				return L"fr";
-	case LANG_GEORGIAN:				return L"ka";
-	case LANG_GERMAN:				return L"de";
-	case LANG_HUNGARIAN:			return L"hu";
-	case LANG_ITALIAN:				return L"it";
-	case LANG_JAPANESE:				return L"ja";
-	case LANG_KAZAK:				return L"kk";
-	case LANG_KYRGYZ:				return L"ky";
-	case LANG_KOREAN:				return L"ko";
-	case LANG_LAO:					return L"lo";
-	case LANG_LATVIAN:				return L"lv";
-	case LANG_LITHUANIAN:			return L"lt";
-	case LANG_MALAY:				return L"ms";
-	case LANG_NORWEGIAN:			return L"no";
-	case LANG_PERSIAN:				return L"fa";
-	case LANG_POLISH:				return L"pl";
-	case LANG_PORTUGUESE:			return L"pt";
-	case LANG_ROMANIAN:				return L"ro";
-	case LANG_RUSSIAN:				return L"ru";
-	case LANG_SERBIAN:				return L"sr";
-	case LANG_SLOVAK:				return L"sk";
-	case LANG_SPANISH:				return L"es";
-	case LANG_SWEDISH:				return L"sv";
-	case LANG_TAJIK:				return L"tg";
-	case LANG_THAI:					return L"th";
-	case LANG_TURKISH:				return L"tr";
-	case LANG_TURKMEN:				return L"tk";
-	case LANG_UKRAINIAN:			return L"uk";
-	case LANG_UZBEK:				return L"uz";
-	case LANG_VIETNAMESE:			return L"vi";
+	case LANG_ARABIC:				return L"Arabic";
+	case LANG_BELARUSIAN:			return L"Belarusian";
+	case LANG_BULGARIAN:			return L"Bulgarian";
+	case LANG_CHINESE_SIMPLIFIED:	return L"ChineseSimplified";
+	case LANG_CHINESE_TRADITIONAL:	return L"ChineseTraditional";
+	case LANG_CZECH:				return L"Czech";
+	case LANG_DANISH:				return L"Danish";
+	case LANG_DUTCH:				return L"Dutch";
+	case LANG_ESTONIAN:				return L"Estonian";
+	case LANG_FINNISH:				return L"Finnish";
+	case LANG_FRENCH:				return L"French";
+	case LANG_GEORGIAN:				return L"Georgian";
+	case LANG_GERMAN:				return L"German";
+	case LANG_GREEK:				return L"Greek";
+	case LANG_HUNGARIAN:			return L"Hungarian";
+	case LANG_ITALIAN:				return L"Italian";
+	case LANG_JAPANESE:				return L"Japanese";
+	case LANG_KAZAK:				return L"Kazakh";
+	case LANG_KYRGYZ:				return L"Kyrgyz";
+	case LANG_KOREAN:				return L"Korean";
+	case LANG_LAO:					return L"Lao";
+	case LANG_LATVIAN:				return L"Latvian";
+	case LANG_LITHUANIAN:			return L"Lithuanian";
+	case LANG_MALAY:				return L"Malay";
+	case LANG_NORWEGIAN:			return L"Norwegian";
+	case LANG_PERSIAN:				return L"Persian";
+	case LANG_POLISH:				return L"Polish";
+	case LANG_PORTUGUESE:			return L"Portuguese";
+	case LANG_ROMANIAN:				return L"Romanian";
+	case LANG_RUSSIAN:				return L"Russian";
+	case LANG_SERBIAN:				return L"Serbian";
+	case LANG_SLOVAK:				return L"Slovak";
+	case LANG_SPANISH:				return L"Spanish";
+	case LANG_SWEDISH:				return L"Swedish";
+	case LANG_TAJIK:				return L"Tajik";
+	case LANG_THAI:					return L"Thai";
+	case LANG_TURKISH:				return L"Turkish";
+	case LANG_TURKMEN:				return L"Turkmen";
+	case LANG_UKRAINIAN:			return L"Ukrainian";
+	case LANG_UZBEK:				return L"Uzbek";
+	case LANG_VIETNAMESE:			return L"Vietnamese";
 	default:						return NULL;
 	}
 }
 
 //
-// Load a dictionary. We will search the "Languages" subdirectory in the
-// current executable's directory for the correct .bdi file.
+// The Directory parameter must start and end with a backslash.
+// e.g. \Core\Globalization\Dictionaries\
+// This function forms a NT-style \??\-prefixed path in the output buffer.
 //
-// This approach works for KexSetup and all other VxKex applications which are
-// installed into KexDir.
+// If we're compiled into KexDll, we will use KexDir as a prefix.
+// Otherwise, we will use the current EXE's directory as a prefix.
+//
+STATIC NTSTATUS MlspFormRelativePath(
+	OUT	PWSTR	Buffer,
+	IN	ULONG	BufferCch,
+	IN	PCWSTR	Directory,
+	IN	PCWSTR	LanguageName)
+{
+	NTSTATUS Status;
+	HRESULT Result;
+	ULONG Index;
+	EXTERN IMAGE_DOS_HEADER __ImageBase;
+	ANSI_STRING KexDataInitializeName;
+	NTSTATUS (NTAPI *KexDataInitialize)(OUT PPKEX_PROCESS_DATA KexData);
+	PKEX_PROCESS_DATA KexData;
+
+	if (BufferCch < 5) {
+		return STATUS_BUFFER_TOO_SMALL;
+	}
+
+	// We need \??\ because NtOpenFile expects a NT-style path.
+	Buffer[0] = '\\';
+	Buffer[1] = '?';
+	Buffer[2] = '?';
+	Buffer[3] = '\\';
+	Buffer[4] = '\0';
+
+	//
+	// Decide which prefix path to use.
+	// Figure out if we're using the EXE path or KexDir.
+	//
+
+	RtlInitConstantAnsiString(&KexDataInitializeName, "KexDataInitialize");
+
+	Status = LdrGetProcedureAddress(
+		&__ImageBase,
+		&KexDataInitializeName,
+		0,
+		(PPVOID) &KexDataInitialize);
+
+	if (NT_SUCCESS(Status)) {
+		Status = KexDataInitialize(&KexData);
+	}
+
+	if (NT_SUCCESS(Status)) {
+		//
+		// We're running in KexDll, so we can use KexDir as a prefix path.
+		//
+
+		Result = StringCchCat(
+			Buffer,
+			BufferCch,
+			KexData->KexDir.Buffer);
+
+		ASSERT (SUCCEEDED(Result));
+		if (FAILED(Result)) {
+			return STATUS_BUFFER_OVERFLOW;
+		}
+	} else {
+		//
+		// We're not running in KexDll (e.g. in KexSetup), so use the EXE's
+		// directory as a prefix path.
+		//
+
+		// Append the path to the EXE.
+		Result = StringCchCat(
+			Buffer,
+			BufferCch,
+			NtCurrentPeb()->ProcessParameters->ImagePathName.Buffer);
+
+		ASSERT (SUCCEEDED(Result));
+		if (FAILED(Result)) {
+			return STATUS_BUFFER_OVERFLOW;
+		}
+
+		// Remove the EXE name.
+		Index = (ULONG) wcslen(Buffer);
+
+		until (Buffer[Index] == '\\' || Index == 0) {
+			--Index;
+		}
+
+		if (Buffer[Index] != '\\') {
+			return STATUS_OBJECT_NAME_INVALID;
+		}
+
+		Buffer[Index] = '\0';
+	}
+
+	//
+	// FileNameBuffer now contains our prefix directory.
+	// Append the intermediate directory.
+	//
+
+	Result = StringCchCat(
+		Buffer,
+		BufferCch,
+		Directory);
+
+	ASSERT (SUCCEEDED(Result));
+
+	if (FAILED(Result)) {
+		return STATUS_BUFFER_OVERFLOW;
+	}
+
+	// Append the name of the language.
+	Result = StringCchCat(Buffer, BufferCch, LanguageName);
+	ASSERT (SUCCEEDED(Result));
+
+	if (FAILED(Result)) {
+		return STATUS_BUFFER_OVERFLOW;
+	}
+
+	// Append the .bdi extension.
+	Result = StringCchCat(Buffer, BufferCch, L".bdi");
+	ASSERT (SUCCEEDED(Result));
+
+	if (FAILED(Result)) {
+		return STATUS_BUFFER_OVERFLOW;
+	}
+
+	return STATUS_SUCCESS;
+}
+
+//
+// Load a dictionary for the specified language.
 //
 STATIC NTSTATUS MlspLoadDictionary(
 	IN	LANGID				LangId,
 	OUT	PMLSP_DICTIONARY	Dictionary)
 {
 	NTSTATUS Status;
-	HRESULT Result;
-	ULONG Index;
 	PCWSTR LanguageName;
 
+	BOOLEAN SecondTry;
 	OBJECT_ATTRIBUTES ObjectAttributes;
 	IO_STATUS_BLOCK IoStatusBlock;
 	HANDLE FileHandle;
@@ -307,8 +425,7 @@ STATIC NTSTATUS MlspLoadDictionary(
 	ASSERT (Dictionary->Flags == 0);
 
 	//
-	// Find the name of the current language. This can be either in the format such as
-	// "ru", "es" etc. or can be a two-part name like "zh-CN" and "zh-TW".
+	// Find the name of the current language.
 	//
 
 	LanguageName = MlspGetLanguageName(LangId);
@@ -318,62 +435,34 @@ STATIC NTSTATUS MlspLoadDictionary(
 
 	//
 	// Build the path to the dictionary file.
-	// We will look for the dictionary file at %EXE_DIR%\Languages\%LanguageName%.bdi
+	// We will look for the dictionary file at
+	// \Globalization\Dictionaries\%LanguageName%.bdi
+	// and also at
+	// \Core\Globalization\Dictionaries\%LanguageName%.bdi
+	// (the "Core" one is to account for KexSetup)
 	//
 
-	// We need \??\ because NtOpenFile expects a NT-style path.
-	FileNameBuffer[0] = '\\';
-	FileNameBuffer[1] = '?';
-	FileNameBuffer[2] = '?';
-	FileNameBuffer[3] = '\\';
-	FileNameBuffer[4] = '\0';
+	SecondTry = FALSE;
 
-	// Append the path to the EXE.
-	Result = StringCchCat(
-		FileNameBuffer,
-		ARRAYSIZE(FileNameBuffer),
-		NtCurrentPeb()->ProcessParameters->ImagePathName.Buffer);
-
-	ASSERT (SUCCEEDED(Result));
-	if (FAILED(Result)) {
-		return STATUS_BUFFER_TOO_SMALL;
+TryAgain:
+	if (!SecondTry) {
+		Status = MlspFormRelativePath(
+			FileNameBuffer,
+			ARRAYSIZE(FileNameBuffer),
+			L"\\Globalization\\Dictionaries\\",
+			LanguageName);
+	} else {
+		Status = MlspFormRelativePath(
+			FileNameBuffer,
+			ARRAYSIZE(FileNameBuffer),
+			L"\\Core\\Globalization\\Dictionaries\\",
+			LanguageName);
 	}
 
-	// Remove the EXE name.
-	Index = (ULONG) wcslen(FileNameBuffer);
+	ASSERT (NT_SUCCESS(Status));
 
-	until (FileNameBuffer[Index] == '\\' || Index == 0) {
-		--Index;
-	}
-
-	if (FileNameBuffer[Index] != '\\') {
-		return STATUS_OBJECT_NAME_INVALID;
-	}
-
-	FileNameBuffer[Index] = '\0';
-
-	// FileNameBuffer now contains the directory which the EXE is in.
-	Result = StringCchCat(FileNameBuffer, ARRAYSIZE(FileNameBuffer), L"\\Languages\\");
-	ASSERT (SUCCEEDED(Result));
-
-	if (FAILED(Result)) {
-		return STATUS_BUFFER_TOO_SMALL;
-	}
-
-	// Append the name of the language.
-	Result = StringCchCat(FileNameBuffer, ARRAYSIZE(FileNameBuffer), LanguageName);
-	ASSERT (SUCCEEDED(Result));
-
-	if (FAILED(Result)) {
-		return STATUS_BUFFER_TOO_SMALL;
-	}
-
-	// Append the .bdi extension.
-	Result = StringCchCat(FileNameBuffer, ARRAYSIZE(FileNameBuffer), L".bdi");
-	ASSERT (SUCCEEDED(Result));
-
-	if (FAILED(Result)) {
-		return STATUS_BUFFER_TOO_SMALL;
+	if (!NT_SUCCESS(Status)) {
+		return Status;
 	}
 
 	//
@@ -397,6 +486,11 @@ STATIC NTSTATUS MlspLoadDictionary(
 		&IoStatusBlock,
 		FILE_SHARE_READ,
 		FILE_SYNCHRONOUS_IO_NONALERT);
+
+	if (Status == STATUS_OBJECT_PATH_NOT_FOUND && !SecondTry) {
+		SecondTry = TRUE;
+		goto TryAgain;
+	}
 
 	if (!NT_SUCCESS(Status)) {
 		ASSERT (Status == STATUS_OBJECT_NAME_NOT_FOUND || Status == STATUS_OBJECT_PATH_NOT_FOUND);
@@ -721,6 +815,14 @@ MLSAPI NTSTATUS NTAPI MlsInitialize(
 		LanguageWasMappedToAnother = TRUE;
 
 		switch (MlsLangId) {
+		case LANG_CHINESE_TRADITIONAL:
+			// If one of the Chinese dictionaries is not available because e.g.
+			// the BDI file was deleted, fall back to the other dialect.
+			MlsLangId = LANG_CHINESE_SIMPLIFIED;
+			break;
+		case LANG_CHINESE_SIMPLIFIED:
+			MlsLangId = LANG_CHINESE_TRADITIONAL;
+			break;
 		case LANG_ARMENIAN:		// 65.3% native and non-native
 		case LANG_BASHKIR:		// Bashkortostan is part of Russia
 		case LANG_BELARUSIAN:	// Russian is official language
@@ -736,7 +838,7 @@ MLSAPI NTSTATUS NTAPI MlsInitialize(
 			LanguageWasMappedToAnother = FALSE;
 			break;
 		}
-
+		
 		if (LanguageWasMappedToAnother) {
 			Status = MlspLoadDictionary(MlsLangId, &MlsDictionary);
 
@@ -856,8 +958,6 @@ MLSAPI PCWSTR NTAPI MlsMapString(
 	UNICODE_STRING Key;
 	UNICODE_STRING Value;
 
-	ASSERT (EnglishString != NULL);
-
 	//
 	// Parameter validation
 	//
@@ -868,13 +968,13 @@ MLSAPI PCWSTR NTAPI MlsMapString(
 	}
 
 	//
-	// Check if MLS is initialized. If not, initialize it now.
+	// Make sure MLS is initialized.
 	//
 
-	if (!MlsInitialized) {
-		// Don't check the return status. If failed, the string mapper lookup
-		// will simply fail and we will return the original English string.
-		MlsInitialize();
+	Status = MlsInitialize();
+
+	if (!NT_SUCCESS(Status)) {
+		return EnglishString;
 	}
 
 	//
@@ -886,7 +986,7 @@ MLSAPI PCWSTR NTAPI MlsMapString(
 	}
 
 	//
-	// Query the string mapper for our English string.
+	// Query the string mapper for our translated string.
 	//
 
 	RtlInitUnicodeString(&Key, EnglishString);
@@ -897,6 +997,12 @@ MLSAPI PCWSTR NTAPI MlsMapString(
 		return Value.Buffer;
 	} else {
 		ASSERT (Status == STATUS_STRING_MAPPER_ENTRY_NOT_FOUND);
+
+		if (KexIsDebugBuild) {
+			// VXL is unavailable when running from Setup.
+			DbgPrint("MLS: Unable to translate \"%ws\"\r\n", EnglishString);
+		}
+
 		return EnglishString;
 	}
 }

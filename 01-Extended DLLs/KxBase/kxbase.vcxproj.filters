@@ -95,6 +95,15 @@
     <ClCompile Include="stubs.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="console.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="consup.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="conansi.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="kxbase.def">

@@ -3,10 +3,21 @@
 #include <KexDll.h>
 #include <WinDNS.h>
 #include <WinHTTP.h>
+#include <WS2tcpip.h>
 
 EXTERN PKEX_PROCESS_DATA KexData;
 
+// For setsockopt and getsockopt.
+// These values are not supported on Win7.
+#define SO_REUSE_UNICASTPORT	0x3007
+#define SO_REUSE_MULTICASTPORT	0x3008
+#define SO_ORIGINAL_DST			0x300F
+
 #define DNS_ADDR_MAX_SOCKADDR_LENGTH 32
+
+GEN_STD_TYPEDEFS(ADDRINFOEXA);
+GEN_STD_TYPEDEFS(ADDRINFOEXW);
+typedef struct timeval TYPEDEF_TYPE_NAME(TIMEVAL);
 
 typedef struct _DNS_ADDR {
 	CHAR		MaxSa[DNS_ADDR_MAX_SOCKADDR_LENGTH];
@@ -119,6 +130,28 @@ typedef struct _DNS_QUERY_INFO {
 	PVOID			Message;
 	PVOID			ReservedName;
 } TYPEDEF_TYPE_NAME(DNS_QUERY_INFO);
+
+typedef VOID (WINAPI *PDNS_SERVICE_BROWSE_CALLBACK)(
+	IN	ULONG		Status,
+	IN	PVOID		QueryContext,
+	IN	PDNS_RECORD	DnsRecord);
+
+typedef struct {
+	ULONG			Version;
+	ULONG			InterfaceIndex;
+	PCWSTR			QueryName;
+
+	union {
+		PDNS_SERVICE_BROWSE_CALLBACK	BrowseCallback;
+		PDNS_QUERY_COMPLETION_ROUTINE	BrowseCallbackV2;
+	};
+
+	PVOID			QueryContext;
+} TYPEDEF_TYPE_NAME(DNS_SERVICE_BROWSE_REQUEST);
+
+typedef struct {
+	PVOID			Reserved;
+} TYPEDEF_TYPE_NAME(DNS_SERVICE_CANCEL);
 
 // Undocumented function from dnsapi.dll
 DNS_STATUS WINAPI DnsQueryExW(

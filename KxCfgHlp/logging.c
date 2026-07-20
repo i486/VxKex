@@ -3,57 +3,61 @@
 #include <KxCfgHlp.h>
 
 KXCFGDECLSPEC BOOLEAN KXCFGAPI KxCfgQueryLoggingSettings(
+	IN	BOOLEAN		PerUserSettings,
 	OUT	PBOOLEAN	IsEnabled OPTIONAL,
 	OUT	PWSTR		LogDir OPTIONAL,
-	IN	ULONG		LogDirCch)
+	IN	ULONG		LogDirCch,
+	IN	HANDLE		TransactionHandle OPTIONAL)
 {
-	HKEY VxKexUserKeyHandle;
+	HKEY VxKexKeyHandle;
 	ULONG ErrorCode;
 
 	ASSERT (!!LogDir == !!LogDirCch);
 
 	if (IsEnabled != NULL) {
-		*IsEnabled = TRUE;
+		*IsEnabled = FALSE;
 	}
 
 	if (LogDir != NULL) {
 		LogDir[0] = '\0';
 	}
 
-	VxKexUserKeyHandle = KxCfgOpenVxKexRegistryKey(
-		TRUE,
+	VxKexKeyHandle = KxCfgOpenVxKexRegistryKey(
+		PerUserSettings,
 		KEY_READ,
-		NULL);
+		TransactionHandle);
 
-	ASSERT (VxKexUserKeyHandle != NULL);
+	ASSERT (VxKexKeyHandle != NULL);
 
-	if (!VxKexUserKeyHandle) {
+	if (!VxKexKeyHandle) {
 		return FALSE;
 	}
 
 	if (IsEnabled != NULL) {
-		ULONG DisableLogging;
+		ULONG EnableLogging;
 
-		ErrorCode = RegReadI32(VxKexUserKeyHandle, NULL, L"DisableLogging", &DisableLogging);
+		ErrorCode = RegReadI32(VxKexKeyHandle, NULL, L"EnableLogging", &EnableLogging);
 		ASSERT (ErrorCode == ERROR_SUCCESS || ErrorCode == ERROR_FILE_NOT_FOUND);
 
-		*IsEnabled = !DisableLogging;
+		*IsEnabled = !!EnableLogging;
 	}
 
 	if (LogDir != NULL) {
-		ErrorCode = RegReadString(VxKexUserKeyHandle, NULL, L"LogDir", LogDir, LogDirCch);
+		ErrorCode = RegReadString(VxKexKeyHandle, NULL, L"LogDir", LogDir, LogDirCch);
 		ASSERT (ErrorCode == ERROR_SUCCESS || ErrorCode == ERROR_FILE_NOT_FOUND);
 	}
 
-	SafeClose(VxKexUserKeyHandle);
+	SafeClose(VxKexKeyHandle);
 	return TRUE;
 }
 
 //
-// If LogDir is NULL, it will be set to "%localappdata%\vxkex\logs".
+// If LogDir is NULL, it will be set to "%localappdata%\vxkex\logs" for user
+// settings, or "%programdata%\vxkex\logs" for system settings.
 // Environment variables are expanded in LogDir.
 //
 KXCFGDECLSPEC BOOLEAN KXCFGAPI KxCfgConfigureLoggingSettings(
+	IN	BOOLEAN		PerUserSettings,
 	IN	BOOLEAN		Enabled,
 	IN	PCWSTR		LogDir OPTIONAL,
 	IN	HANDLE		TransactionHandle OPTIONAL)
@@ -64,7 +68,11 @@ KXCFGDECLSPEC BOOLEAN KXCFGAPI KxCfgConfigureLoggingSettings(
 	ULONG ErrorCode;
 
 	if (!LogDir || LogDir[0] == '\0') {
-		LogDir = L"%%LOCALAPPDATA%%\\VxKex\\Logs";
+		if (PerUserSettings) {
+			LogDir = L"%LOCALAPPDATA%\\VxKex\\Logs";
+		} else {
+			LogDir = L"%PROGRAMDATA%\\VxKex\\Logs";
+		}
 	}
 
 	LogDirExpandedCch = ExpandEnvironmentStrings(
@@ -90,7 +98,7 @@ KXCFGDECLSPEC BOOLEAN KXCFGAPI KxCfgConfigureLoggingSettings(
 	}
 
 	try {
-		ErrorCode = RegWriteI32(VxKexUserKeyHandle, NULL, L"DisableLogging", !Enabled);
+		ErrorCode = RegWriteI32(VxKexUserKeyHandle, NULL, L"EnableLogging", Enabled);
 		ASSERT (ErrorCode == ERROR_SUCCESS);
 
 		if (ErrorCode != ERROR_SUCCESS) {
@@ -114,7 +122,7 @@ KXCFGDECLSPEC BOOLEAN KXCFGAPI KxCfgConfigureLoggingSettings(
 	// the log directory.
 	//
 
-	KxCfgInstallDiskCleanupHandler(NULL, NULL, TransactionHandle);
+	KxCfgInstallDiskCleanupHandler(TransactionHandle);
 
 	return TRUE;
 }

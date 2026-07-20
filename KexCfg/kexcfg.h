@@ -37,9 +37,12 @@ BOOLEAN RunningInInteractiveWindowStation(
 
 INT KexCfgMessageBox(
 	IN	HWND	ParentWindow OPTIONAL,
-	IN	PWSTR	Message,
-	IN	PWSTR	Title,
+	IN	PCWSTR	Message,
+	IN	PCWSTR	Title,
 	IN	ULONG	Flags);
 
 BOOLEAN KexCfgParseBooleanParameter(
+	IN	PCWSTR	Parameter);
+
+ULONG KexCfgParseHexadecimalParameter(
 	IN	PCWSTR	Parameter);

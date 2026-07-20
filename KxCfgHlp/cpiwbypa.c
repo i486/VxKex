@@ -2,8 +2,72 @@
 #include <KxCfgHlp.h>
 #include <KexW32ML.h>
 
-// returns TRUE if cpiwbypa.dll BHO is registered
+STATIC HRESULT KxCfgpGetExplorerFullPath(
+	OUT	PWSTR	Buffer,
+	IN	ULONG	BufferCch)
+{
+	HRESULT Result;
+
+	Result = StringCchCopy(
+		Buffer,
+		BufferCch,
+		SharedUserData->NtSystemRoot);
+
+	if (FAILED(Result)) {
+		return Result;
+	}
+
+	Result = PathCchAppend(
+		Buffer,
+		BufferCch,
+		L"explorer.exe");
+	
+	return Result;
+}
+
 KXCFGDECLSPEC BOOLEAN KXCFGAPI KxCfgQueryExplorerCpiwBypass(
+	VOID)
+{
+	HRESULT Result;
+	WCHAR ExplorerFullPath[MAX_PATH];
+
+	Result = KxCfgpGetExplorerFullPath(ExplorerFullPath, ARRAYSIZE(ExplorerFullPath));
+	ASSERT (SUCCEEDED(Result));
+
+	return KxCfgGetConfiguration(ExplorerFullPath, NULL);
+}
+
+KXCFGDECLSPEC BOOLEAN KXCFGAPI KxCfgEnableExplorerCpiwBypass(
+	IN	BOOLEAN	Enable,
+	IN	HANDLE	TransactionHandle OPTIONAL)
+{
+	HRESULT Result;
+	WCHAR ExplorerFullPath[MAX_PATH];
+	KXCFG_PROGRAM_CONFIGURATION Configuration;
+
+	Result = KxCfgpGetExplorerFullPath(ExplorerFullPath, ARRAYSIZE(ExplorerFullPath));
+	ASSERT (SUCCEEDED(Result));
+
+	KexRtlZeroMemory(&Configuration, sizeof(Configuration));
+	Configuration.Enabled = Enable;
+
+	if (Enable) {
+		// "Just in case" someone decides to mix and match different
+		// versions of KexDll...
+		Configuration.IfeoParameters.DisableForChild = TRUE;
+	}
+
+	return KxCfgSetConfiguration(ExplorerFullPath, &Configuration, TransactionHandle);
+}
+
+//
+// The following functions are related to the legacy BHO-based CPIWBYPA
+// method. They are no longer used by VxKex except to upgrade old BHO-based
+// installations to the new IFEO-based method.
+//
+
+// returns TRUE if cpiwbypa.dll BHO is registered
+KXCFGDECLSPEC BOOLEAN KXCFGAPI KxCfgQueryLegacyExplorerCpiwBypass(
 	VOID)
 {
 	HKEY KeyHandle;
@@ -27,7 +91,7 @@ KXCFGDECLSPEC BOOLEAN KXCFGAPI KxCfgQueryExplorerCpiwBypass(
 	}
 }
 
-KXCFGDECLSPEC BOOLEAN KXCFGAPI KxCfgEnableExplorerCpiwBypass(
+KXCFGDECLSPEC BOOLEAN KXCFGAPI KxCfgEnableLegacyExplorerCpiwBypass(
 	IN	BOOLEAN	Enable,
 	IN	HANDLE	TransactionHandle OPTIONAL)
 {

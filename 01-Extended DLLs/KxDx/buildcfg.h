@@ -15,7 +15,6 @@
 #define NOCLIPBOARD
 #define NOCOLOR
 #define NODRAWTEXT
-#define NOGDI
 #define NOKERNEL
 #define NONLS
 #define NOMB
@@ -39,9 +38,11 @@
 
 #define KXDXAPI
 
+#pragma comment(lib, "KexDll.lib")
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "d2d1.lib")
 #pragma comment(lib, "oleaut32.lib")
+#pragma comment(lib, "opengl32.lib")
 
 #define KEX_ENV_WIN32
 #define KEX_TARGET_TYPE_DLL

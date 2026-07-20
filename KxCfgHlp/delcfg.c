@@ -183,8 +183,8 @@ KXCFGDECLSPEC BOOLEAN KxCfgDeleteConfiguration(
 			ARRAYSIZE(VerifierDlls));
 
 		if (ErrorCode == ERROR_FILE_NOT_FOUND) {
-			// VxKex isn't enabled.
-			return TRUE;
+			// No VerifierDlls value in the registry.
+			VerifierDlls[0] = '\0';
 		} else if (ErrorCode != ERROR_SUCCESS) {
 			SetLastError(ErrorCode);
 			return FALSE;
@@ -207,7 +207,7 @@ KXCFGDECLSPEC BOOLEAN KxCfgDeleteConfiguration(
 					L"VerifierDlls",
 					VerifierDlls);
 			}
-
+			
 			if (ErrorCode != ERROR_SUCCESS) {
 				SetLastError(ErrorCode);
 				return FALSE;
@@ -215,26 +215,26 @@ KXCFGDECLSPEC BOOLEAN KxCfgDeleteConfiguration(
 		}
 
 		//
-		// Step 4. If VerifierDlls is now empty, we will also remove FLG_APPLICATION_VERIFIER
-		// from the global flags. We will also remove FLG_SHOW_LDR_SNAPS since it is a flag
-		// that, at this point, we can infer only VxKex would have set.
+		// Step 4. If VerifierDlls is empty, we will also remove FLG_APPLICATION_VERIFIER
+		// from the global flags.
 		//
 
-		if (KexDllWasRemoved && VerifierDlls[0] == '\0') {
+		if (VerifierDlls[0] == '\0') {
 			ULONG GlobalFlag;
 
 			ErrorCode = RegReadI32(IfeoKeyHandle, NULL, L"GlobalFlag", &GlobalFlag);
 
 			if (ErrorCode == ERROR_FILE_NOT_FOUND) {
-				return TRUE;
+				// Value not in registry
+				GlobalFlag = 0;
 			} else if (ErrorCode != ERROR_SUCCESS) {
 				SetLastError(ErrorCode);
 				return FALSE;
 			}
 
-			if (GlobalFlag & (FLG_APPLICATION_VERIFIER | FLG_SHOW_LDR_SNAPS)) {
+			if (GlobalFlag & FLG_APPLICATION_VERIFIER) {
 
-				GlobalFlag &= ~(FLG_APPLICATION_VERIFIER | FLG_SHOW_LDR_SNAPS);
+				GlobalFlag &= ~FLG_APPLICATION_VERIFIER;
 
 				if (GlobalFlag == 0) {
 					// GlobalFlag is now empty, so delete it.
@@ -300,8 +300,7 @@ KXCFGDECLSPEC BOOLEAN KxCfgDeleteConfiguration(
 				// No values we care about here, so delete the key.
 				RegDeleteTree(IfeoKeyHandle, NULL);
 				NtDeleteKey(IfeoKeyHandle);
-				RegCloseKey(IfeoKeyHandle);
-				IfeoKeyHandle = NULL;
+				SafeClose(IfeoKeyHandle);
 
 				//
 				// Step 7. If there are no more subkeys under the IFEO EXE key (the key that

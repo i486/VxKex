@@ -36,7 +36,7 @@
 // those in an attempt to remedy the missing API functions. (But in practice
 // those failure hooks are either not provided or don't do anything useful.)
 //
-PVOID NTAPI KexLdrResolveDelayLoadedAPI(
+KEXAPI PVOID NTAPI KexLdrResolveDelayLoadedAPI(
 	IN	PVOID								ParentModuleBase,
 	IN	PCIMAGE_DELAYLOAD_DESCRIPTOR		DelayloadDescriptor,
 	IN	PDELAYLOAD_FAILURE_DLL_CALLBACK		FailureDllHook OPTIONAL,

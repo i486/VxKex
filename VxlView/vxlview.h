@@ -4,6 +4,7 @@
 #include <KexDll.h>
 
 #define FRIENDLYAPPNAME L"Log Viewer"
+#define APP_REG_KEY L"SOFTWARE\\VXsoft\\VxlView"
 
 #define UNCONST(Type) *(Type*)&
 
@@ -66,10 +67,6 @@ NTSTATUS ConvertCacheEntryToText(
 
 // config.c
 
-VOID SaveWindowPlacement(
-	VOID);
-VOID RestoreWindowPlacement(
-	VOID);
 VOID SaveListViewColumns(
 	VOID);
 VOID RestoreListViewColumns(

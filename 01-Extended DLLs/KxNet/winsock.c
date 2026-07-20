@@ -1,13 +1,12 @@
 #include "buildcfg.h"
 #include "kxnetp.h"
-#include <WS2tcpip.h>
 
 //
 // libuv (which is used by some random node.js package that a lot of electron
-// apps, such as VSCode, Signal, etc.) depends on GetHostNameW and will shit
-// itself if not found.
+// apps, such as VSCode, Signal, etc. use,) depends on GetHostNameW and will
+// shit itself if not found.
 //
-KXNETAPI INT WINAPI GetHostNameW(
+KXNETAPI INT WSAAPI GetHostNameW(
 	OUT	PWSTR	Name,
 	IN	INT		NameCch)
 {
@@ -46,7 +45,7 @@ KXNETAPI INT WINAPI GetHostNameW(
 //
 // Used for app-specific hack.
 //
-KXNETAPI INT WINAPI Ext_getaddrinfo(
+KXNETAPI INT WSAAPI Ext_getaddrinfo(
 	IN	PCSTR					NodeName,
 	IN	PCSTR					ServerName,
 	IN	const struct addrinfo	*Hints,
@@ -75,19 +74,126 @@ KXNETAPI INT WINAPI Ext_getaddrinfo(
 	return getaddrinfo(NodeName, ServerName, Hints, Results);
 }
 
-KXNETAPI INT WINAPI GetAddrInfoExCancel(
-	IN	PHANDLE	Handle)
+//
+// The game osu!lazer fails to connect to the internet due to an unsupported
+// socket option (SO_REUSE_UNICASTPORT) which is only available on newer
+// versions of Windows. It can safely be ignored.
+//
+KXNETAPI INT WSAAPI Ext_setsockopt(
+	IN	SOCKET	SocketHandle,
+	IN	INT		Level,
+	IN	INT		OptionId,
+	IN	PCVOID	OptionBuffer,
+	IN	INT		OptionCb)
 {
-	if (Handle == NULL || *Handle == NULL) {
-		return WSA_INVALID_HANDLE;
+	INT ReturnCode;
+	INT ErrorCode;
+
+	ReturnCode = setsockopt(
+		SocketHandle,
+		Level,
+		OptionId,
+		(PCCHAR) OptionBuffer,
+		OptionCb);
+
+	if (ReturnCode == SOCKET_ERROR) {
+		ErrorCode = WSAGetLastError();
 	}
 
-	// Should we just pretend we succeeded here, or return an error code?
-	return WSAEINVAL;
+	if (ReturnCode == SOCKET_ERROR &&
+		ErrorCode == WSAENOPROTOOPT &&
+		Level == SOL_SOCKET) {
+
+		switch (OptionId) {
+		case SO_REUSE_UNICASTPORT:
+		case SO_REUSE_MULTICASTPORT:
+			KexLogDebugEvent(L"Faking success (OptionId 0x%x)", OptionId);
+			ReturnCode = 0;
+			break;
+		}
+	}
+
+	if (ReturnCode == SOCKET_ERROR) {
+		KexLogWarningEvent(
+			L"Windows Sockets function failed with an error code of %d\r\n\r\n"
+			L"SocketHandle: 0x%p\r\n"
+			L"Level:        %d\r\n"
+			L"OptionId:     %d\r\n"
+			L"OptionBuffer: 0x%p\r\n"
+			L"OptionCb:     %d",
+			ErrorCode,
+			SocketHandle,
+			Level,
+			OptionId,
+			OptionBuffer,
+			OptionCb);
+
+		KexDebugCheckpoint();
+	}
+
+	return ReturnCode;
 }
 
-KXNETAPI INT WINAPI GetAddrInfoExOverlappedResult(
-	IN	LPOVERLAPPED lpOverlapped)
+KXNETAPI INT WSAAPI Ext_getsockopt(
+	IN		SOCKET	SocketHandle,
+	IN		INT		Level,
+	IN		INT		OptionId,
+	OUT		PVOID	OptionBuffer,
+	IN OUT	PINT	OptionCb)
 {
-	return WSAEINVAL;
+	INT ReturnCode;
+	INT ErrorCode;
+
+	ReturnCode = getsockopt(
+		SocketHandle,
+		Level,
+		OptionId,
+		(PCHAR) OptionBuffer,
+		OptionCb);
+
+	if (ReturnCode == SOCKET_ERROR) {
+		ErrorCode = WSAGetLastError();
+	}
+
+	if (ReturnCode == SOCKET_ERROR &&
+		ErrorCode == WSAENOPROTOOPT &&
+		Level == SOL_SOCKET) {
+
+		switch (OptionId) {
+		case SO_REUSE_UNICASTPORT:
+		case SO_REUSE_MULTICASTPORT:
+			ASSERT (OptionCb != NULL);
+			ASSERT (*OptionCb >= sizeof(ULONG));
+
+			if (*OptionCb < sizeof(ULONG)) {
+				return ReturnCode;
+			}
+
+			KexLogDebugEvent(L"Faking success (OptionId 0x%x)", OptionId);
+			*(PULONG) OptionBuffer = 0;
+			*OptionCb = sizeof(ULONG);
+			ReturnCode = 0;
+			break;
+		}
+	}
+
+	if (ReturnCode == SOCKET_ERROR) {
+		KexLogWarningEvent(
+			L"Windows Sockets function failed with an error code of %d\r\n\r\n"
+			L"SocketHandle: 0x%p\r\n"
+			L"Level:        %d\r\n"
+			L"OptionId:     %d\r\n"
+			L"OptionBuffer: 0x%p\r\n"
+			L"OptionCb:     %d",
+			ErrorCode,
+			SocketHandle,
+			Level,
+			OptionId,
+			OptionBuffer,
+			OptionCb);
+
+		KexDebugCheckpoint();
+	}
+
+	return ReturnCode;
 }

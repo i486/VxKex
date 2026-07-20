@@ -23,6 +23,7 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
+#include "buildcfg.h"
 #include "kexsetup.h"
 
 VOID DisplayHelpMessage(
@@ -43,7 +44,7 @@ VOID DisplayHelpMessage(
 		L"The following flag may be useful in silent unattend mode:\r\n\r\n"
 		L"/KEXDIR:\"<directory path>\" - Specifies the path to which VxKex will be installed. "
 		L"You must use quotes around the directory path if it contains space characters.",
-		FRIENDLYAPPNAME,
+		_(FRIENDLYAPPNAME),
 		MB_OK);
 }
 
@@ -63,7 +64,7 @@ VOID ProcessCommandLineOptions(
 	//
 
 	CommandLine = GetCommandLineWithoutImageName();
-	CommandLineBufferCch = wcslen(CommandLine) + 1;
+	CommandLineBufferCch = (ULONG) wcslen(CommandLine) + 1;
 	CommandLineBuffer = StackAlloc(WCHAR, CommandLineBufferCch);
 	CopyMemory(CommandLineBuffer, CommandLine, CommandLineBufferCch * sizeof(WCHAR));
 	CommandLine = CommandLineBuffer;
@@ -110,10 +111,10 @@ VOID ProcessCommandLineOptions(
 
 	if (StringSearchI(CommandLine, L"/UNINSTALL")) {
 		if (ExistingVxKexVersion > InstallerVxKexVersion) {
-			InfoBoxF(
+			InfoBoxF(_(
 				L"A version of VxKex is installed on your computer that is "
 				L"newer than the version inside this installer. If you would like "
-				L"to uninstall, use a newer version of the setup application.");
+				L"to uninstall, use a newer version of the setup application."));
 			ExitProcess(STATUS_VERSION_MISMATCH);
 		}
 
@@ -129,13 +130,16 @@ VOID ProcessCommandLineOptions(
 		} else if (InstallerVxKexVersion > ExistingVxKexVersion) {
 			OperationMode = OperationModeUpgrade;
 		} else if (InstallerVxKexVersion == ExistingVxKexVersion) {
-			InfoBoxF(L"VxKex is already installed. To uninstall, use the Add/Remove Programs control panel.");
+			InfoBoxF(_(
+				L"VxKex is already installed. To uninstall, use the "
+				L"Add/Remove Programs control panel."));
+
 			ExitProcess(STATUS_ALREADY_REGISTERED);
 		} else if (ExistingVxKexVersion > InstallerVxKexVersion) {
-			InfoBoxF(
+			InfoBoxF(_(
 				L"A version of VxKex is installed on your computer that is "
 				L"newer than the version inside this installer. If you would "
-				L"like to downgrade, please uninstall the existing version first.");
+				L"like to downgrade, please uninstall the existing version first."));
 			ExitProcess(STATUS_VERSION_MISMATCH);
 		} else {
 			NOT_REACHED;

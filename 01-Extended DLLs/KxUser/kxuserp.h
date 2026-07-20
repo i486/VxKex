@@ -25,3 +25,16 @@
 #include <KxUser.h>
 
 EXTERN PKEX_PROCESS_DATA KexData;
+
+typedef struct _FNDWORDMSG {
+	PVOID		pwnd;
+	UINT		msg;
+	WPARAM		wParam;
+	LPARAM		lParam;
+	ULONG_PTR	xParam;
+	PVOID		xpfnProc;
+} TYPEDEF_TYPE_NAME(FNDWORDMSG);
+
+NTSTATUS EnableWindowMessageInterception(
+	VOID);
+

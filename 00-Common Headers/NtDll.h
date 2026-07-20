@@ -28,6 +28,8 @@
 //     vxiiduu               04-Jul-2025  Correct SpareBytes[0x24] to SpareBytes[24]
 //     vxiiduu               04-Feb-2026  Add ImageFileExecutionOptions member to
 //                                        KUSER_SHARED_DATA
+//     vxiiduu               26-Jun-2026  Fix TEB size for 32-bit
+//     vxiiduu               26-Jun-2026  Fix PEB size for 32-bit and 64-bit
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -35,6 +37,10 @@
 #include <KexTypes.h>
 #include <WinIoCtl.h>
 #include <WinNT.h>
+#include <inaddr.h>
+#include <in6addr.h>
+GEN_STD_TYPEDEFS(IN_ADDR);
+GEN_STD_TYPEDEFS(IN6_ADDR);
 #undef WIN32_NO_STATUS
 #include <ntstatus.h>
 #define WIN32_NO_STATUS
@@ -80,15 +86,17 @@
 #define PF_CHANNELS_ENABLED							16
 #define PF_XSAVE_ENABLED							17
 
-#define OBJ_INHERIT             0x00000002L
-#define OBJ_PERMANENT           0x00000010L
-#define OBJ_EXCLUSIVE           0x00000020L
-#define OBJ_CASE_INSENSITIVE    0x00000040L
-#define OBJ_OPENIF              0x00000080L
-#define OBJ_OPENLINK            0x00000100L
-#define OBJ_KERNEL_HANDLE       0x00000200L
-#define OBJ_FORCE_ACCESS_CHECK  0x00000400L
-#define OBJ_VALID_ATTRIBUTES    0x000007F2L
+#define OBJ_INHERIT             0x00000002UL
+#define OBJ_PERMANENT           0x00000010UL
+#define OBJ_EXCLUSIVE           0x00000020UL
+#define OBJ_CASE_INSENSITIVE    0x00000040UL
+#define OBJ_OPENIF              0x00000080UL
+#define OBJ_OPENLINK            0x00000100UL
+#define OBJ_KERNEL_HANDLE       0x00000200UL
+#define OBJ_FORCE_ACCESS_CHECK  0x00000400UL
+#define OBJ_VALID_ATTRIBUTES    0x000007F2UL
+
+#define OBJ_HANDLE_TAGBITS		0x00000003UL
 
 #define FILE_DIRECTORY_FILE                     0x00000001
 #define FILE_WRITE_THROUGH                      0x00000002
@@ -380,6 +388,11 @@
 
 #define DLL_PROCESS_VERIFIER 4
 
+#define RTL_CRITICAL_SECTION_INIT {(PRTL_CRITICAL_SECTION_DEBUG) -1, -1, 0, NULL, NULL, 0}
+
+// Peb->ProcessParameters->ConsoleFlags
+#define CONSOLE_IGNORE_CTRL_C 1
+
 #ifdef _M_X64
 #  define GDI_HANDLE_BUFFER_SIZE GDI_HANDLE_BUFFER_SIZE64
 #else
@@ -564,6 +577,10 @@ typedef struct _MEM_ADDRESS_REQUIREMENTS {
 
 #define DIRECTORY_ALL_ACCESS (STANDARD_RIGHTS_REQUIRED | 0xF)
 
+#define KEYEDEVENT_WAIT 0x0001
+#define KEYEDEVENT_WAKE 0x0002
+#define KEYEDEVENT_ALL_ACCESS (STANDARD_RIGHTS_REQUIRED | KEYEDEVENT_WAIT | KEYEDEVENT_WAKE)
+
 #define DLL_CHARACTERISTIC_LOAD_AS_DATA				0x000002
 #define DLL_CHARACTERISTIC_IGNORE_CODE_AUTHZ_LEVEL	0x001000
 #define DLL_CHARACTERISTIC_REQUIRE_SIGNATURE		0x800000
@@ -646,6 +663,14 @@ typedef struct _MEM_ADDRESS_REQUIREMENTS {
 
 // extra NTSTATUS values - not in Windows 7
 #define STATUS_NOT_SAME_OBJECT ((NTSTATUS) 0xC00001AC)
+
+// for use with (Kex)RtlGetDeviceFamilyInfoEnum
+#define DEVICEFAMILYINFOENUM_DESKTOP				0x03
+#define DEVICEFAMILYDEVICEFORM_TABLET				0x02
+#define DEVICEFAMILYDEVICEFORM_DESKTOP				0x03
+#define DEVICEFAMILYDEVICEFORM_NOTEBOOK				0x04
+
+#define IMAGE_FILE_MACHINE_TARGET_HOST				0x0001
 
 #pragma endregion
 
@@ -1318,7 +1343,10 @@ typedef struct _RTL_USER_PROCESS_PARAMETERS {
 	ULONG								Flags; // RTL_USER_PROCESS_PARAMETERS_*
 	ULONG								DebugFlags;
 
+	// Set when the process is attached to a console, NULL if not.
 	HANDLE								ConsoleHandle;
+
+	// May be 0 or CONSOLE_IGNORE_CTRL_C
 	ULONG								ConsoleFlags;
 	HANDLE								StandardInput;
 	HANDLE								StandardOutput;
@@ -1383,6 +1411,9 @@ typedef struct _API_SET_VALUE_ENTRY {
 	ULONG	ValueLength;
 } TYPEDEF_TYPE_NAME(API_SET_VALUE_ENTRY);
 
+typedef NTSTATUS (NTAPI *PFN_DISPATCH)(
+	IN	PVOID Context OPTIONAL);
+
 typedef struct _PEB {
 	BOOLEAN								InheritedAddressSpace;
 	BOOLEAN								ReadImageFileExecOptions;
@@ -1429,7 +1460,7 @@ typedef struct _PEB {
 
 	union {
 		// array of function pointers for KiUserCallbackDispatcher
-		PVOID							KernelCallbackTable;
+		PFN_DISPATCH					*KernelCallbackTable;
 
 		// UserSharedInfoPtr is only relevant when starting "protected processes".
 		PVOID							UserSharedInfoPtr;
@@ -1491,6 +1522,10 @@ typedef struct _PEB {
 	// PostProcessInitRoutine is called by NTDLL after all DLL entry points are called.
 	// However, it is still useless, because user32.dll will overwrite it with NULL when
 	// its DLL entry point is called. This makes its usage very unreliable.
+	//
+	// A more reliable potential way to execute something after all DLL initialization
+	// but before process entry point is to queue an APC to the main thread. NTDLL will
+	// use NtTestAlert to run all queued APCs.
 	PPS_POST_PROCESS_INIT_ROUTINE		PostProcessInitRoutine;
 
 	PVOID								TlsExpansionBitmap;
@@ -1514,7 +1549,6 @@ typedef struct _PEB {
 	SIZE_T								MinimumStackCommit;
 
 	PPVOID								FlsCallback;
-	PVOID								SparePointers[4];
 	LIST_ENTRY							FlsListHead;
 	PVOID								FlsBitmap;
 	ULONG								FlsBitmapBits[4];
@@ -1541,6 +1575,12 @@ typedef struct _PEB {
 	//
 } TYPEDEF_TYPE_NAME(PEB);
 
+#ifdef _M_X64
+C_ASSERT(sizeof(PEB) == 0x0380);
+#else
+C_ASSERT(sizeof(PEB) == 0x0248);
+#endif
+
 #define GDI_BATCH_BUFFER_SIZE 310
 
 typedef struct _GDI_TEB_BATCH {
@@ -1562,30 +1602,7 @@ typedef struct _TEB_ACTIVE_FRAME {
 
 typedef struct _TEB {
 	NT_TIB								NtTib;
-
-	union {
-		struct {
-			//
-			// KexLdrShouldRewriteDll is set if the current call stack
-			// includes one of the following functions:
-			//
-			//   Ext_GetModuleHandleA
-			//   Ext_GetModuleHandleW
-			//   Ext_GetModuleHandleExA
-			//   Ext_GetModuleHandleExW
-			//   Ext_LoadLibraryA
-			//   Ext_LoadLibraryW
-			//   Ext_LoadLibraryExA
-			//   Ext_LoadLibraryExW
-			//
-
-			BOOLEAN						KexLdrShouldRewriteDll	: 1;
-		};
-
-		ULONG_PTR						KexPerThreadData;
-		PVOID							EnvironmentPointer; // unused
-	};
-
+	PVOID								EnvironmentPointer;
 	CLIENT_ID							ClientId; // GetCurrentProcessId & GetCurrentThreadId
 	PVOID								ActiveRpcHandle; // unused
 	PVOID								ThreadLocalStoragePointer;
@@ -1597,6 +1614,9 @@ typedef struct _TEB {
 	PVOID								Win32ThreadInfo;
 	ULONG								User32Reserved[0x1A];
 	ULONG								UserReserved[5];
+
+	// NULL in a 64-bit process, non-NULL in a 32-bit process.
+	// Don't know what it points to exactly but it's a function pointer.
 	PVOID								WOW32Reserved;
 
 	ULONG								CurrentLocale; // GetThreadLocale & SetThreadLocale
@@ -1686,8 +1706,10 @@ typedef struct _TEB {
 	PVOID								ThreadPoolData;
 
 	PVOID								*TlsExpansionSlots;
+#ifdef _M_X64
 	PVOID								DeallocationBStore;
 	PVOID								BStoreLimit;
+#endif
 	ULONG								MuiGeneration;
 	ULONG								IsImpersonating;
 	PVOID								NlsCache;
@@ -1737,6 +1759,12 @@ typedef struct _TEB {
 	ULONG								SpareUlong0;
 	PVOID								ResourceRetValue;
 } TYPEDEF_TYPE_NAME(TEB);
+
+#ifdef _M_X64
+C_ASSERT(sizeof(TEB) == 0x1818);
+#else
+C_ASSERT(sizeof(TEB) == 0x0FE4);
+#endif
 
 typedef struct _KSYSTEM_TIME {
 	ULONG	LowPart;
@@ -2246,6 +2274,41 @@ typedef enum _FILE_INFORMATION_CLASS {
 	FileNumaNodeInformation,                        // 53
 	FileStandardLinkInformation,                    // 54
 	FileRemoteProtocolInformation,                  // 55
+
+	// Windows 8 and above
+	FileRenameInformationBypassAccessCheck,			// 56
+	FileLinkInformationBypassAccessCheck,			// 57
+	FileVolumeNameInformation,						// 58
+	FileIdInformation,								// 59
+	FileIdExtdDirectoryInformation,					// 60
+
+	// Windows 8.1 and above
+	FileReplaceCompletionInformation,				// 61
+	FileHardLinkFullIdInformation,					// 62
+	FileIdExtdBothDirectoryInformation,				// 63
+
+	// Windows 10 and above
+	FileDispositionInformationEx,					// 64
+	FileRenameInformationEx,						// 65
+	FileRenameInformationExBypassAccessCheck,		// 66
+	FileDesiredStorageClassInformation,				// 67
+	FileStatInformation,							// 68
+	FileMemoryPartitionInformation,					// 69
+	FileStatLxInformation,							// 70
+	FileCaseSensitiveInformation,					// 71
+	FileLinkInformationEx,							// 72
+	FileLinkInformationExBypassAccessCheck,			// 73
+	FileStorageReserveIdInformation,				// 74
+	FileCaseSensitiveInformationForceAccessCheck,	// 75
+	FileKnownFolderInformation,						// 76
+	FileStatBasicInformation,						// 77
+	FileId64ExtdDirectoryInformation,				// 78
+	FileId64ExtdBothDirectoryInformation,			// 79
+	FileIdAllExtdDirectoryInformation,				// 80
+	FileIdAllExtdBothDirectoryInformation,			// 81
+	FileStreamReservationInformation,				// 82
+	FileMupProviderInfo,							// 83
+
 	FileMaximumInformation
 } TYPEDEF_TYPE_NAME(FILE_INFORMATION_CLASS);
 
@@ -2306,6 +2369,49 @@ typedef struct _FILE_FULL_EA_INFORMATION {
 	USHORT			EaValueLength;
 	CHAR			EaName[1];
 } TYPEDEF_TYPE_NAME(FILE_FULL_EA_INFORMATION);
+
+// Used with NtSetInformationFile -> FileRenameInformation(Ex)
+// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/ns-ntifs-_file_rename_information
+typedef struct _FILE_RENAME_INFORMATION {
+	union {
+		struct {
+			BOOLEAN	ReplaceIfExistsWin10AndAbove		: 1;
+			BOOLEAN	PosixSemantics						: 1;
+			BOOLEAN	SuppressPinStateInheritance			: 1;
+			BOOLEAN	SuppressStorageReserveInheritance	: 1;
+			BOOLEAN	NoIncreaseAvailableSpace			: 1;
+			BOOLEAN	NoDecreaseAvailableSpace			: 1;
+			BOOLEAN	IgnoreReadonlyAttribute				: 1;
+			BOOLEAN	ForceResizeTargetStorageReserve		: 1;
+			BOOLEAN ForceResizeSourceStorageReserve		: 1;
+		};
+
+		BOOLEAN		ReplaceIfExists;			// FileRenameInformation
+		ULONG		Flags;						// FileRenameInformationEx
+	};
+
+	HANDLE			RootDirectory;
+	ULONG			FileNameLength;
+	WCHAR			FileName[ANYSIZE_ARRAY];
+} TYPEDEF_TYPE_NAME(FILE_RENAME_INFORMATION);
+
+typedef struct _FILE_DISPOSITION_INFORMATION {
+	BOOLEAN			DeleteFile;
+} TYPEDEF_TYPE_NAME(FILE_DISPOSITION_INFORMATION);
+
+typedef struct _FILE_DISPOSITION_INFORMATION_EX {
+	union {
+		struct {
+			BOOLEAN	Delete								: 1;
+			BOOLEAN	PosixSemantics						: 1;
+			BOOLEAN	ForceImageSectionCheck				: 1;
+			BOOLEAN	OnClose								: 1;
+			BOOLEAN	IgnoreReadonlyAttribute				: 1;
+		};
+
+		ULONG		Flags;
+	};
+} TYPEDEF_TYPE_NAME(FILE_DISPOSITION_INFORMATION_EX);
 
 typedef struct _SYSTEM_PROCESS_INFORMATION {
 	ULONG			NextEntryOffset;
@@ -2947,6 +3053,13 @@ typedef struct {
 	LONG EventState;
 } TYPEDEF_TYPE_NAME(EVENT_BASIC_INFORMATION);
 
+// Win10 1803+
+typedef enum {
+	StateLocationTypeRegistry,
+	StateLocationTypeFileSystem,
+	StateLocationTypeMaximum
+} TYPEDEF_TYPE_NAME(STATE_LOCATION_TYPE);
+
 #pragma endregion
 
 STATIC PKUSER_SHARED_DATA SharedUserData = (PKUSER_SHARED_DATA) 0x7FFE0000;
@@ -3418,6 +3531,9 @@ NTSYSCALLAPI NTSTATUS NTAPI NtDelayExecution(
 	IN		BOOLEAN						Alertable,
 	IN		PLONGLONG					DelayInterval);
 
+NTSYSCALLAPI NTSTATUS NTAPI NtYieldExecution(
+	VOID);
+
 NTSYSCALLAPI NTSTATUS NTAPI NtCreateTransaction(
 	OUT		PHANDLE						TransactionHandle,
 	IN		ACCESS_MASK					DesiredAccess,
@@ -3829,6 +3945,44 @@ NTSYSCALLAPI NTSTATUS NTAPI NtRaiseException(
 	IN	PCONTEXT			ContextRecord,
 	IN	BOOLEAN				FirstChance);
 
+NTSYSCALLAPI NTSTATUS NTAPI NtCreateKeyedEvent(
+	OUT	PHANDLE				KeyedEventHandle,
+	IN	ACCESS_MASK			DesiredAccess,
+	IN	POBJECT_ATTRIBUTES	ObjectAttributes OPTIONAL,
+	IN	ULONG				Reserved);
+
+NTSYSCALLAPI NTSTATUS NTAPI NtOpenKeyedEvent(
+	OUT	PHANDLE				KeyedEventHandle,
+	IN	ACCESS_MASK			DesiredAccess,
+	IN	POBJECT_ATTRIBUTES	ObjectAttributes);
+
+NTSYSCALLAPI NTSTATUS NTAPI NtReleaseKeyedEvent(
+	IN	HANDLE				KeyedEventHandle,
+	IN	PVOID				KeyValue,
+	IN	BOOLEAN				Alertable,
+	IN	PLARGE_INTEGER		Timeout OPTIONAL);
+
+NTSYSCALLAPI NTSTATUS NTAPI NtWaitForKeyedEvent(
+	IN	HANDLE				KeyedEventHandle,
+	IN	PVOID				KeyValue,
+	IN	BOOLEAN				Alertable,
+	IN	PLARGE_INTEGER		Timeout OPTIONAL);
+
+NTSYSCALLAPI NTSTATUS NTAPI NtQueueApcThread(
+	IN	HANDLE				ThreadHandle,
+	IN	PKNORMAL_ROUTINE	ApcRoutine,
+	IN	PVOID				NormalContext,
+	IN	PVOID				SystemArgument1,
+	IN	PVOID				SystemArgument2);
+
+NTSYSCALLAPI NTSTATUS NTAPI NtSetContextThread(
+	IN	HANDLE				ThreadHandle,
+	IN	PCONTEXT			ThreadContext);
+
+NTSYSCALLAPI NTSTATUS NTAPI NtGetContextThread(
+	IN		HANDLE			ThreadHandle,
+	IN OUT	PCONTEXT		ThreadContext);
+
 #pragma endregion
 
 #pragma region Nt* function declarations (not in Windows 7)
@@ -4066,7 +4220,7 @@ NTSYSAPI PVOID NTAPI RtlAllocateHeap(
 	IN	SIZE_T	Size);
 
 NTSYSAPI PVOID NTAPI RtlReAllocateHeap(
-	IN	PVOID	HeapHAndle,
+	IN	PVOID	HeapHandle,
 	IN	ULONG	Flags OPTIONAL,
 	IN	PVOID	BaseAddress OPTIONAL,
 	IN	SIZE_T	Size);
@@ -4129,6 +4283,12 @@ NTSYSAPI NTSTATUS NTAPI RtlLeaveCriticalSection(
 NTSYSAPI NTSTATUS NTAPI RtlDeleteCriticalSection(
 	IN	PRTL_CRITICAL_SECTION	CriticalSection);
 
+NTSYSAPI BOOLEAN NTAPI RtlIsCriticalSectionLocked(
+	IN	PRTL_CRITICAL_SECTION	CriticalSection);
+
+NTSYSAPI BOOLEAN NTAPI RtlIsCriticalSectionLockedByThread(
+	IN	PRTL_CRITICAL_SECTION	CriticalSection);
+
 // Note: This is exactly identical to zeroing the memory of the SRW lock.
 // If running on Windows 7 only, no need to call this function.
 #define RtlInitializeSRWLock(SRWLock) (SRWLock)->Ptr = NULL
@@ -4153,6 +4313,25 @@ NTSYSAPI BOOLEAN NTAPI RtlTryAcquireSRWLockExclusive(
 
 NTSYSAPI BOOLEAN NTAPI RtlTryAcquireSRWLockShared(
 	IN OUT	PRTL_SRWLOCK		SRWLock);
+
+NTSYSAPI NTSTATUS NTAPI RtlSleepConditionVariableCS(
+	IN	PRTL_CONDITION_VARIABLE	ConditionVariable,
+	IN	PRTL_CRITICAL_SECTION	CriticalSection,
+	IN	PLARGE_INTEGER			Timeout);
+
+NTSYSAPI NTSTATUS NTAPI RtlSleepConditionVariableSRW(
+	IN	PRTL_CONDITION_VARIABLE ConditionVariable,
+	IN	PRTL_SRWLOCK SRWLock,
+	IN	PLARGE_INTEGER Timeout,
+	IN	ULONG Flags);
+
+NTSYSAPI VOID NTAPI RtlWakeConditionVariable(
+	IN	PRTL_CONDITION_VARIABLE	ConditionVariable);
+
+NTSYSAPI VOID NTAPI RtlWakeAllConditionVariable(
+	IN	PRTL_CONDITION_VARIABLE	ConditionVariable);
+
+#define RtlInitializeConditionVariable(ConditionVariable) (ConditionVariable)->Ptr = NULL
 
 NTSYSAPI NTSTATUS NTAPI RtlGetLengthWithoutLastFullDosOrNtPathElement(
 	IN	ULONG				Flags,
@@ -4490,6 +4669,115 @@ NTSYSAPI BOOLEAN NTAPI RtlAddFunctionTable(
 	IN		ULONGLONG				BaseAddress);
 #endif
 
+NTSYSAPI NTSTATUS NTAPI RtlIdnToAscii(
+	IN		ULONG	Flags,
+	IN		PCWSTR	SourceString,
+	IN		LONG	SourceStringLength,
+	OUT		PWSTR	DestinationString,
+	IN OUT	PULONG	DestinationStringLength);
+
+NTSYSAPI NTSTATUS NTAPI RtlIdnToUnicode(
+	IN		ULONG	Flags,
+	IN		PCWSTR	SourceString,
+	IN		LONG	SourceStringLength,
+	OUT		PWSTR	DestinationString,
+	IN OUT	PULONG	DestinationStringLength);
+
+NTSYSAPI PSTR NTAPI RtlIpv4AddressToStringA(
+    IN	PCIN_ADDR	Address,
+    OUT	PSTR		String);
+
+NTSYSAPI NTSTATUS NTAPI RtlIpv4AddressToStringExA(
+    IN		PCIN_ADDR	Address,
+    IN		USHORT		Port,
+    OUT		PSTR		AddressString,
+    IN OUT	PULONG		AddressStringLength);
+
+NTSYSAPI PWSTR NTAPI RtlIpv4AddressToStringW(
+    IN	PCIN_ADDR	Address,
+    OUT	PWSTR		String);
+
+NTSYSAPI NTSTATUS NTAPI RtlIpv4AddressToStringExW(
+    IN		PCIN_ADDR	Address,
+    IN		USHORT		Port,
+    OUT		PWSTR		AddressString,
+    IN OUT	PULONG		AddressStringLength);
+
+NTSYSAPI NTSTATUS NTAPI RtlIpv4StringToAddressA(
+    IN	PCSTR		String,
+    IN	BOOLEAN		Strict,
+    OUT	PPCSTR		Terminator,
+    OUT	PIN_ADDR	Addr);
+
+NTSYSAPI NTSTATUS NTAPI RtlIpv4StringToAddressExA(
+    IN	PCSTR		String,
+    IN	BOOLEAN		Strict,
+    OUT	PIN_ADDR	Address,
+    OUT	PUSHORT		Port);
+
+NTSYSAPI NTSTATUS NTAPI RtlIpv4StringToAddressW(
+    IN	PCWSTR		String,
+    IN	BOOLEAN		Strict,
+    OUT	PPCWSTR		Terminator,
+    OUT	PIN_ADDR	Address);
+
+NTSYSAPI NTSTATUS NTAPI RtlIpv4StringToAddressExW(
+    IN	PCWSTR		String,
+    IN	BOOLEAN		Strict,
+    OUT	PIN_ADDR	Address,
+    OUT	PUSHORT		Port);
+
+NTSYSAPI PSTR NTAPI RtlIpv6AddressToStringA(
+    IN	PCIN6_ADDR	Address,
+    OUT	PSTR		String);
+
+NTSYSAPI NTSTATUS NTAPI RtlIpv6AddressToStringExA(
+    IN		PCIN6_ADDR	Address,
+    IN		ULONG		ScopeId,
+    IN		USHORT		Port,
+    OUT		PSTR		AddressString,
+    IN OUT	PULONG		AddressStringLength);
+
+NTSYSAPI PWSTR NTAPI RtlIpv6AddressToStringW(
+    IN	PCIN6_ADDR	Address,
+    OUT	PWSTR		String);
+
+NTSYSAPI NTSTATUS NTAPI RtlIpv6AddressToStringExW(
+    IN		PCIN6_ADDR	Address,
+    IN		ULONG		ScopeId,
+    IN		USHORT		Port,
+    OUT		PWSTR		AddressString,
+    IN OUT	PULONG		AddressStringLength);
+
+NTSYSAPI NTSTATUS NTAPI RtlIpv6StringToAddressA(
+    IN	PCSTR		String,
+    OUT	PPCSTR		Terminator,
+    OUT	PIN6_ADDR	Address);
+
+NTSYSAPI NTSTATUS NTAPI RtlIpv6StringToAddressExA(
+    IN	PCSTR		String,
+    OUT	PIN6_ADDR	Address,
+    OUT	PULONG		ScopeId,
+    OUT	PUSHORT		Port);
+
+NTSYSAPI NTSTATUS NTAPI RtlIpv6StringToAddressW(
+    IN	PCWSTR		String,
+    OUT	PPCWSTR		Terminator,
+    OUT	PIN6_ADDR	Addr);
+
+NTSYSAPI LONG NTAPI RtlIpv6StringToAddressExW(
+    IN	PCWSTR		AddressString,
+    OUT	PIN6_ADDR	Address,
+    OUT	PULONG		ScopeId,
+    OUT	PUSHORT		Port);
+
+// [The following comment applies to x86 and WOW64 only.]
+// ThreadStartRoutine in EAX and Parameter in EBX.
+// Do not call directly on x86 or WOW64.
+NTSYSAPI VOID NORETURN NTAPI RtlUserThreadStart(
+	IN	PTHREAD_START_ROUTINE	ThreadStartRoutine,
+	IN	PVOID					Parameter);
+
 #pragma endregion
 
 #pragma region Ldr* function declarations
@@ -4579,27 +4867,27 @@ NTSYSAPI NTSTATUS NTAPI LdrGetDllHandleByName(
 // recommend you to decompile it and look at what it does exactly,
 // since the nuances of its operation are too long to explain here.
 NTSYSAPI NTSTATUS NTAPI LdrGetDllHandleByMapping(
-	IN	PVOID				ViewBase,
+	IN	PCVOID				ViewBase,
 	OUT	PPVOID				DllHandle);
 
 NTSYSAPI NTSTATUS NTAPI LdrDisableThreadCalloutsForDll(
-	IN	PVOID				DllHandle);
+	IN	PCVOID				DllHandle);
 
 NTSYSAPI NTSTATUS NTAPI LdrGetProcedureAddress(
-	IN	PVOID				DllHandle,
+	IN	PCVOID				DllHandle,
 	IN	PCANSI_STRING		ProcedureName OPTIONAL,
 	IN	ULONG				ProcedureNumber OPTIONAL,
 	OUT	PPVOID				ProcedureAddress);
 
 NTSYSAPI NTSTATUS NTAPI LdrGetProcedureAddressEx(
-	IN	PVOID				DllHandle,
+	IN	PCVOID				DllHandle,
 	IN	PCANSI_STRING		ProcedureName OPTIONAL,
 	IN	ULONG				ProcedureNumber OPTIONAL,
 	OUT	PPVOID				ProcedureAddress,
 	IN	ULONG				Flags); // Takes a flag value of 0 or 1 only. Don't know what it does.
 
 NTSYSAPI NTSTATUS NTAPI LdrFindEntryForAddress(
-	IN	PVOID					Address,
+	IN	PCVOID					Address,
 	OUT	PPLDR_DATA_TABLE_ENTRY	TableEntry);
 
 NTSYSAPI VOID NTAPI LdrShutdownThread(
@@ -4761,7 +5049,7 @@ FORCEINLINE PPEB NtCurrentPeb(
 #endif
 }
 
-FORCEINLINE VOID InitializeObjectAttributes(
+INLINE VOID InitializeObjectAttributes(
 	OUT	POBJECT_ATTRIBUTES		ObjectAttributes,
 	IN	PUNICODE_STRING			ObjectName,
 	IN	ULONG					Attributes,
@@ -4774,6 +5062,39 @@ FORCEINLINE VOID InitializeObjectAttributes(
 	ObjectAttributes->ObjectName = ObjectName;
 	ObjectAttributes->SecurityDescriptor = SecurityDescriptor;
 	ObjectAttributes->SecurityQualityOfService = NULL;
+}
+
+// Buffers must not overlap
+INLINE VOID KexRtlReverseCopyMemory(
+	OUT	PBYTE	Destination,
+	IN	PCBYTE	Source,
+	IN	ULONG	Cb)
+{
+	while (Cb > 0) {
+		*Destination++ = Source[--Cb];
+	}
+}
+
+INLINE VOID KexRtlReverseCopyMemoryInPlace(
+	IN OUT	PBYTE	Memory,
+	IN		ULONG	Cb)
+{
+	PBYTE Start;
+	PBYTE End;
+
+	Start = Memory;
+	End = &Memory[Cb - 1];
+
+	while (Start < End) {
+		BYTE Temp;
+
+		Temp = *Start;
+		*Start = *End;
+		*End = Temp;
+
+		++Start;
+		--End;
+	}
 }
 
 // doubly linked list functions
@@ -4910,5 +5231,30 @@ FORCEINLINE ULONG RtlActiveEnumeratorsHashTable(
 {
 	return HashTable->NumEnumerators;
 }
+
+//
+// IP-address functions
+//
+
+#if defined(KEX_ENV_NATIVE)
+
+FORCEINLINE BOOLEAN IN6_IS_ADDR_V4MAPPED(
+	IN	PCIN6_ADDR	Ipv6Address)
+{
+    return (BOOLEAN)((Ipv6Address->s6_words[0] == 0) &&
+					 (Ipv6Address->s6_words[1] == 0) &&
+					 (Ipv6Address->s6_words[2] == 0) &&
+					 (Ipv6Address->s6_words[3] == 0) &&
+					 (Ipv6Address->s6_words[4] == 0) &&
+					 (Ipv6Address->s6_words[5] == 0xffff));
+}
+
+FORCEINLINE PCUCHAR IN6_GET_ADDR_V4MAPPED(
+	IN	PCIN6_ADDR	Ipv6Address)
+{
+    return (PCUCHAR) (Ipv6Address->s6_words + 6);
+}
+
+#endif
 
 #pragma endregion

@@ -28,6 +28,11 @@
 #include "resource.h"
 #include <KexComm.h>
 
+// Custom window messages used by KexSetup
+#define KSM_NOTIFY_ELEVATED_PROCESS_START		(WM_APP + 0)
+#define KSM_INCREMENT_SCENE						(WM_APP + 1)
+#define KSM_NOTIFY_ELEVATED_PROCESS_FATAL_EXIT	(WM_APP + 2)
+
 typedef enum {
 	OperationModeInstall,
 	OperationModeUninstall,
@@ -98,9 +103,6 @@ VOID KexSetupCheckForPrerequisites(
 VOID GetDefaultInstallationLocation(
 	IN	PWSTR	InstallationPath);
 
-BOOLEAN IsWow64(
-	VOID);
-
 VOID KexSetupCreateKey(
 	IN	HKEY	KeyHandle,
 	IN	PCWSTR	SubKey,
@@ -127,6 +129,18 @@ VOID KexSetupRegReadString(
 	OUT	PWSTR	Buffer,
 	IN	ULONG	BufferCch);
 
+BOOLEAN KexSetupFilesAreIdentical(
+	IN	PCWSTR	File1,
+	IN	PCWSTR	File2);
+
+BOOLEAN KexSetupDirectoriesAreIdentical(
+	IN	PCWSTR	Directory1,
+	IN	PCWSTR	Directory2);
+
+BOOLEAN KexSetupFilesOrDirectoriesAreIdentical(
+	IN	PCWSTR	File1,
+	IN	PCWSTR	File2);
+
 VOID KexSetupSupersedeFile(
 	IN	PCWSTR	SourceFile,
 	IN	PCWSTR	TargetFile);
@@ -151,6 +165,9 @@ BOOLEAN KexSetupRemoveDirectoryRecursive(
 
 BOOLEAN KexSetupDeleteFilesBySpec(
 	IN	PCWSTR	FileSpec);
+
+VOID KexSetupChangeDisableLoggingToEnableLogging(
+	IN	HKEY	KeyHandle);
 
 //
 // version.c

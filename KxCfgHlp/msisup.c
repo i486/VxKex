@@ -21,7 +21,7 @@ KXCFGDECLSPEC BOOLEAN WINAPI KxCfgEnableVxKexForMsiexec(
 	if (Enable) {
 		KXCFG_PROGRAM_CONFIGURATION MsiexecConfiguration;
 
-		RtlZeroMemory(&MsiexecConfiguration, sizeof(MsiexecConfiguration));
+		KexRtlZeroMemory(&MsiexecConfiguration, sizeof(MsiexecConfiguration));
 		MsiexecConfiguration.Enabled = TRUE;
 
 		if (KexRtlOperatingSystemBitness() == 64) {

@@ -1,7 +1,7 @@
 #include "buildcfg.h"
 #include "kexdllp.h"
 
-KEXAPI NTSTATUS NTAPI KexRtlWow64GetProcessMachines(
+KEXAPI NTSTATUS NTAPI RtlWow64GetProcessMachines(
 	IN	HANDLE	ProcessHandle,
 	OUT	PUSHORT	ProcessMachine,
 	OUT	PUSHORT	NativeMachine OPTIONAL)
@@ -72,5 +72,26 @@ KEXAPI NTSTATUS NTAPI KexRtlWow64GetProcessMachines(
 		}
 	}
 
+	return STATUS_SUCCESS;
+}
+
+//
+// I'm not sure of exactly how this function is supposed to behave on
+// 32-bit operating systems. The real function on Win10/11 calls
+// NtQuerySystemInformationEx with SystemSupportedProcessorArchitectures2.
+// TODO: write a test program on Win10 to see what it does.
+//
+KEXAPI NTSTATUS NTAPI RtlWow64IsWowGuestMachineSupported(
+	IN	USHORT		WowGuestMachine,
+	OUT	PBOOLEAN	MachineIsSupported)
+{
+	*MachineIsSupported = FALSE;
+
+	if (KexRtlOperatingSystemBitness() == 64) {
+		if (WowGuestMachine == IMAGE_FILE_MACHINE_I386) {
+			*MachineIsSupported = TRUE;
+		}
+	}
+	
 	return STATUS_SUCCESS;
 }

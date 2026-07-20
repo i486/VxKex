@@ -51,5 +51,8 @@
     <ClCompile Include="lnkfile.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="regkey.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

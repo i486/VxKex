@@ -40,7 +40,7 @@ KXBASEAPI BOOL WINAPI WaitOnAddress(
 
 	TimeOutPointer = BaseFormatTimeOut(&TimeOut, Milliseconds);
 
-	Status = KexRtlWaitOnAddress(
+	Status = RtlWaitOnAddress(
 		Address,
 		CompareAddress,
 		AddressSize,
