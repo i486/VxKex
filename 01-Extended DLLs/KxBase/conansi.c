@@ -20,6 +20,9 @@
 // Revision History:
 //
 //     vxiiduu              05-May-2026  Initial creation.
+//     vxiiduu              14-Jul-2026  Fix a bug where multi-byte characters
+//                                       written using ANSI versions of functions
+//                                       could cause an assertion failure.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -752,13 +755,13 @@ BOOL WriteConsoleWithEscapeSequencesAorW(
 			Unicode);
 
 		if (CchToNextEscape > 0) {
-			ULONG CchWrittenThisCall;
+			ULONG Dummy;
 
 			Success = WriteConsoleAorW(
 				ConsoleHandle,
 				Buffer,
 				CchToNextEscape,
-				&CchWrittenThisCall,
+				&Dummy,
 				NULL,
 				Unicode);
 
@@ -766,9 +769,9 @@ BOOL WriteConsoleWithEscapeSequencesAorW(
 				goto Exit;
 			}
 
-			CchWritten += CchWrittenThisCall;
-			CchToWrite -= CchWrittenThisCall;
-			Buffer = RVA_TO_VA(Buffer, CchWrittenThisCall * CbOfChar);
+			CchWritten += CchToNextEscape;
+			CchToWrite -= CchToNextEscape;
+			Buffer = RVA_TO_VA(Buffer, CchToNextEscape * CbOfChar);
 		}
 
 		//

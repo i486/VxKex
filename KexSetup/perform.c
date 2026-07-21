@@ -433,13 +433,14 @@ VOID KexSetupInstallFiles(
 	}
 
 	{
-		PCWSTR UnwantedPrebuiltDlls[] = {
+		PCWSTR UnwantedDlls[] = {
 			L"dnsw8.dll",
 			L"dcow8.dll",
 			L"msvw10.dll",
 			L"icuin.dll",
 			L"icuuc.dll",
-			L"mshtmlmedia.dll"
+			L"mshtmlmedia.dll",
+			L"kxmi.dll",
 		};
 
 		ULONG Index;
@@ -448,13 +449,16 @@ VOID KexSetupInstallFiles(
 		// Past releases of VxKex have included some prebuilt DLLs which are no longer
 		// included and so we want to get rid of them now.
 		//
+		// In version 1.2.1, kxmi.dll was renamed to kx.dll so that three-letter DLLs can
+		// now be rewritten.
+		//
 
-		for (Index = 0; Index < ARRAYSIZE(UnwantedPrebuiltDlls); ++Index) {
-			KexSetupFormatPath(TargetPath, L"%s\\Kex32\\%s", KexDir, UnwantedPrebuiltDlls[Index]);
+		for (Index = 0; Index < ARRAYSIZE(UnwantedDlls); ++Index) {
+			KexSetupFormatPath(TargetPath, L"%s\\Kex32\\%s", KexDir, UnwantedDlls[Index]);
 			KexSetupDeleteFile(TargetPath);
 
 			if (Is64BitOS) {
-				KexSetupFormatPath(TargetPath, L"%s\\Kex64\\%s", KexDir, UnwantedPrebuiltDlls[Index]);
+				KexSetupFormatPath(TargetPath, L"%s\\Kex64\\%s", KexDir, UnwantedDlls[Index]);
 				KexSetupDeleteFile(TargetPath);
 			}
 		}

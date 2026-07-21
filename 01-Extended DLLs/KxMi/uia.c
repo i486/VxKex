@@ -12,5 +12,23 @@ KXMIAPI HRESULT WINAPI UiaRaiseNotificationEvent(
 	IN		BSTR						DisplayString OPTIONAL,
 	IN		BSTR						ActivityId)
 {
+	KexLogUnimplementedFunctionEvent();
+	return E_NOTIMPL;
+}
+
+KXMIAPI HRESULT WINAPI UiaDisconnectProvider(
+	IN		IUnknown					*Provider)
+{
+	KexLogUnimplementedFunctionEvent();
+	return E_NOTIMPL;
+}
+
+//
+// Some Unity games require this.
+//
+KXMIAPI HRESULT WINAPI UiaDisconnectAllProviders(
+	VOID)
+{
+	KexLogUnimplementedFunctionEvent();
 	return E_NOTIMPL;
 }

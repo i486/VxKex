@@ -116,8 +116,12 @@ VOID AshInitialize(
 		//
 
 		KexLogInformationEvent(L"App-Specific Hack applied for Godot");
+		
 		RtlInitConstantUnicodeString(&VariableName, L"VK_ICD_FILENAMES");
 		RtlInitConstantUnicodeString(&VariableValue, L":null:");
+		RtlSetEnvironmentVariable(NULL, &VariableName, &VariableValue);
+
+		RtlInitConstantUnicodeString(&VariableName, L"VK_DRIVER_FILES");
 		RtlSetEnvironmentVariable(NULL, &VariableName, &VariableValue);
 	}
 

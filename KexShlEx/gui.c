@@ -192,6 +192,11 @@ INT_PTR CALLBACK DialogProc(
 
 			VersionSpoofEnabled = !!IsDlgButtonChecked(Window, IDSPOOFVERSIONCHECK);
 
+			if (!VersionSpoofEnabled) {
+				// un-check strong spoof when user disables version spoof
+				Button_SetCheck(GetDlgItem(Window, IDSTRONGSPOOF), BST_UNCHECKED);
+			}
+
 			// enable the win ver combo box when the user enables version spoof
 			EnableWindow(GetDlgItem(Window, IDWINVERCOMBOBOX), VersionSpoofEnabled);
 
@@ -257,17 +262,23 @@ INT_PTR CALLBACK DialogProc(
 		if (PropSheetData) {
 			BOOLEAN RegKeyExists;
 
-			KxCfgSetConfiguration(PropSheetData->ExeFullPath, &ProgramConfiguration, NULL);
+			KxCfgSetConfiguration(
+				PropSheetData->ExeFullPath,
+				&ProgramConfiguration,
+				NULL);
+
 			PropSheetData->SettingsChanged = FALSE;
 
-			if (KexRtlIsZeroMemory(&ProgramConfiguration, sizeof(ProgramConfiguration))) {
-				// If we have an all-zero configuration structure, then there won't be
+			if (RtlIsZeroMemory(&ProgramConfiguration, sizeof(ProgramConfiguration))) {
+				// If we had an all-zero configuration structure, then there won't be
 				// any VxKex configuration for this program.
 				RegKeyExists = FALSE;
 			} else {
-				// Check if the IFEO reg key exists after updating the configuration and update
-				// the Open in Registry Editor button state as appropriate.
-				RegKeyExists = KxCfgGetConfiguration(PropSheetData->ExeFullPath, NULL);
+				// Otherwise, there is likely to be VxKex configuration for this program.
+				// It isn't guaranteed, but there is fallback code to avoid actually opening
+				// Regedit if the user clicks the button and the reg key doesn't actually
+				// exist (e.g. if KxCfgHlp/KexCfg failed for some reason).
+				RegKeyExists = TRUE;
 			}
 
 			EnableWindow(GetDlgItem(Window, IDOPENREGEDIT), RegKeyExists);

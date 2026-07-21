@@ -511,7 +511,7 @@
 #pragma comment(linker, "/EXPORT:OpenEncryptedFileRawW=advapi32.OpenEncryptedFileRawW")
 #pragma comment(linker, "/EXPORT:OpenEventLogA=advapi32.OpenEventLogA")
 #pragma comment(linker, "/EXPORT:OpenEventLogW=advapi32.OpenEventLogW")
-#pragma comment(linker, "/EXPORT:OpenProcessToken=advapi32.OpenProcessToken")
+//#pragma comment(linker, "/EXPORT:OpenProcessToken=advapi32.OpenProcessToken")
 #pragma comment(linker, "/EXPORT:OpenSCManagerA=advapi32.OpenSCManagerA")
 #pragma comment(linker, "/EXPORT:OpenSCManagerW=advapi32.OpenSCManagerW")
 #pragma comment(linker, "/EXPORT:OpenServiceA=advapi32.OpenServiceA")

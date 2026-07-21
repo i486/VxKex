@@ -1,4 +1,4 @@
-LIBRARY KxMi
+LIBRARY Kx
 EXPORTS
 	;; powrprof.c
 	PowerDeterminePlatformRoleEx
@@ -21,6 +21,8 @@ EXPORTS
 
 	;; uia.c
 	UiaRaiseNotificationEvent
+	UiaDisconnectProvider
+	UiaDisconnectAllProviders
 
 	;; imm.c
 	ImmDisableLegacyIME
@@ -28,3 +30,6 @@ EXPORTS
 	;; wtsapi.c
 	WTSQuerySessionInformationA					= Ext_WTSQuerySessionInformationA
 	WTSQuerySessionInformationW					= Ext_WTSQuerySessionInformationW
+
+	;; tbs.c
+	Tbsi_GetDeviceInfo							= Ext_Tbsi_GetDeviceInfo

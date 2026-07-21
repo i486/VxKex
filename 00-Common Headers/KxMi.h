@@ -5,7 +5,7 @@
 
 #if !defined(KXMIAPI) && defined(KEX_ENV_WIN32)
 #  define KXMIAPI
-#  pragma comment(lib, "KxMi.lib")
+#  pragma comment(lib, "Kx.lib")
 #endif
 
 typedef ULONG (CALLBACK *PDEVICE_NOTIFY_CALLBACK_ROUTINE) (

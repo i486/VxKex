@@ -7,6 +7,9 @@ EXPORTS
 	;; regqval.c
 	RegQueryValueExW							= Ext_RegQueryValueExW
 
+	;; token.c
+	OpenProcessToken							= Ext_OpenProcessToken
+
 	;; Forwarders to KexDll
 	EventSetInformation							= KexDll.EtwEventSetInformation
 
