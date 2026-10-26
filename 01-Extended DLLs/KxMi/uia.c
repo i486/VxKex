@@ -32,3 +32,16 @@ KXMIAPI HRESULT WINAPI UiaDisconnectAllProviders(
 	KexLogUnimplementedFunctionEvent();
 	return E_NOTIMPL;
 }
+
+//
+// Apparently this fixes Rockstar launcher (although installer still does
+// not work).
+//
+KXMIAPI HRESULT WINAPI UiaRaiseChangesEvent(
+    IN	IUnknown	*Provider,
+    IN	INT			EventIdCount,
+    IN	PVOID		UiaChanges)
+{
+    KexLogUnimplementedFunctionEvent();
+    return E_NOTIMPL;
+}

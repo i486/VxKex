@@ -23,6 +23,12 @@
 //     vxiiduu              14-Jul-2026  Fix a bug where multi-byte characters
 //                                       written using ANSI versions of functions
 //                                       could cause an assertion failure.
+//     vxiiduu              24-Sep-2026  Add support for escape sequences split
+//                                       across multiple calls.
+//     vxiiduu              25-Sep-2026  Improve fault tolerance of BaseEnable-
+//                                       ConsoleAnsiSupport since the console
+//                                       calls can fail if console hasn't been
+//                                       set up (e.g. called from DllMain)
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -33,6 +39,7 @@
 #define BEL (0x07)
 #define VXKEX_CONSOLE_ANSI_OUTPUT	1
 
+#define MAX_ESCAPE_SEQUENCE_CCH		260
 #define MAX_CSI_PARAMETER_COUNT		16
 
 //
@@ -42,6 +49,15 @@
 STATIC ULONG g_ConsoleANSISupport = 0; // VXKEX_CONSOLE_*
 STATIC COORD g_SavedCursorPosition; // 1-based, viewport-relative.
 STATIC WORD g_DefaultTextAttributes;
+
+// Added to support msvcrt.dll's printf, which for some stupid reason always
+// passes exactly 1 character at a time to WriteFile/WriteConsole.
+// This is probably not really thread safe but we'll just add a srwlock or
+// something if/when problems happen (I think not many apps write to console
+// multithreaded). msvcrt!printf locks an internal critical section before it
+// does the whole 1-char-at-a-time nonsense so we should be ok for that.
+STATIC WCHAR g_BufferedEscape[MAX_ESCAPE_SEQUENCE_CCH];
+STATIC ULONG g_BufferedEscapeCch;
 
 BOOLEAN BaseIsConsoleAnsiSupportEnabled(
 	IN	HANDLE	ConsoleHandle)
@@ -57,10 +73,10 @@ BOOLEAN BaseEnableConsoleAnsiSupport(
 	ASSERT (IsConsoleHandle(ConsoleHandle));
 
 	Success = VTGetCursorPosition(ConsoleHandle, &g_SavedCursorPosition);
-	ASSERT (Success);
 
 	if (!Success) {
-		return Success;
+		g_SavedCursorPosition.X = 1;
+		g_SavedCursorPosition.Y = 1;
 	}
 
 	//
@@ -75,16 +91,17 @@ BOOLEAN BaseEnableConsoleAnsiSupport(
 	//
 
 	Success = GetConsoleTextAttribute(ConsoleHandle, &g_DefaultTextAttributes);
-	ASSERT (Success);
-
-	// Remove reverse video attribute if it happens to be set.
-	// It's very unlikely, but if it were, then SGR 0 would end up enabling
-	// reverse video, which is unwanted.
-	g_DefaultTextAttributes &= ~COMMON_LVB_REVERSE_VIDEO;
 
 	if (!Success) {
-		return Success;
+		g_DefaultTextAttributes = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE;
+	} else {
+		// Remove reverse video attribute if it happens to be set.
+		// It's very unlikely, but if it were, then SGR 0 would end up enabling
+		// reverse video, which is unwanted.
+		g_DefaultTextAttributes &= ~COMMON_LVB_REVERSE_VIDEO;
 	}
+
+	g_BufferedEscapeCch = 0;
 
 	g_ConsoleANSISupport |= VXKEX_CONSOLE_ANSI_OUTPUT;
 	KexLogDebugEvent(L"Enabled escape sequence processing");
@@ -110,7 +127,7 @@ STATIC ULONG ParseNumber(
 	Accumulator = 0;
 	Index = 0;
 
-	until (!IsDigit(Characters[Index]) || Index >= MaxCch) {
+	until (Index >= MaxCch || !IsDigit(Characters[Index])) {
 		Accumulator *= 10;
 		Accumulator += Characters[Index] - '0';
 		++Index;
@@ -479,20 +496,30 @@ STATIC BOOLEAN ExecuteCSI(
 	}
 }
 
-STATIC BOOLEAN ProcessEscapeSequenceAorW(
+//
+// STATUS_SUCCESS on success
+// STATUS_INVALID_PARAMETER if the escape sequence was invalid
+// STATUS_UNSUCCESSFUL on miscellaneous errors
+//
+// STATUS_MORE_PROCESSING_REQUIRED if the escape sequence was incomplete, and this
+// means additional data must be buffered before calling this API again.
+//
+STATIC NTSTATUS ProcessEscapeSequenceAorW(
 	IN	HANDLE	ConsoleHandle,
 	IN	PCVOID	Buffer,
 	IN	ULONG	BufferCch,
 	OUT	PULONG	CchProcessedOut OPTIONAL,
 	IN	BOOLEAN	Unicode)
 {
-	WCHAR EscapeSequence[260];
+	NTSTATUS Status;
+	WCHAR EscapeSequence[MAX_ESCAPE_SEQUENCE_CCH];
 	ULONG EscapeSequenceCch;
 	ULONG CchProcessed;
 	ULONG Index;
 
 	ASSERT (BufferCch != 0);
 
+	Status = STATUS_SUCCESS;
 	CchProcessed = 0;
 	Index = 0;
 
@@ -510,6 +537,7 @@ STATIC BOOLEAN ProcessEscapeSequenceAorW(
 		// This means that there was just a stray ESC character at the end of
 		// the buffer passed to WriteConsole.
 		CchProcessed = EscapeSequenceCch;
+		Status = STATUS_MORE_PROCESSING_REQUIRED;
 		goto Exit;
 	}
 	
@@ -528,7 +556,8 @@ STATIC BOOLEAN ProcessEscapeSequenceAorW(
 
 		if (EscapeSequenceCch == 0) {
 			// We're screwed
-			return FALSE;
+			Status = STATUS_UNSUCCESSFUL;
+			goto Exit;
 		}
 	}
 
@@ -570,7 +599,8 @@ STATIC BOOLEAN ProcessEscapeSequenceAorW(
 		// CSI
 
 		if (EscapeSequenceCch < 3) {
-			KexLogDebugEvent(L"Unterminated CSI ANSI escape");
+			// Too short.
+			Status = STATUS_MORE_PROCESSING_REQUIRED;
 			goto Exit;
 		}
 
@@ -585,7 +615,8 @@ STATIC BOOLEAN ProcessEscapeSequenceAorW(
 			++CsiLength;
 
 			if (CchProcessed + CsiLength >= EscapeSequenceCch) {
-				KexLogDebugEvent(L"Unterminated CSI ANSI escape");
+				// Unterminated (too short).
+				Status = STATUS_MORE_PROCESSING_REQUIRED;
 				goto Exit;
 			}
 		}
@@ -630,11 +661,13 @@ STATIC BOOLEAN ProcessEscapeSequenceAorW(
 
 			if (ParameterCount >= ARRAYSIZE(CsiParameters)) {
 				KexLogDebugEvent(L"Too many numeric parameters in CSI ANSI escape");
+				Status = STATUS_INVALID_PARAMETER;
 				goto Exit;
 			}
 
 			if (Parameter > SHRT_MAX) {
 				KexLogDebugEvent(L"Malformed number in CSI ANSI escape");
+				Status = STATUS_INVALID_PARAMETER;
 				goto Exit;
 			}
 
@@ -660,11 +693,18 @@ STATIC BOOLEAN ProcessEscapeSequenceAorW(
 		Osc = &EscapeSequence[2];
 		OscLength = 0;
 
+		if (EscapeSequenceCch < 3) {
+			// too short
+			Status = STATUS_MORE_PROCESSING_REQUIRED;
+			goto Exit;
+		}
+
 		until (Osc[OscLength] == BEL || Osc[OscLength] == ESC) {
 			++OscLength;
 
 			if (CchProcessed + OscLength >= EscapeSequenceCch) {
-				KexLogDebugEvent(L"Unterminated OSC ANSI escape sequence");
+				// Unterminated (too short)
+				Status = STATUS_MORE_PROCESSING_REQUIRED;
 				goto Exit;
 			}
 		}
@@ -674,6 +714,13 @@ STATIC BOOLEAN ProcessEscapeSequenceAorW(
 			NumberOfTerminatingCharacters = 1;
 		} else {
 			ASSUME (Osc[OscLength] == ESC);
+
+			if (CchProcessed + OscLength + 1 >= EscapeSequenceCch) {
+				// ST is ESC \, we didn't get the \, need to wait for more data.
+				Status = STATUS_MORE_PROCESSING_REQUIRED;
+				goto Exit;
+			}
+
 			NumberOfTerminatingCharacters = 2;
 		}
 
@@ -687,7 +734,9 @@ STATIC BOOLEAN ProcessEscapeSequenceAorW(
 
 			// Set Window Title
 
-			ConsoleTitleCch = OscLength - 2 - NumberOfTerminatingCharacters;
+			ConsoleTitleCch = min(
+				OscLength - 2 - NumberOfTerminatingCharacters,
+				ARRAYSIZE(ConsoleTitle) - 1);
 
 			//
 			// Copy and null-terminate the title string.
@@ -718,11 +767,58 @@ STATIC BOOLEAN ProcessEscapeSequenceAorW(
 	}
 
 Exit:
+	if (Status == STATUS_MORE_PROCESSING_REQUIRED) {
+		CchProcessed = 0;
+	}
+
 	if (CchProcessedOut) {
 		*CchProcessedOut = CchProcessed;
 	}
 
-	return TRUE;
+	return Status;
+}
+
+//
+// Returns the number of characters actually appended to the buffer.
+// Returns 0 if the buffer has no more space.
+//
+STATIC ULONG AppendToBufferedEscapeAorW(
+	IN	PCVOID	Buffer,
+	IN	ULONG	BufferCch,
+	IN	BOOLEAN	Unicode)
+{
+	ULONG RemainingCch;
+	ULONG AppendedCch;
+
+	ASSERT (g_BufferedEscapeCch <= ARRAYSIZE(g_BufferedEscape));
+	RemainingCch = ARRAYSIZE(g_BufferedEscape) - g_BufferedEscapeCch;
+
+	// number of characters to append to g_BufferedEscape
+	AppendedCch = min(BufferCch, RemainingCch);
+
+	if (AppendedCch <= 0) {
+		return 0;
+	}
+
+	if (Unicode) {
+		KexRtlCopyMemory(
+			&g_BufferedEscape[g_BufferedEscapeCch],
+			Buffer,
+			AppendedCch * sizeof(WCHAR));
+	} else {
+		ULONG Index;
+
+		// avoid using MBtoWC because it's more complex/edge cases on
+		// failure etc.
+		// escape sequences are ASCII-only so this is fine
+		for (Index = 0; Index < AppendedCch; ++Index) {
+			g_BufferedEscape[g_BufferedEscapeCch + Index] =
+				((PCUCHAR) Buffer)[Index];
+		}
+	}
+
+	g_BufferedEscapeCch += AppendedCch;
+	return AppendedCch;
 }
 
 BOOL WriteConsoleWithEscapeSequencesAorW(
@@ -733,6 +829,7 @@ BOOL WriteConsoleWithEscapeSequencesAorW(
 	IN	PVOID	Reserved OPTIONAL,
 	IN	BOOLEAN	Unicode)
 {
+	NTSTATUS Status;
 	BOOL Success;
 	ULONG CchWritten;
 	ULONG CbOfChar;
@@ -743,6 +840,104 @@ BOOL WriteConsoleWithEscapeSequencesAorW(
 
 	until (CchToWrite == 0) {
 		ULONG CchToNextEscape;
+
+		//
+		// Handle continuation of a partial escape sequence, if needed.
+		//
+
+		if (g_BufferedEscapeCch > 0) {
+			ULONG CchProcessedThisCall;
+			ULONG BufferedEscapeOldCch;
+			ULONG BufferedEscapeAppendedCch;
+			BOOLEAN GiveUp;
+
+			GiveUp = FALSE;
+
+			ASSERT (g_BufferedEscape[0] == ESC);
+			ASSERT (g_BufferedEscapeCch <= ARRAYSIZE(g_BufferedEscape));
+
+			BufferedEscapeOldCch = g_BufferedEscapeCch;
+
+			//
+			// Append to the buffered escape as much as we can.
+			//
+
+			BufferedEscapeAppendedCch = AppendToBufferedEscapeAorW(
+				Buffer,
+				CchToWrite,
+				Unicode);
+
+			//
+			// Try to process what we have in the buffer as an escape sequence.
+			//
+
+			Status = ProcessEscapeSequenceAorW(
+				ConsoleHandle,
+				g_BufferedEscape,
+				g_BufferedEscapeCch,
+				&CchProcessedThisCall,
+				TRUE); // Unicode is always TRUE since g_BufferedEscape is WCHAR[]
+
+			if (NT_SUCCESS(Status)) {
+				ULONG EscapeCchFromThisCall;
+
+				ASSERT (CchProcessedThisCall >= BufferedEscapeOldCch);
+				EscapeCchFromThisCall = CchProcessedThisCall - BufferedEscapeOldCch;
+
+				// We processed an escape sequence. Only consume the escape sequence
+				// and not any other trailing data we might've written to the buffer.
+				CchWritten += EscapeCchFromThisCall;
+				CchToWrite -= EscapeCchFromThisCall;
+				Buffer = RVA_TO_VA(Buffer, EscapeCchFromThisCall * CbOfChar);
+
+				// Reset
+				g_BufferedEscapeCch = 0;
+			} else if (Status == STATUS_MORE_PROCESSING_REQUIRED) {
+				// Still not enough.
+
+				if (g_BufferedEscapeCch >= ARRAYSIZE(g_BufferedEscape)) {
+					// Escape sequence longer than buffer. Give up.
+					KexDebugCheckpoint();
+					GiveUp = TRUE;
+				} else {
+					// Consume the whole input.
+					CchWritten += BufferedEscapeAppendedCch;
+					CchToWrite -= BufferedEscapeAppendedCch;
+					Buffer = RVA_TO_VA(Buffer, BufferedEscapeAppendedCch * CbOfChar);
+
+					ASSERT (CchToWrite == 0);
+				}
+			} else {
+				// Other failure. Just dump the garbage to console.
+				KexDebugCheckpoint();
+				GiveUp = TRUE;
+			}
+
+			//
+			// Upon error we'll just dump out everything to the console as if we
+			// didn't handle it at all.
+			//
+
+			if (GiveUp) {
+				ULONG Dummy;
+
+				// Don't care about failure. We tried. It's probably garbage anyway.
+				WriteConsoleAorW(
+					ConsoleHandle,
+					g_BufferedEscape,
+					g_BufferedEscapeCch,
+					&Dummy,
+					NULL,
+					TRUE); // always unicode since g_BufferedEscape is WCHAR[]
+
+				CchWritten += BufferedEscapeAppendedCch;
+				CchToWrite -= BufferedEscapeAppendedCch;
+				Buffer = RVA_TO_VA(Buffer, BufferedEscapeAppendedCch * CbOfChar);
+
+				// Reset buffer.
+				g_BufferedEscapeCch = 0;
+			}
+		}
 
 		//
 		// Write to the console until we hit an escape sequence or hit the
@@ -782,15 +977,38 @@ BOOL WriteConsoleWithEscapeSequencesAorW(
 		if (CchToWrite > 0) {
 			ULONG CchProcessedThisCall;
 
-			Success = ProcessEscapeSequenceAorW(
+			Status = ProcessEscapeSequenceAorW(
 				ConsoleHandle,
 				Buffer,
 				CchToWrite,
 				&CchProcessedThisCall,
 				Unicode);
 
-			if (!Success) {
-				goto Exit;
+			if (Status == STATUS_MORE_PROCESSING_REQUIRED) {
+				ASSERT (g_BufferedEscapeCch == 0);
+
+				// Incomplete escape sequence. We need to buffer this fragment
+				// of the escape sequence for later.
+				CchProcessedThisCall += AppendToBufferedEscapeAorW(
+					Buffer,
+					CchToWrite,
+					Unicode);
+
+				Status = STATUS_SUCCESS;
+			} else if (!NT_SUCCESS(Status)) {
+				ULONG Dummy;
+
+				// On other failures, write the ESC character to console and continue.
+				// We couldn't process it as an escape sequence.
+				CchProcessedThisCall = 1;
+
+				WriteConsoleAorW(
+					ConsoleHandle,
+					Buffer,
+					1,
+					&Dummy,
+					NULL,
+					Unicode);
 			}
 
 			CchWritten += CchProcessedThisCall;

@@ -82,9 +82,7 @@ KEXAPI NTSTATUS NTAPI KexPatchCpiwSubsystemVersionCheck(
 	VOID)
 {
 	NTSTATUS Status;
-	UNICODE_STRING Kernel32Name;
 	ANSI_STRING SectionName;
-	PVOID Kernel32;
 	PBYTE ExecutableSection;
 	PBYTE EndOfExecutableSection;
 	ULONG SizeOfExecutableSection;
@@ -99,23 +97,28 @@ KEXAPI NTSTATUS NTAPI KexPatchCpiwSubsystemVersionCheck(
 	}
 
 	//
-	// Get the address of kernel32.dll.
+	// Get the address of kernel32.dll if necessary.
 	//
 
-	RtlInitConstantUnicodeString(&Kernel32Name, L"kernel32.dll");
+	if (KexData->BaseDllBase == NULL) {
+		UNICODE_STRING Kernel32Name;
 
-	Status = LdrGetDllHandleByName(
-		&Kernel32Name,
-		NULL,
-		&Kernel32);
+		RtlInitConstantUnicodeString(&Kernel32Name, L"kernel32.dll");
 
-	ASSERT (NT_SUCCESS(Status));
-	ASSERT (Kernel32 != NULL);
+		Status = LdrGetDllHandleByName(
+			&Kernel32Name,
+			NULL,
+			&KexData->BaseDllBase);
 
-	if (!NT_SUCCESS(Status)) {
-		KexLogErrorEvent(L"Could not find the address of kernel32.dll.");
-		return Status;
+		ASSERT (NT_SUCCESS(Status));
+
+		if (!NT_SUCCESS(Status)) {
+			KexLogErrorEvent(L"Could not find the address of kernel32.dll.");
+			return Status;
+		}
 	}
+
+	ASSERT (KexData->BaseDllBase != NULL);
 
 	//
 	// Find the .text section, which contains executable code.
@@ -123,7 +126,7 @@ KEXAPI NTSTATUS NTAPI KexPatchCpiwSubsystemVersionCheck(
 
 	Status = RtlImageNtHeaderEx(
 		RTL_IMAGE_NT_HEADER_EX_FLAG_NO_RANGE_CHECK,
-		Kernel32,
+		KexData->BaseDllBase,
 		0,
 		&NtHeaders);
 
@@ -152,7 +155,7 @@ KEXAPI NTSTATUS NTAPI KexPatchCpiwSubsystemVersionCheck(
 	// Find the real address and size of the executable section.
 	//
 
-	ExecutableSection = (PBYTE) RVA_TO_VA(Kernel32, TextSectionHeader->VirtualAddress);
+	ExecutableSection = (PBYTE) RVA_TO_VA(KexData->BaseDllBase, TextSectionHeader->VirtualAddress);
 	SizeOfExecutableSection = TextSectionHeader->SizeOfRawData;
 	EndOfExecutableSection = ExecutableSection + SizeOfExecutableSection - sizeof(ULONG);
 

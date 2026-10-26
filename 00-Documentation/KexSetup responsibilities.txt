@@ -29,5 +29,7 @@ program include:
 
   - associating .vxl file extension with VxlView
 
+  - setting up the Explorer CPIW bypass
+
 Of course, the program can also uninstall VxKex and must reverse all the above
 procedures when doing so.

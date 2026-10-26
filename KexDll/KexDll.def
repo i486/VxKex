@@ -30,6 +30,9 @@ EXPORTS
 	KexRtlGenerateRandomData
 	KexRtlDecryptMemory
 	KexRtlEncryptMemory
+	KexRtlRemoveUnicodeStringSlice
+	KexRtlRemoveUnicodeSubstring
+	KexRtlRemoteProcessBitness
 
 	SmpCreateStringMapper
 	SmpDeleteStringMapper

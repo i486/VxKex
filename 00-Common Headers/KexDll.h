@@ -465,6 +465,15 @@ KEXAPI NTSTATUS NTAPI KexRtlEncryptMemory(
 KEXAPI LONGLONG NTAPI RtlGetSystemTimePrecise(
 	VOID);
 
+KEXAPI VOID NTAPI KexRtlRemoveUnicodeStringSlice(
+    IN OUT	PUNICODE_STRING		String,
+    IN		PCUNICODE_STRING	SliceToRemove);
+
+KEXAPI NTSTATUS NTAPI KexRtlRemoveUnicodeSubstring(
+	IN OUT	PUNICODE_STRING		String,
+	IN		PCUNICODE_STRING	Substring,
+	IN		BOOLEAN				CaseInsensitive);
+
 #ifdef KEX_ARCH_X64
 #  define KexRtlCurrentProcessBitness() (64)
 #else

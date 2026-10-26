@@ -59,6 +59,13 @@ VOID ProcessCommandLineOptions(
 	VOID);
 
 //
+// excpiwbp.c
+//
+
+NTSTATUS PatchAllExplorers(
+	VOID);
+
+//
 // gui.c
 //
 

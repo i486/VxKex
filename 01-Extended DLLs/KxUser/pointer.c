@@ -246,3 +246,30 @@ KXUSERAPI BOOL WINAPI EnableMouseInPointer(
 
 	return TRUE;
 }
+
+//
+// InitializeTouchInjection and InjectTouchInput stubbed 18-Oct-2026 because I
+// heard that Steam requires them. Untested.
+//
+
+KXUSERAPI BOOL WINAPI InitializeTouchInjection(
+	IN	ULONG	MaxCount,
+	IN	ULONG	Mode)
+{
+	RtlSetLastWin32Error(ERROR_NOT_SUPPORTED);
+	return FALSE;
+}
+
+//
+// MSDN docs on InjectTouchInput have some maybe-useful information on the
+// ordering of touch input events.
+// https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-injecttouchinput
+//
+
+KXUSERAPI BOOL WINAPI InjectTouchInput(
+	IN	ULONG					Count,
+	IN	PCPOINTER_TOUCH_INFO	Contacts)
+{
+	RtlSetLastWin32Error(ERROR_NOT_SUPPORTED);
+	return FALSE;
+}

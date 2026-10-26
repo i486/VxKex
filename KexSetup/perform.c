@@ -743,7 +743,7 @@ PreserveConfigFailure:
 	KxCfgEnumerateConfiguration(
 		KexSetupConfigurationEnumerationCallback,
 		NULL);
-	
+
 	//
 	// Unregister shell extension and .vxl file extension handler.
 	//
@@ -1258,6 +1258,53 @@ VOID KexSetupUpgrade(
 	KexSetupWriteUninstallEntry();
 }
 
+VOID KexSetupPatchExplorerCpiwBypass(
+	VOID)
+{
+	if (KexRtlOperatingSystemBitness() == KexRtlCurrentProcessBitness()) {
+		// do it in-process
+		PatchAllExplorers();
+	} else {
+		BOOLEAN Success;
+		WCHAR ExCpBp64ExePath[MAX_PATH];
+		STARTUPINFO StartupInfo;
+		PROCESS_INFORMATION ProcessInfo;
+
+		//
+		// invoke 64-bit helper process - since we are 32-bit and explorer is 64-bit.
+		//
+		// The exe name is zzCpBp64.exe to ensure it comes alphabetically after
+		// KexSetup.exe, so that the 7-zip SFX stub doesn't launch it instead of KexSetup.
+		// Kind of a hack but it works and no one will see it, so whatever
+		//
+
+		GetModuleFileName(NULL, ExCpBp64ExePath, ARRAYSIZE(ExCpBp64ExePath));
+		PathCchRemoveFileSpec(ExCpBp64ExePath, ARRAYSIZE(ExCpBp64ExePath));
+		PathCchAppend(ExCpBp64ExePath, ARRAYSIZE(ExCpBp64ExePath), L"zzCpBp64.exe");
+
+		GetStartupInfo(&StartupInfo);
+
+		Success = CreateProcess(
+			ExCpBp64ExePath,
+			NULL,
+			NULL,
+			NULL,
+			FALSE,
+			0,
+			NULL,
+			NULL,
+			&StartupInfo,
+			&ProcessInfo);
+
+		ASSERT (Success);
+
+		if (Success) {
+			SafeClose(ProcessInfo.hProcess);
+			SafeClose(ProcessInfo.hThread);
+		}
+	}
+}
+
 //
 // Call this function when all data has been gathered from the user and we
 // are ready to do the install/upgrade/uninstall.
@@ -1419,6 +1466,15 @@ FailDebugPrivilege:
 
 		if (!Success) {
 			ErrorBoxF(L"Setup failed to commit the transaction. %s", NtStatusAsString(Status));
+		}
+
+		if (OperationMode == OperationModeInstall && KxCfgQueryExplorerCpiwBypass() == TRUE) {
+			// Fresh install and Explorer CPIW bypass is supposed to be enabled.
+			// The bypass would not actually take effect until Explorer is restarted.
+			// We don't want to forcibly restart Explorer because that will close the
+			// user's open explorer windows, so we will do a live patch.
+			// No error checking because failure is non-fatal
+			KexSetupPatchExplorerCpiwBypass();
 		}
 	} else {
 		Success = FALSE;

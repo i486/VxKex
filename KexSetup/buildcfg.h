@@ -6,6 +6,10 @@
 
 #pragma comment(lib, "KexMLS.lib")
 #pragma comment(lib, "KexSmp.lib")
+#pragma comment(lib, "KexW32ML.lib")
+#pragma comment(lib, "KexGui.lib")
+#pragma comment(lib, "KexPathCch.lib")
+#pragma comment(lib, "KxCfgHlp.lib")
 
 #define FRIENDLYAPPNAME L"VxKex Installer"
 #define KEX_COMPONENT L"KexSetup"

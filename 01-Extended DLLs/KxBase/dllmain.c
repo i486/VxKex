@@ -23,6 +23,7 @@
 //     vxiiduu              07-Nov-2022  Initial creation.
 //     vxiiduu              10-Feb-2024  Rename to KXBASE (from kernel33).
 //     vxiiduu              27-Jun-2026  CPIW patch moved to KexDll.
+//     vxiiduu              24-Sep-2026  Console ANSI support enabled by default now.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -38,7 +39,10 @@ BOOL WINAPI DllMain(
 	IN	PCONTEXT	Context)
 {
 	if (Reason == DLL_PROCESS_ATTACH) {
-		LdrDisableThreadCalloutsForDll(DllBase);
+		NTSTATUS Status;
+
+		Status = LdrDisableThreadCalloutsForDll(DllBase);
+		ASSERT (NT_SUCCESS(Status));
 
 		KexDataInitialize(&KexData);
 		KexLogDebugEvent(L"DllMain called with DLL_PROCESS_ATTACH");
@@ -66,6 +70,23 @@ BOOL WINAPI DllMain(
 
 		KexData->BaseNamedObjects = BaseGetNamedObjectDirectory();
 		KexData->UntrustedNamedObjects = BaseGetUntrustedNamedObjectDirectory();
+
+		//
+		// Enable console ANSI support by default.
+		// This matches newer versions of Win10 and Win11 which enable it by default.
+		// Some apps don't call SetConsoleMode and we get garbled output, even though
+		// it works on Win10/11.
+		//
+
+		unless (KexData->IfeoParameters.DisableConsoleEnhancements) {
+			HANDLE StdOutputHandle;
+
+			StdOutputHandle = GetStdHandle(STD_OUTPUT_HANDLE);
+
+			if (IsConsoleHandle(StdOutputHandle)) {
+				BaseEnableConsoleAnsiSupport(StdOutputHandle);
+			}
+		}
 	}
 
 	return TRUE;

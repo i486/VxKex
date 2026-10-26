@@ -33,7 +33,6 @@
 
 #ifndef KXCFGDECLSPEC
 #  define KXCFGDECLSPEC
-#  pragma comment(lib, "KxCfgHlp.lib")
 #endif
 
 #define KXCFGAPI WINAPI
@@ -165,6 +164,9 @@ KXCFGDECLSPEC BOOLEAN KXCFGAPI KxCfgPreserveConfiguration(
 
 KXCFGDECLSPEC BOOLEAN KXCFGAPI KxCfgRestorePreservedConfiguration(
 	IN	HANDLE	TransactionHandle OPTIONAL);
+
+KXCFGDECLSPEC BOOLEAN KXCFGAPI KxCfgIsUserAllowedToEnableVxKexForFile(
+	IN	PCWSTR	FullPath);
 
 #ifdef KXCFGDECLSPEC
 //

@@ -870,3 +870,70 @@ KEXAPI NTSTATUS NTAPI KexRtlCreateUntrustedDirectoryObject(
 
 	return Status;
 }
+
+//
+// SliceToRemove must point to a non-zero-length region fully contained
+// within the used portion of String. The region is removed and the
+// following contents are shifted left over it. Neither MaximumLength nor
+// the caller's SliceToRemove struct are modified.
+//
+KEXAPI VOID NTAPI KexRtlRemoveUnicodeStringSlice(
+    IN OUT	PUNICODE_STRING		String,
+    IN		PCUNICODE_STRING	SliceToRemove)
+{
+	PWCHAR Tail;
+	USHORT CchRemoved;
+	USHORT TailCb;
+
+	ASSERT (VALID_UNICODE_STRING(String));
+	ASSERT (VALID_UNICODE_STRING(SliceToRemove));
+	ASSERT (SliceToRemove->Length != 0);
+	ASSERT (SliceToRemove->Buffer >= String->Buffer);
+	ASSERT (KexRtlEndOfUnicodeString(SliceToRemove) <= KexRtlEndOfUnicodeString(String));
+
+	CchRemoved = KexRtlUnicodeStringCch(SliceToRemove);
+
+	// First character after the to-be-removed region.
+	Tail = KexRtlEndOfUnicodeString(SliceToRemove);
+
+	// Number of bytes following the region which is to be removed.
+	TailCb = (USHORT) (KexRtlEndOfUnicodeString(String) - Tail) * sizeof(WCHAR);
+
+	// Shift the tail left over the removed region (RtlMoveMemory handles
+	// the overlap since the tail starts after the destination).
+	RtlMoveMemory(SliceToRemove->Buffer, Tail, TailCb);
+
+	// Null-terminate at the new end. We always have space to do this
+	// since we have shrunk the string.
+	String->Buffer[KexRtlUnicodeStringCch(String) - CchRemoved] = '\0';
+
+	String->Length -= CchRemoved * sizeof(WCHAR);
+}
+
+//
+// Remove a substring from a string. Unlike KexRtlRemoveUnicodeStringSlice,
+// Substring can be any valid Unicode string and does not have to represent
+// a slice of any other string.
+//
+KEXAPI NTSTATUS NTAPI KexRtlRemoveUnicodeSubstring(
+	IN OUT	PUNICODE_STRING		String,
+	IN		PCUNICODE_STRING	Substring,
+	IN		BOOLEAN				CaseInsensitive)
+{
+	UNICODE_STRING SliceToRemove;
+
+	SliceToRemove.Buffer = RtlFindUnicodeSubstring(
+		String,
+		Substring,
+		CaseInsensitive);
+
+	if (SliceToRemove.Buffer == NULL) {
+		return STATUS_NOT_FOUND;
+	}
+
+	SliceToRemove.Length = Substring->Length;
+	SliceToRemove.MaximumLength = SliceToRemove.Length;
+
+	KexRtlRemoveUnicodeStringSlice(String, &SliceToRemove);
+	return STATUS_SUCCESS;
+}

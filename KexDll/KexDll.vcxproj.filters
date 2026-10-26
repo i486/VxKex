@@ -158,9 +158,6 @@
     <ClCompile Include="rtlsec.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="initapc.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="kexrtlp.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -171,6 +168,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="ntfile.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="initapc.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -17,6 +17,8 @@
 //     vxiiduu               07-Nov-2022  Initial creation.
 //     vxiiduu               29-Apr-2025  Add SetThreadpoolTimerEx and
 //                                        GetSystemCpuSetInformation from dotexe
+//     vxiiduu               13-Aug-2026  Fake success of SetThreadInformation
+//                                        with ThreadPowerThrottling.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -190,7 +192,6 @@ KXBASEAPI BOOL WINAPI SetThreadInformation(
 {
 	NTSTATUS Status;
 	THREADINFOCLASS ThreadInformationClassNt;
-	THREAD_POWER_THROTTLING_STATE ThrottlingState;
 
 	switch (ThreadInformationClass) {
 	case ThreadMemoryPriority:
@@ -203,33 +204,13 @@ KXBASEAPI BOOL WINAPI SetThreadInformation(
 		ThreadInformationClassNt = ThreadDynamicCodePolicyInfo;
 		break;
 	case ThreadPowerThrottling:
-		ThreadInformationClassNt = ThreadPowerThrottlingState;
-		break;
+		// This one is used by llama.cpp and many GGML-based products. Failing here
+		// will cause spurious, annoying error messages to be printed to the console,
+		// so we'll fake success.
+		return TRUE;
 	default:
 		Status = STATUS_INVALID_PARAMETER;
 		goto Exit;
-	}
-
-	if (ThreadInformationClass == ThreadPowerThrottling) {
-		if (ThreadInformationSize < sizeof(THREAD_POWER_THROTTLING_STATE)) {
-			Status = STATUS_INVALID_PARAMETER;
-			goto Exit;
-		}
-
-		ThreadInformationSize = sizeof(THREAD_POWER_THROTTLING_STATE);
-		ThrottlingState = *(PTHREAD_POWER_THROTTLING_STATE) ThreadInformation;
-
-		if (ThrottlingState.Version > 1 ||
-			(ThrottlingState.ControlMask & 0xFFFFFFFE) != 0 ||
-			(~ThrottlingState.ControlMask & ThrottlingState.StateMask) != 0) {
-
-			Status = STATUS_INVALID_PARAMETER;
-			goto Exit;
-		}
-
-		ThrottlingState.Version = 1;
-
-		ThreadInformation = &ThrottlingState;
 	}
 
 	Status = NtSetInformationThread(

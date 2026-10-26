@@ -32,7 +32,6 @@
 
 #ifndef KW32MLDECLSPEC
 #  define KW32MLDECLSPEC
-#  pragma comment(lib, "KexW32ML.lib")
 #endif
 
 #define KW32MLAPI WINAPI

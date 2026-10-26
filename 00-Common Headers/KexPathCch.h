@@ -4,7 +4,6 @@
 
 #ifndef WINPATHCCHAPI
 #  define WINPATHCCHAPI
-#  pragma comment(lib, "KexPathCch.lib")
 #endif
 
 // Values for various "dwFlags" parameters

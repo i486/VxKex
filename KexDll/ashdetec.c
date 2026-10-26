@@ -21,6 +21,7 @@
 //
 //     vxiiduu              19-May-2026  Initial creation.
 //     vxiiduu              25-May-2026  QSG environment variable hack
+//     vxiiduu              11-Oct-2026  KOMPAS-3D can't use Win10 DWrite
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -34,11 +35,25 @@ NTSTATUS AshSetIsQt6Process(
 	UNICODE_STRING Variable;
 	UNICODE_STRING Value;
 
-	Status = AshSelectDWriteImplementation(DWriteWindows10Implementation);
-	ASSERT (NT_SUCCESS(Status));
+	//
+	// 11-Oct-2026:
+	//
+	// KOMPAS-3D v24 (CAD software) uses Qt6 for its settings dialog only. The
+	// whole application fails to launch if Windows 10 DWrite is selected. The
+	// symptom is that the EXE sits around consuming ~80MB but doesn't show
+	// any GUI.
+	//
+	// Many other Qt6 applications require Win10 dwrite so for all apps that
+	// aren't KOMPAS-3D the original behavior is retained.
+	//
 
-	if (!NT_SUCCESS(Status)) {
-		return Status;
+	if (!AshExeBaseNameIs(L"KOMPAS.exe")) {
+		Status = AshSelectDWriteImplementation(DWriteWindows10Implementation);
+		ASSERT (NT_SUCCESS(Status));
+
+		if (!NT_SUCCESS(Status)) {
+			return Status;
+		}
 	}
 
 	//

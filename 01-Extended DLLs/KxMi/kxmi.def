@@ -23,6 +23,7 @@ EXPORTS
 	UiaRaiseNotificationEvent
 	UiaDisconnectProvider
 	UiaDisconnectAllProviders
+	UiaRaiseChangesEvent
 
 	;; imm.c
 	ImmDisableLegacyIME

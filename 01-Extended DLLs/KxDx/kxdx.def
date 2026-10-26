@@ -9,6 +9,9 @@ EXPORTS
 
 	;; d3d11on12.c
 	D3D11On12CreateDevice
+
+	;; dx11.c
+	D3D11CreateDevice = Ext_D3D11CreateDevice
 	
 	;; dx12stub.c
 	;; These must be exported with ordinal. A lot of programs import by ordinal

@@ -27,6 +27,9 @@
 //
 //     vxiiduu              08-Feb-2024  Initial creation.
 //     vxiiduu              14-Mar-2024  Fix a multiselect-related bug.
+//     vxiiduu              21-Sep-2026  Fix typo in CKexShlEx_Release
+//     vxiiduu              25-Oct-2026  Move KexDir and WinDir exe ban logic
+//                                       into KxCfgHlp
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -97,7 +100,7 @@ ULONG STDMETHODCALLTYPE CKexShlEx_Release(
 {
 	LONG NewRefCount;
 
-	NewRefCount = InterlockedDecrement(&NewRefCount);
+	NewRefCount = InterlockedDecrement(&This->RefCount);
 
 	if (NewRefCount == 0) {
 		InterlockedDecrement(&DllReferenceCount);
@@ -227,8 +230,6 @@ HRESULT STDMETHODCALLTYPE CKexShlEx_AddPages(
 	BOOLEAN Success;
 	PROPSHEETPAGE Page;
 	HPROPSHEETPAGE PageHandle;
-	WCHAR WinDir[MAX_PATH];
-	WCHAR KexDir[MAX_PATH];
 
 	ASSERT (This != NULL);
 	ASSERT (AddPage != NULL);
@@ -239,22 +240,12 @@ HRESULT STDMETHODCALLTYPE CKexShlEx_AddPages(
 	ASSERT (This != NULL);
 	ASSERT (This->ExeFullPath[0] != '\0');
 
-	GetSystemWindowsDirectory(WinDir, ARRAYSIZE(WinDir));
-	Success = KxCfgGetKexDir(KexDir, ARRAYSIZE(KexDir));
-	ASSERT (Success);
-
-	if (!Success) {
-		return E_FAIL;
-	}
-		
 	//
-	// If the executable is inside the Windows directory, or if it is inside
-	// KexDir, then we will not allow the user to change any VxKex settings
-	// for it. Windows executables or VxKex executables do not benefit from
-	// enabling VxKex and doing so could cause serious problems.
+	// Check if the user is allowed to enable VxKex for this program; if not,
+	// returning E_FAIL will simply cause the prop sheet page to not show up.
 	//
 
-	if (PathIsPrefix(WinDir, This->ExeFullPath) || PathIsPrefix(KexDir, This->ExeFullPath)) {
+	if (!KxCfgIsUserAllowedToEnableVxKexForFile(This->ExeFullPath)) {
 		return E_FAIL;
 	}
 

@@ -75,6 +75,7 @@ EXPORTS
 	GetIsWdagEnabled
 	SubscribeWdagEnabledStateChange
 	UnsubscribeWdagEnabledStateChange
+	IsEnclaveTypeSupported
 
 	;; module.c
 	LoadPackagedLibrary
@@ -204,43 +205,10 @@ EXPORTS
 	TlsGetValue2						= kernel32.TlsGetValue
 
 	;;
-	;; Forwarders to user32
-	;;
-
-	CharLowerA							= user32.CharLowerA
-	CharLowerBuffA						= user32.CharLowerBuffA
-	CharLowerW							= user32.CharLowerW
-	CharLowerBuffW						= user32.CharLowerBuffW
-	CharNextA							= user32.CharNextA
-	CharNextExA							= user32.CharNextExA
-	CharNextW							= user32.CharNextW
-	CharPrevA							= user32.CharPrevA
-	CharPrevExA							= user32.CharPrevExA
-	CharPrevW							= user32.CharPrevW
-	CharUpperA							= user32.CharUpperA
-	CharUpperBuffA						= user32.CharUpperBuffA
-	CharUpperW							= user32.CharUpperW
-	CharUpperBuffW						= user32.CharUpperBuffW
-	IsCharAlphaA						= user32.IsCharAlphaA
-	IsCharAlphaNumericA					= user32.IsCharAlphaNumericA
-	IsCharAlphaW						= user32.IsCharAlphaW
-	IsCharAlphaNumericW					= user32.IsCharAlphaNumericW
-	IsCharLowerA						= user32.IsCharLowerA
-	IsCharLowerW						= user32.IsCharLowerW
-	IsCharUpperA						= user32.IsCharUpperA
-	IsCharUpperW						= user32.IsCharUpperW
-
-	;;
 	;; Forwarders to KxNt
 	;;
 
 	InitializeCriticalSection			= KxNt.RtlInitializeCriticalSection
-
-	;;
-	;; Forwarders to KxAdvapi
-	;;
-
-	RegCopyTreeW						= KxAdvapi.RegCopyTreeW
 
 	;;
 	;; Forwarders to KexDll

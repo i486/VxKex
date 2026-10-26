@@ -670,6 +670,8 @@ STATIC NTSTATUS NTAPI Ext_NtCreateUserProcess(
 	ULONG ModifiedThreadFlags;
 	ULONG ModifiedProcessDesiredAccess;
 	ULONG ModifiedThreadDesiredAccess;
+	RTL_USER_PROCESS_PARAMETERS ModifiedProcessParameters;
+	UNICODE_STRING DllPathAppend;
 	
 	ULONG ChildProcessBitness;
 
@@ -687,6 +689,7 @@ STATIC NTSTATUS NTAPI Ext_NtCreateUserProcess(
 	ModifiedProcessDesiredAccess = ProcessDesiredAccess;
 	ModifiedThreadDesiredAccess = ThreadDesiredAccess;
 	ModifiedThreadFlags = ThreadFlags;
+	ModifiedProcessParameters = *ProcessParameters;
 
 	//
 	// 1. We need to be able to write to the new process's memory space
@@ -699,10 +702,63 @@ STATIC NTSTATUS NTAPI Ext_NtCreateUserProcess(
 	//    so that we can install the hooks and have them called at the
 	//    appropriate time.
 	//
+	// 4. We need to look at ProcessParameters and make sure that the
+	//    DllPath string can be successfully shrunk by KexpShrinkDllPathLength
+	//    (in dllpath.c) in the child process. To achieve this, we will just add
+	//    duplicate %SystemRoot% (i.e. C:\Windows) entries to it such that
+	//    the duplicate %SystemRoot% entries have a greater or equal length
+	//    compared to Kex3264Dir.
+	//
 
 	ModifiedProcessDesiredAccess |= PROCESS_VM_OPERATION | PROCESS_VM_READ | PROCESS_VM_WRITE;
 	ModifiedThreadDesiredAccess |= THREAD_SUSPEND_RESUME;
 	ModifiedThreadFlags |= THREAD_CREATE_FLAGS_CREATE_SUSPENDED;
+
+	//
+	// Form ";%SystemRoot%" string, which will be stuck onto the end of
+	// DllPath until we are guaranteed to have enough space for Kex3264Dir.
+	//
+
+	RtlInitEmptyUnicodeStringFromTeb(&DllPathAppend);
+	RtlAppendUnicodeToString(&DllPathAppend, L";");
+	RtlAppendUnicodeStringToString(&DllPathAppend, &KexData->WinDir);
+
+	//
+	// Increase the length of our new DllPath until it's guaranteed that the
+	// child process can successfully add Kex3264Dir to the path.
+	//
+
+	until (ModifiedProcessParameters.DllPath.Length >=
+		   ProcessParameters->DllPath.Length + KexData->Kex3264DirPath.Length) {
+
+		ModifiedProcessParameters.DllPath.Length += DllPathAppend.Length;
+	}
+
+	//
+	// Allocate space for new DllPath.
+	//
+
+	ModifiedProcessParameters.DllPath.MaximumLength = ModifiedProcessParameters.DllPath.Length;
+
+	ModifiedProcessParameters.DllPath.Buffer = StackAlloc(
+		WCHAR,
+		KexRtlUnicodeStringCch(&ModifiedProcessParameters.DllPath));
+
+	//
+	// Form new DllPath.
+	//
+
+	RtlCopyUnicodeString(&ModifiedProcessParameters.DllPath, &ProcessParameters->DllPath);
+
+	until (ModifiedProcessParameters.DllPath.Length >=
+		   ModifiedProcessParameters.DllPath.MaximumLength) {
+
+		RtlAppendUnicodeStringToString(&ModifiedProcessParameters.DllPath, &DllPathAppend);
+	}
+
+	//
+	// Call NtCreateUserProcess with our modified parameters.
+	//
 	
 	Status = KexNtCreateUserProcess(
 		ProcessHandle,
@@ -713,11 +769,12 @@ STATIC NTSTATUS NTAPI Ext_NtCreateUserProcess(
 		ThreadObjectAttributes,
 		ProcessFlags,
 		ModifiedThreadFlags,
-		ProcessParameters,
+		&ModifiedProcessParameters,
 		CreateInfo,
 		AttributeList);
 
 	if (!NT_SUCCESS(Status)) {
+		KexDebugCheckpoint();
 		return Status;
 	}
 

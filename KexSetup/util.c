@@ -726,7 +726,7 @@ VOID KexSetupSupersedeFile(
 	IN	PCWSTR	TargetFile)
 {
 	BOOLEAN Success;
-
+	
 	Success = MoveFileTransacted(
 		SourceFile,
 		TargetFile,

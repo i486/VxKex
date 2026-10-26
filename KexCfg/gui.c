@@ -30,6 +30,8 @@
 //     vxiiduu              08-Jul-2026  Prevent error message or assertion dialog
 //                                       from appearing when the user double-clicks
 //                                       in an empty area of the list view.
+//     vxiiduu              25-Oct-2026  Move KexDir and WinDir exe ban logic
+//                                       into KxCfgHlp
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -308,7 +310,6 @@ STATIC VOID AddProgram(
 {
 	WCHAR FileNames[1024];
 	WCHAR FileFullPath[MAX_PATH];
-	WCHAR KexDir[MAX_PATH];
 	PCWSTR DirectoryName;
 	PCWSTR FileName;
 	ULONG DirectoryNameCch;
@@ -344,19 +345,6 @@ STATIC VOID AddProgram(
 	DirectoryNameCch = (ULONG) wcslen(DirectoryName);
 	ASSERT (DirectoryNameCch != 0);
 	ASSERT (DirectoryNameCch < MAX_PATH);
-
-	if (StringBeginsWithI(DirectoryName, SharedUserData->NtSystemRoot)) {
-		// program(s) are in the Windows directory - do not allow
-		ErrorBoxF(_(L"You cannot enable VxKex for programs in the Windows directory."));
-		return;
-	}
-
-	KxCfgGetKexDir(KexDir, ARRAYSIZE(KexDir));
-
-	if (StringBeginsWithI(DirectoryName, KexDir)) {
-		ErrorBoxF(_(L"You cannot enable VxKex for programs in the VxKex installation directory."));
-		return;
-	}
 
 	if (OpenFileInfo.nFileOffset >= DirectoryNameCch) {
 		// User selected more than one file.
@@ -403,6 +391,17 @@ STATIC VOID AddProgram(
 			FileFullPath + DirectoryNameCch,
 			ARRAYSIZE(FileFullPath) - DirectoryNameCch,
 			FileName);
+
+		Success = KxCfgIsUserAllowedToEnableVxKexForFile(FileFullPath);
+
+		if (!Success) {
+			ErrorBoxF(
+				_(L"Enabling VxKex for one or more of the selected programs is not permitted."));
+
+			NtRollbackTransaction(TransactionHandle, TRUE);
+			SafeClose(TransactionHandle);
+			return;
+		}
 
 		Success = KxCfgSetConfiguration(
 			FileFullPath,

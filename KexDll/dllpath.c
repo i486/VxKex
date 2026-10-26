@@ -75,6 +75,9 @@
 //                                       it from adding a spurious null character
 //                                       to the end of the DLL path, and add
 //                                       comments to clarify what the code is doing.
+//     vxiiduu              03-Aug-2026  Remove %SystemRoot%\system as well in case
+//                                       we fail to remove enough duplicate elements.
+//     vxiiduu              04-Aug-2026  Refactor and eliminate duplicate code
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -198,12 +201,12 @@ NTSTATUS KexpAddKex3264ToDllPath(
 }
 
 //
-// Try to shrink the DllPath length to equal or less than "Length" by
+// Try to shrink the DllPath length to equal or less than "TargetLength" by
 // removing duplicate entries.
 //
 STATIC INLINE NTSTATUS KexpShrinkDllPathLength(
-	IN	PUNICODE_STRING	DllPath,
-	IN	USHORT			TargetLength)
+    IN	PUNICODE_STRING	DllPath,
+    IN	USHORT			TargetLength)
 {
 	NTSTATUS Status;
 	UNICODE_STRING Semicolon;
@@ -228,7 +231,6 @@ STATIC INLINE NTSTATUS KexpShrinkDllPathLength(
 
 	until (DllPath->Length <= TargetLength) {
 		UNICODE_STRING CurrentEntry;
-		UNICODE_STRING DllPathAfterDuplicateEntry;
 
 		//
 		// Fetch a path entry.
@@ -246,6 +248,26 @@ STATIC INLINE NTSTATUS KexpShrinkDllPathLength(
 			&CurrentEntry.Length);
 
 		if (!NT_SUCCESS(Status)) {
+			// Hack to make more programs work. %SystemRoot%\system doesn't actually
+			// contain any DLLs normally, so we can try deleting it to see if that
+			// makes things any better.
+			if (Status == STATUS_NOT_FOUND) {
+				UNICODE_STRING SystemRootSystem;
+
+				// form %SystemRoot%\system path
+				RtlInitEmptyUnicodeStringFromTeb(&SystemRootSystem);
+				RtlCopyUnicodeString(&SystemRootSystem, &KexData->WinDir);
+				RtlAppendUnicodeToString(&SystemRootSystem, L"\\system;");
+
+				Status = KexRtlRemoveUnicodeSubstring(DllPath, &SystemRootSystem, TRUE);
+
+				if (NT_SUCCESS(Status) && (DllPath->Length <= TargetLength)) {
+					break;
+				} else {
+					Status = STATUS_PATH_SHRINK_FAILED;
+				}
+			}
+
 			return Status;
 		}
 
@@ -272,7 +294,6 @@ STATIC INLINE NTSTATUS KexpShrinkDllPathLength(
 		while (TRUE) {
 			UNICODE_STRING StringToSearchFor;
 			UNICODE_STRING DuplicateEntry;
-			USHORT CchRemoved;
 
 			//
 			// Find another instance of CurrentEntry. We want the path entry to be
@@ -286,7 +307,7 @@ STATIC INLINE NTSTATUS KexpShrinkDllPathLength(
 
 			Status |= RtlAppendUnicodeStringToString(&StringToSearchFor, &Semicolon);
 			ASSERT (NT_SUCCESS(Status));
-			
+
 			Status |= RtlAppendUnicodeStringToString(&StringToSearchFor, &CurrentEntry);
 			ASSERT (NT_SUCCESS(Status));
 
@@ -310,49 +331,26 @@ STATIC INLINE NTSTATUS KexpShrinkDllPathLength(
 			}
 
 			//
-			// Set up Length and MaximumLength.
+			// Describe the duplicate as ";entry". The leading semicolon is part of
+			// the duplicate entry being removed, while the trailing semicolon of the
+			// match belongs to the following entry and doesn't get removed.
 			//
 
 			DuplicateEntry.Length = StringToSearchFor.Length - sizeof(WCHAR);
-			DuplicateEntry.MaximumLength = StringToSearchFor.Length;
+			DuplicateEntry.MaximumLength = DuplicateEntry.Length;
 
-			Status = KexRtlSetUnicodeStringBufferEnd(
-				&DuplicateEntry,
-				KexRtlEndOfUnicodeString(DllPath));
-
-			ASSERT (NT_SUCCESS(Status));
 			ASSERT (!KexRtlUnicodeStringEndsWith(&DuplicateEntry, &Semicolon, FALSE));
 			ASSERT (DuplicateEntry.Buffer != CurrentEntry.Buffer);
-			ASSERT (KexRtlEndOfUnicodeStringBuffer(&DuplicateEntry) == KexRtlEndOfUnicodeString(DllPath));
 
-			//
-			// Set up DllPathAfterDuplicateEntry.
-			//
+			KexRtlRemoveUnicodeStringSlice(DllPath, &DuplicateEntry);
 
-			DllPathAfterDuplicateEntry = DuplicateEntry;
-			DllPathAfterDuplicateEntry.Length = DllPathAfterDuplicateEntry.MaximumLength;
-			KexRtlAdvanceUnicodeString(&DllPathAfterDuplicateEntry, DuplicateEntry.Length);
+			// Keep the duplicate-search window in sync with the shortened DllPath.
+			// The helper does not modify DuplicateEntry, so its Length still holds
+			// the number of bytes that were removed.
+			DllPathAfterCurrentEntry.Length -= DuplicateEntry.Length;
 
-			ASSERT (DllPathAfterDuplicateEntry.Buffer == KexRtlEndOfUnicodeString(&DuplicateEntry));
-
-			//
-			// Copy DllPathAfterDuplicateEntry back on top of DuplicateEntry. This reduces
-			// the length of the DLL path, so we will first record how many characters we
-			// have shortened the DllPath string by so we can appropriately update length
-			// values.
-			//
-
-			CchRemoved = KexRtlUnicodeStringCch(&DuplicateEntry);
-
-			RtlCopyUnicodeString(&DuplicateEntry, &DllPathAfterDuplicateEntry);
-			ASSERT (DuplicateEntry.Length == DllPathAfterDuplicateEntry.Length);
-
-			DllPath->Length -= CchRemoved * sizeof(WCHAR);
-			DllPathAfterCurrentEntry.Length -= CchRemoved * sizeof(WCHAR);
-
-			// Remember that RtlCopyUnicodeString will null terminate the resulting buffer.
-			// This is just a quick debug check to make sure the length calculation wasn't
-			// fucked up somehow.
+			// Sanity check: the helper null terminates at the new end, so the string
+			// and its Length must agree.
 			ASSERT (wcslen(DllPath->Buffer) == KexRtlUnicodeStringCch(DllPath));
 		}
 	}

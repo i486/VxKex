@@ -2715,7 +2715,7 @@ typedef enum _SECTION_INFORMATION_CLASS {
 	MaxSectionInfoClass
 } SECTION_INFORMATION_CLASS;
 
-typedef VOID (*PKNORMAL_ROUTINE) (
+typedef VOID (NTAPI *PKNORMAL_ROUTINE) (
 	IN PVOID NormalContext,
 	IN PVOID SystemArgument1,
 	IN PVOID SystemArgument2);

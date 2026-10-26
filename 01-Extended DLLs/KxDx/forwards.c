@@ -23,7 +23,7 @@
 #pragma comment(linker, "/EXPORT:D3D11CoreCreateLayeredDevice=d3d11.D3D11CoreCreateLayeredDevice")
 #pragma comment(linker, "/EXPORT:D3D11CoreGetLayeredDeviceSize=d3d11.D3D11CoreGetLayeredDeviceSize")
 #pragma comment(linker, "/EXPORT:D3D11CoreRegisterLayers=d3d11.D3D11CoreRegisterLayers")
-#pragma comment(linker, "/EXPORT:D3D11CreateDevice=d3d11.D3D11CreateDevice")
+//#pragma comment(linker, "/EXPORT:D3D11CreateDevice=d3d11.D3D11CreateDevice")
 #pragma comment(linker, "/EXPORT:D3D11CreateDeviceAndSwapChain=d3d11.D3D11CreateDeviceAndSwapChain")
 #pragma comment(linker, "/EXPORT:D3DPerformance_BeginEvent=d3d11.D3DPerformance_BeginEvent")
 #pragma comment(linker, "/EXPORT:D3DPerformance_EndEvent=d3d11.D3DPerformance_EndEvent")

@@ -40,6 +40,8 @@
 //                                       value is empty at the end of the string.
 //     vxiiduu              02-Jul-2026  Replace the heap allocation with using the
 //                                       TEB in KexpRewriteImportTableDllNameInPlace.
+//     vxiiduu              24-Sep-2026  Rewrite msvcrt.dll imports for console
+//                                       ANSI support through msvcrt!printf
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -649,7 +651,7 @@ KEXAPI BOOLEAN NTAPI KexIsRewriteForcedWindowsDll(
 	// registry value to our own (see Ext_RegQueryValueExW in KxAdvapi).
 	//
 
-	UNICODE_STRING RewriteForcedDlls[] = {
+	STATIC CONST UNICODE_STRING RewriteForcedDlls[] = {
 		RTL_CONSTANT_STRING(L"webio.dll"),
 		RTL_CONSTANT_STRING(L"wininet.dll"),
 		RTL_CONSTANT_STRING(L"clr.dll"),
@@ -661,6 +663,32 @@ KEXAPI BOOLEAN NTAPI KexIsRewriteForcedWindowsDll(
 	for (Index = 0; Index < ARRAYSIZE(RewriteForcedDlls); ++Index) {
 		if (RtlEqualUnicodeString(BaseDllName, &RewriteForcedDlls[Index], TRUE)) {
 			return TRUE;
+		}
+	}
+
+	//
+	// Special: MSVCRT.DLL gets imports rewritten only if console enhancements
+	// are enabled and this is a console application. That is to allow printf's
+	// that go through msvcrt to get ANSI escape sequences support.
+	//
+	// This code was added for llama.cpp specifically but applies to all other
+	// console applications which use msvcrt.dll's printf to write to console.
+	//
+
+	unless (KexData->IfeoParameters.DisableConsoleEnhancements) {
+		// Console enhancements enabled.
+
+		if (NtCurrentPeb()->ImageSubsystem == IMAGE_SUBSYSTEM_WINDOWS_CUI) {
+			UNICODE_STRING MsvcrtDll;
+
+			// This is a console application.
+			RtlInitConstantUnicodeString(&MsvcrtDll, L"msvcrt.dll");
+
+			if (RtlEqualUnicodeString(BaseDllName, &MsvcrtDll, TRUE)) {
+				// it's msvcrt.dll, rewrite its imports
+				KexLogDebugEvent(L"Rewriting msvcrt.dll imports for console enhancements");
+				return TRUE;
+			}
 		}
 	}
 

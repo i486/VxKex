@@ -1,6 +1,9 @@
 #pragma once
 
 #pragma comment(lib, "KexDll.lib")
+#pragma comment(lib, "KexPathCch.lib")
+#pragma comment(lib, "KxCfgHlp.lib")
+#pragma comment(lib, "KexGui.lib")
 #pragma comment(lib, "wtsapi32.lib")
 #pragma comment(lib, "uxtheme.lib")
 

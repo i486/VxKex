@@ -46,6 +46,9 @@
 //     vxiiduu               25-Jun-2026  If all protocols are disabled through
 //                                        registry user override, return an error
 //                                        code to allow fallback to Schannel
+//     vxiiduu               28-Sep-2026  Add fail-safe code to SppApplyEnabledProtocols
+//                                        so that .NET 4.0 apps such as Powershell can
+//                                        use KxSchanl.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -98,8 +101,28 @@ STATIC VOID SppApplyEnabledProtocols(
 	if (AshModuleBaseNameIs(RetAddr, L"webio.dll") ||
 		AshModuleBaseNameIs(RetAddr, L"wininet.dll")) {
 
-		// WinHTTP (through webio) and WinInet are known-good for TLS 1.3.
-		EnabledProtocols |= SP_PROT_TLS1_3_CLIENT;
+		// WinHTTP (through webio) and WinInet are known-good for TLS 1.2 and 1.3.
+		EnabledProtocols |= SP_PROT_TLS1_2_CLIENT | SP_PROT_TLS1_3_CLIENT;
+	}
+
+	//
+	// 29-Sep-2026: When using Invoke-WebRequest in PowerShell 5.1 with VxKex enabled,
+	// KxSChanl does not work because Credential->EnabledProtocols ends up being 0,
+	// because PowerShell passes 0xA0 through SCHANNEL_CRED and that gets masked out
+	// completely by the time this function is done.
+	//
+	// This code here is a failsafe so that when apps pass some obsolete combinations
+	// of SSL/TLS protocols we just override it and enable TLS 1.2 & 1.3.
+	//
+	// This is done before the registry overrides so that user force disabling all
+	// protocols through KEX_TlsForceDisabledProtocols = 0xFFFFFFFF still works as it
+	// is supposed to.
+	//
+
+	EnabledProtocols &= KXSCHANL_ALL_SUPPORTED_PROTOCOLS;
+
+	if (EnabledProtocols == 0) {
+		EnabledProtocols = KXSCHANL_DEFAULT_ENABLED_PROTOCOLS;
 	}
 
 	//
@@ -114,7 +137,7 @@ STATIC VOID SppApplyEnabledProtocols(
 		KexLogWarningEvent(
 			L"Force-enabled and force-disabled protocols conflict\r\n\r\n"
 			L"One or more protocol(s) are both force-enabled and force-disabled.\r\n"
-			L"Force-enabling takes precedence and those protocol(s) will be enabled.\r\n"
+			L"Force-disabling takes priority.\r\n"
 			L"KEX_TlsForceEnabledProtocols:  0x%08lx\r\n"
 			L"KEX_TlsForceDisabledProtocols: 0x%08lx\r\n",
 			KexData->IfeoParameters.TlsForceEnabledProtocols,
@@ -226,10 +249,6 @@ STATIC INLINE SECURITY_STATUS SppProcessAuthData(
 		}
 	} else {
 		return SP_LOG_RESULT(SEC_E_UNKNOWN_CREDENTIALS);
-	}
-
-	if (EnabledProtocols == 0) {
-		EnabledProtocols = KXSCHANL_DEFAULT_ENABLED_PROTOCOLS;
 	}
 
 	//

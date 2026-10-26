@@ -109,3 +109,10 @@ KXBASEAPI NTSTATUS WINAPI UnsubscribeWdagEnabledStateChange(
 {
 	return STATUS_UNSUCCESSFUL;
 }
+
+KXBASEAPI BOOL WINAPI IsEnclaveTypeSupported(
+	IN	ULONG	EnclaveType)
+{
+	RtlSetLastWin32Error(ERROR_NOT_SUPPORTED);
+	return FALSE;
+}

@@ -39,8 +39,10 @@
 #define KXDXAPI
 
 #pragma comment(lib, "KexDll.lib")
+#pragma comment(lib, "KexW32ML.lib")
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "d2d1.lib")
+#pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "oleaut32.lib")
 #pragma comment(lib, "opengl32.lib")
 

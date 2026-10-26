@@ -32,6 +32,9 @@ REM Bitness Agnostic Data
 REM
 
 copy ..\..\%DBGREL%\KexSetup.exe Archive\ >nul
+copy ..\..\x64\%DBGREL%\ExCpBp64.exe Archive\zzCpBp64.exe >nul
+copy ..\..\%DBGREL%\ExCpBp32.dll Archive\ >nul
+copy ..\..\x64\%DBGREL%\ExCpBp64.dll Archive\ >nul
 
 copy "..\..\00-Documentation\Application Compatibility List.docx" Archive\Core\ >nul
 copy "..\..\00-Documentation\Changelog.txt" Archive\Core\ >nul
@@ -100,6 +103,9 @@ if %DBGREL%==Debug (
 	REM Include PDBs as well
 
 	copy ..\..\%DBGREL%\KexSetup.pdb Archive\ >nul
+	copy ..\..\x64\%DBGREL%\ExCpBp64.exe.pdb Archive\zzCpBp64.exe.pdb >nul
+	copy ..\..\%DBGREL%\ExCpBp32.dll.pdb Archive\ >nul
+	copy ..\..\x64\%DBGREL%\ExCpBp64.dll.pdb Archive\ >nul
 
 	copy ..\..\%DBGREL%\KexDll.pdb Archive\Core32\ >nul
 	copy ..\..\%DBGREL%\KexShlEx.pdb Archive\Core32\ >nul

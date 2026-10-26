@@ -229,6 +229,7 @@ BOOL WINAPI DllMain(
 			// Bail out. Continuing will crash the process due to kernel32's "kxnt"
 			// import rewrite.
 
+			ASSERT (FALSE);
 			return TRUE;
 		}
 

@@ -64,6 +64,8 @@ EXPORTS
 	SetWindowFeedbackSetting
 	IsMouseInPointerEnabled
 	EnableMouseInPointer
+	InitializeTouchInjection
+	InjectTouchInput
 
 	;;
 	;; pwrnotfy.c

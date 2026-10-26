@@ -21,6 +21,7 @@
 // Revision History:
 //
 //     vxiiduu               24-May-2026  Initial creation.
+//     vxiiduu               23-Oct-2026  Fix incorrect printf format specifier.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -223,8 +224,10 @@ STATIC SECURITY_STATUS TlspProcessHandshakeMessage(
 	//
 
 	if (IoInformation->InBufferReadCb != IoInformation->InBufferCb) {
+		// 23-Oct-2026: The format string used to have a %hs instead of a %hu, which
+		// was obviously wrong because MessageType is UCHAR.
 		KexLogErrorEvent(
-			L"%lu bytes of trailing data after TLS handshake message with type %hs",
+			L"%lu bytes of trailing data after TLS handshake message with type %hu",
 			IoInformation->InBufferCb - IoInformation->InBufferReadCb,
 			MessageType);
 

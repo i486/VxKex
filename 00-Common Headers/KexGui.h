@@ -50,7 +50,6 @@
 
 #ifndef KEXGDECLSPEC
 #  define KEXGDECLSPEC
-#  pragma comment(lib, "KexGui.lib")
 #endif
 
 #define KEXGAPI CDECL

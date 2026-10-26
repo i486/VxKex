@@ -31,6 +31,8 @@
 #define PROMPT_FOR_FILE_ON_STARTUP TRUE
 
 #pragma comment(lib, "KexDll.lib")
+#pragma comment(lib, "KexW32ML.lib")
+#pragma comment(lib, "KexGui.lib")
 #pragma comment(lib, "shell32.lib")
 #pragma comment(lib, "uxtheme.lib")
 

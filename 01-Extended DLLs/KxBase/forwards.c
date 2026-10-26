@@ -1,3 +1,30 @@
+// Forwards to kxadvapi
+#pragma comment(linker, "/EXPORT:RegCopyTreeW=kxadvapi.RegCopyTreeW")
+
+// Forwards to kxuser
+#pragma comment(linker, "/EXPORT:CharLowerA=kxuser.CharLowerA")
+#pragma comment(linker, "/EXPORT:CharLowerBuffA=kxuser.CharLowerBuffA")
+#pragma comment(linker, "/EXPORT:CharLowerW=kxuser.CharLowerW")
+#pragma comment(linker, "/EXPORT:CharLowerBuffW=kxuser.CharLowerBuffW")
+#pragma comment(linker, "/EXPORT:CharNextA=kxuser.CharNextA")
+#pragma comment(linker, "/EXPORT:CharNextExA=kxuser.CharNextExA")
+#pragma comment(linker, "/EXPORT:CharNextW=kxuser.CharNextW")
+#pragma comment(linker, "/EXPORT:CharPrevA=kxuser.CharPrevA")
+#pragma comment(linker, "/EXPORT:CharPrevExA=kxuser.CharPrevExA")
+#pragma comment(linker, "/EXPORT:CharPrevW=kxuser.CharPrevW")
+#pragma comment(linker, "/EXPORT:CharUpperA=kxuser.CharUpperA")
+#pragma comment(linker, "/EXPORT:CharUpperBuffA=kxuser.CharUpperBuffA")
+#pragma comment(linker, "/EXPORT:CharUpperW=kxuser.CharUpperW")
+#pragma comment(linker, "/EXPORT:CharUpperBuffW=kxuser.CharUpperBuffW")
+#pragma comment(linker, "/EXPORT:IsCharAlphaA=kxuser.IsCharAlphaA")
+#pragma comment(linker, "/EXPORT:IsCharAlphaNumericA=kxuser.IsCharAlphaNumericA")
+#pragma comment(linker, "/EXPORT:IsCharAlphaW=kxuser.IsCharAlphaW")
+#pragma comment(linker, "/EXPORT:IsCharAlphaNumericW=kxuser.IsCharAlphaNumericW")
+#pragma comment(linker, "/EXPORT:IsCharLowerA=kxuser.IsCharLowerA")
+#pragma comment(linker, "/EXPORT:IsCharLowerW=kxuser.IsCharLowerW")
+#pragma comment(linker, "/EXPORT:IsCharUpperA=kxuser.IsCharUpperA")
+#pragma comment(linker, "/EXPORT:IsCharUpperW=kxuser.IsCharUpperW")
+
 //
 // The following contains exports from KERNEL32.DLL that are common between
 // 32-bit and 64-bit versions of the DLL.

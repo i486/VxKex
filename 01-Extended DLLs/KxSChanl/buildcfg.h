@@ -38,6 +38,7 @@
 #define KXSCHANLAPI
 
 #pragma comment(lib, "KexDll.lib")
+#pragma comment(lib, "KexPathCch.lib")
 #pragma comment(lib, "kxcryp.lib")
 #pragma comment(lib, "crypt32.lib")
 #pragma comment(lib, "ncrypt.lib")

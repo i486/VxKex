@@ -46,6 +46,8 @@
 #endif
 
 #pragma comment(lib, "KexDll.lib")
+#pragma comment(lib, "KexW32ML.lib")
+#pragma comment(lib, "KexPathCch.lib")
 
 #define KEX_COMPONENT L"KxBase"
 #define KEX_ENV_WIN32
