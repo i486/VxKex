@@ -123,6 +123,25 @@ VOID NTAPI KexPostSuccessfulInitializationApcRoutine(
 			}
 		}
 
+		//
+		// We are about to start the EXE entry point and never return from this
+		// APC. Normally, the NtTestAlert call at the end of LdrpInitialize runs
+		// every user APC queued to the initial thread before the entry point is
+		// reached, but APCs are delivered one at a time and the next one is only
+		// delivered once the current one returns. Since we don't return, any APC
+		// queued after ours (e.g. by another DLL's DllMain) would stay pending
+		// until the thread happens to do an alertable wait, which may be never.
+		//
+		// The Cygwin/MSYS2 runtime queues an APC from its DllMain to create its
+		// signal handling thread. If that APC never runs, signals, fork() and
+		// interactive shells hang.
+		//
+		// Call NtTestAlert to deliver all remaining queued APCs now, which
+		// matches what would have happened if we weren't here.
+		//
+
+		NtTestAlert();
+
 #ifdef _M_X64
 		RtlUserThreadStart(InitialThreadRoutine, Peb);
 #else
