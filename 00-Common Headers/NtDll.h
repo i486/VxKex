@@ -704,6 +704,46 @@ typedef struct _PROCESS_BASIC_INFORMATION {
     ULONG_PTR	InheritedFromUniqueProcessId;
 } TYPEDEF_TYPE_NAME(PROCESS_BASIC_INFORMATION);
 
+//
+// Returned by NtQueryInformationProcess with ProcessHandleInformation (51).
+// This information class is only natively supported starting from Windows 8.
+//
+typedef struct _PROCESS_HANDLE_TABLE_ENTRY_INFO {
+	HANDLE		HandleValue;
+	ULONG_PTR	HandleCount;
+	ULONG_PTR	PointerCount;
+	ULONG		GrantedAccess;
+	ULONG		ObjectTypeIndex;
+	ULONG		HandleAttributes;
+	ULONG		Reserved;
+} TYPEDEF_TYPE_NAME(PROCESS_HANDLE_TABLE_ENTRY_INFO);
+
+typedef struct _PROCESS_HANDLE_SNAPSHOT_INFORMATION {
+	ULONG_PTR						NumberOfHandles;
+	ULONG_PTR						Reserved;
+	PROCESS_HANDLE_TABLE_ENTRY_INFO	Handles[1];
+} TYPEDEF_TYPE_NAME(PROCESS_HANDLE_SNAPSHOT_INFORMATION);
+
+//
+// Returned by NtQuerySystemInformation with SystemExtendedHandleInformation.
+//
+typedef struct _SYSTEM_HANDLE_TABLE_ENTRY_INFO_EX {
+	PVOID		Object;
+	ULONG_PTR	UniqueProcessId;
+	ULONG_PTR	HandleValue;
+	ULONG		GrantedAccess;
+	USHORT		CreatorBackTraceIndex;
+	USHORT		ObjectTypeIndex;
+	ULONG		HandleAttributes;
+	ULONG		Reserved;
+} TYPEDEF_TYPE_NAME(SYSTEM_HANDLE_TABLE_ENTRY_INFO_EX);
+
+typedef struct _SYSTEM_HANDLE_INFORMATION_EX {
+	ULONG_PTR							NumberOfHandles;
+	ULONG_PTR							Reserved;
+	SYSTEM_HANDLE_TABLE_ENTRY_INFO_EX	Handles[1];
+} TYPEDEF_TYPE_NAME(SYSTEM_HANDLE_INFORMATION_EX);
+
 // Use with NtWow64QueryInformationProcess64.
 typedef struct _PROCESS_BASIC_INFORMATION64 {
     NTSTATUS	ExitStatus;
